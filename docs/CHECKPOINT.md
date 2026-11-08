@@ -29,3 +29,10 @@ Next: user reviews P0; keep main unchanged. Then P1 Studio grouping, licensed3D 
 quality/performance evaluation, fitting/heat-press flow, differentiated template artwork.
 Outstanding QA: physical devices, forced no-WebGL/context loss, failed base photos,
 hosted-site/field performance. See P0_REVIEW, QA_REPORT and PERFORMANCE for exact scope.
+
+## Active P1 — 2026-11-09 (Asia/Tokyo)
+Branch feature/p1-collection-shopping based on434ce99d from P0. Do not merge P0 or P1.
+See P1_REVIEW.md for scope/data/fee compatibility. Original artwork, themed forms,
+mobile catalogue, live detail gallery and shared price breakdown implemented.
+Local lint/build and19 unit tests pass. Browser/Lighthouse and before/after screenshots
+pending CI; do not claim they passed before observing workflow results.

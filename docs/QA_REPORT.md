@@ -29,3 +29,10 @@ context loss/no-WebGL and missing front/back base photographs were not injected 
 P0 suite. No measured field INP/FPS; no production print certification. Existing2D
 fallback remains, but do not claim these untested failure paths passed. Full P1 not done.
 Private preview is a separate deployment of this same application build; main unchanged.
+
+## P1 implementation — validation in progress
+Local lint/build and19 unit tests pass: legacy/v2 price compatibility, template fees,
+blank/extra faces, SKU uniqueness, text contrast,12 distinct themes, animal/zodiac
+alternatives, invalid date/age handling and couple/family/name compositions.
+Manual internal desktop preview verified original animal artwork and theme-specific
+fields. Full CI browser/Lighthouse/screenshot comparison pending.

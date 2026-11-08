@@ -16,3 +16,18 @@ derivative of lake-white-v3/front.webp. Attribution retained in footer and infor
 dialog. These are generated concept garments, not photographs of manufactured stock.
 No paid generation service was used. Original upstream font files are no longer requested;
 the UI uses system fonts. Existing notices are retained.
+
+## P1 artwork and imagery — 2026-11-09 (Asia/Tokyo)
+public/artwork/*.svg:55 original project vector illustrations authored for this demo
+with AI-assisted code; no image tracing or copied character/logo/font artwork.
+Covered by project MIT. Inventory:11 core decorations (including legacy family graphic),
+12 animal portraits,12 zodiac diagrams,20 count/member family portraits.
+Vietnamese layouts in artwork-library.js are original compositions. Zodiac diagrams
+are decorative, not scientific star charts. User-uploaded SVG remains disallowed.
+
+The12 themed front/back/close views are generated locally by the same Studio renderer
+using these assets and actual text layers. WebP420x490 catalogue and600x700 detail
+previews; no external uploads or paid API. Labelled mockups, not product photos.
+Back is blank until customer adds layers; blank close-up is labelled print area.
+No lifestyle photos added without matching print/verified rights. P0 MIT media and
+attribution remain intact.

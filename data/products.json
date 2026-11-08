@@ -37,7 +37,14 @@
       "color": "#86523a",
       "font": "Arial"
     },
-    "description": "Dáng rộng thoải mái, hình in tuyển chọn. Bạn có thể thêm lời nhắn hoặc ảnh riêng lên mẫu gốc."
+    "description": "Dáng rộng thoải mái, hình in tuyển chọn. Bạn có thể thêm lời nhắn hoặc ảnh riêng lên mẫu gốc.",
+    "pricing": {
+      "version": 2,
+      "templateFee": 0,
+      "includedFaces": [],
+      "faceFee": 30000,
+      "personalizationFee": 0
+    }
   },
   {
     "sku": "AIS-M02",
@@ -77,7 +84,14 @@
       "color": "#86523a",
       "font": "Arial"
     },
-    "description": "Dáng rộng thoải mái, hình in tuyển chọn. Bạn có thể thêm lời nhắn hoặc ảnh riêng lên mẫu gốc."
+    "description": "Dáng rộng thoải mái, hình in tuyển chọn. Bạn có thể thêm lời nhắn hoặc ảnh riêng lên mẫu gốc.",
+    "pricing": {
+      "version": 2,
+      "templateFee": 0,
+      "includedFaces": [],
+      "faceFee": 30000,
+      "personalizationFee": 0
+    }
   },
   {
     "sku": "AIS-001",
@@ -105,16 +119,32 @@
     ],
     "imageSurcharge": 30000,
     "stock": "simulated-in-stock",
-    "mediaStatus": "original-canvas-typography",
+    "mediaStatus": "original-vector-mockup",
     "defaultColor": "#f8f6ee",
     "gender": "unisex",
-    "personalization": "none",
+    "personalization": "couple",
     "print": {
       "text": "YOU + ME\n♡",
       "width": 150,
       "color": "#86523a",
       "font": "Arial"
-    }
+    },
+    "artwork": {
+      "id": "couple",
+      "version": 1
+    },
+    "description": "Hai chiếc áo, hai nửa câu chuyện: mặt trời và mặt trăng. Chọn từng chiếc, nhập hai tên rồi lưu mẫu dành cho mỗi người.",
+    "pricing": {
+      "version": 2,
+      "templateFee": 30000,
+      "includedFaces": [
+        "front"
+      ],
+      "faceFee": 30000,
+      "personalizationFee": 0
+    },
+    "material": null,
+    "sizeMeasurements": null
   },
   {
     "sku": "AIS-002",
@@ -142,16 +172,32 @@
     ],
     "imageSurcharge": 30000,
     "stock": "simulated-in-stock",
-    "mediaStatus": "original-canvas-typography",
+    "mediaStatus": "original-vector-mockup",
     "defaultColor": "#dfd0b4",
     "gender": "unisex",
-    "personalization": "none",
+    "personalization": "family",
     "print": {
       "text": "HOME\nIS US",
       "width": 150,
       "color": "#86523a",
       "font": "Georgia"
-    }
+    },
+    "artwork": {
+      "id": "family",
+      "version": 1
+    },
+    "description": "Mái nhà nhỏ với tên gia đình và vai trò của từng người. Thiết kế từng chiếc cho Bố, Mẹ hoặc các Con rồi thêm riêng vào giỏ.",
+    "pricing": {
+      "version": 2,
+      "templateFee": 30000,
+      "includedFaces": [
+        "front"
+      ],
+      "faceFee": 30000,
+      "personalizationFee": 0
+    },
+    "material": null,
+    "sizeMeasurements": null
   },
   {
     "sku": "AIS-003",
@@ -179,16 +225,32 @@
     ],
     "imageSurcharge": 30000,
     "stock": "simulated-in-stock",
-    "mediaStatus": "original-canvas-typography",
+    "mediaStatus": "original-vector-mockup",
     "defaultColor": "#23334d",
     "gender": "unisex",
-    "personalization": "none",
+    "personalization": "group",
     "print": {
       "text": "ONE TEAM\n01",
       "width": 120,
       "color": "#eee5ce",
       "font": "Arial"
-    }
+    },
+    "artwork": {
+      "id": "group",
+      "version": 1
+    },
+    "description": "Huy hiệu ngôi sao dành cho lớp học và những người cùng đội. Đổi tên nhóm và niên khóa ngay trên hình in.",
+    "pricing": {
+      "version": 2,
+      "templateFee": 30000,
+      "includedFaces": [
+        "front"
+      ],
+      "faceFee": 30000,
+      "personalizationFee": 0
+    },
+    "material": null,
+    "sizeMeasurements": null
   },
   {
     "sku": "AIS-004",
@@ -216,7 +278,7 @@
     ],
     "imageSurcharge": 30000,
     "stock": "simulated-in-stock",
-    "mediaStatus": "original-canvas-typography",
+    "mediaStatus": "original-vector-mockup",
     "defaultColor": "#f8f6ee",
     "gender": "unisex",
     "personalization": "name",
@@ -225,7 +287,23 @@
       "width": 150,
       "color": "#86523a",
       "font": "Georgia"
-    }
+    },
+    "artwork": {
+      "id": "name",
+      "version": 1
+    },
+    "description": "Tên của bạn trong một khung huy hiệu riêng. Chọn chữ cổ điển, bố cục hai dòng hoặc chữ cái đầu.",
+    "pricing": {
+      "version": 2,
+      "templateFee": 30000,
+      "includedFaces": [
+        "front"
+      ],
+      "faceFee": 30000,
+      "personalizationFee": 0
+    },
+    "material": null,
+    "sizeMeasurements": null
   },
   {
     "sku": "AIS-005",
@@ -253,7 +331,7 @@
     ],
     "imageSurcharge": 30000,
     "stock": "simulated-in-stock",
-    "mediaStatus": "original-canvas-typography",
+    "mediaStatus": "original-vector-mockup",
     "defaultColor": "#a9aaa7",
     "gender": "unisex",
     "personalization": "date",
@@ -262,7 +340,23 @@
       "width": 150,
       "color": "#86523a",
       "font": "Arial"
-    }
+    },
+    "artwork": {
+      "id": "date",
+      "version": 1
+    },
+    "description": "Một tờ lịch nhỏ hoặc huy hiệu vintage cho ngày đặc biệt. Ngày tháng và năm được dựng thành bố cục thật.",
+    "pricing": {
+      "version": 2,
+      "templateFee": 30000,
+      "includedFaces": [
+        "front"
+      ],
+      "faceFee": 30000,
+      "personalizationFee": 0
+    },
+    "material": null,
+    "sizeMeasurements": null
   },
   {
     "sku": "AIS-006",
@@ -290,16 +384,32 @@
     ],
     "imageSurcharge": 30000,
     "stock": "simulated-in-stock",
-    "mediaStatus": "original-canvas-typography",
+    "mediaStatus": "original-vector-mockup",
     "defaultColor": "#dfd0b4",
     "gender": "unisex",
-    "personalization": "none",
+    "personalization": "animal",
     "print": {
       "text": "MY YEAR\n✦",
       "width": 120,
       "color": "#86523a",
       "font": "Georgia"
-    }
+    },
+    "artwork": {
+      "id": "animal",
+      "version": 1
+    },
+    "description": "Bộ mười hai con giáp Việt Nam vẽ riêng. Đổi năm âm lịch để chọn hình con vật; có thể chỉnh lại con giáp theo năm sinh âm của bạn.",
+    "pricing": {
+      "version": 2,
+      "templateFee": 30000,
+      "includedFaces": [
+        "front"
+      ],
+      "faceFee": 30000,
+      "personalizationFee": 0
+    },
+    "material": null,
+    "sizeMeasurements": null
   },
   {
     "sku": "AIS-007",
@@ -327,16 +437,32 @@
     ],
     "imageSurcharge": 30000,
     "stock": "simulated-in-stock",
-    "mediaStatus": "original-canvas-typography",
+    "mediaStatus": "original-vector-mockup",
     "defaultColor": "#242424",
     "gender": "unisex",
-    "personalization": "none",
+    "personalization": "zodiac",
     "print": {
       "text": "COSMIC\nSOUL",
       "width": 150,
       "color": "#eee5ce",
       "font": "Arial"
-    }
+    },
+    "artwork": {
+      "id": "zodiac",
+      "version": 1
+    },
+    "description": "Biểu tượng và những vì sao dành cho mười hai cung. Chọn cung để đổi cả hình in; nội dung mang tính trang trí, giải trí.",
+    "pricing": {
+      "version": 2,
+      "templateFee": 30000,
+      "includedFaces": [
+        "front"
+      ],
+      "faceFee": 30000,
+      "personalizationFee": 0
+    },
+    "material": null,
+    "sizeMeasurements": null
   },
   {
     "sku": "AIS-008",
@@ -364,16 +490,32 @@
     ],
     "imageSurcharge": 30000,
     "stock": "simulated-in-stock",
-    "mediaStatus": "original-canvas-typography",
+    "mediaStatus": "original-vector-mockup",
     "defaultColor": "#a9aaa7",
     "gender": "unisex",
-    "personalization": "date",
+    "personalization": "number",
     "print": {
       "text": "MY NUMBER\n08",
       "width": 150,
       "color": "#86523a",
       "font": "Georgia"
-    }
+    },
+    "artwork": {
+      "id": "number",
+      "version": 1
+    },
+    "description": "Con số và cái tên trong vòng huy hiệu hình học. Chọn số yêu thích; đây là thiết kế giải trí, không phải dự đoán vận mệnh.",
+    "pricing": {
+      "version": 2,
+      "templateFee": 30000,
+      "includedFaces": [
+        "front"
+      ],
+      "faceFee": 30000,
+      "personalizationFee": 0
+    },
+    "material": null,
+    "sizeMeasurements": null
   },
   {
     "sku": "AIS-009",
@@ -401,16 +543,32 @@
     ],
     "imageSurcharge": 30000,
     "stock": "simulated-in-stock",
-    "mediaStatus": "original-canvas-typography",
+    "mediaStatus": "original-vector-mockup",
     "defaultColor": "#f8f6ee",
     "gender": "unisex",
-    "personalization": "none",
+    "personalization": "slogan",
     "print": {
       "text": "CÀ PHÊ\nRỒI TÍNH",
       "width": 120,
       "color": "#86523a",
       "font": "Arial"
-    }
+    },
+    "artwork": {
+      "id": "slogan",
+      "version": 1
+    },
+    "description": "Một chút cà phê, một chút nghỉ ngơi và một câu nói rất Việt. Chọn câu hợp tâm trạng để đổi bố cục hình và chữ.",
+    "pricing": {
+      "version": 2,
+      "templateFee": 30000,
+      "includedFaces": [
+        "front"
+      ],
+      "faceFee": 30000,
+      "personalizationFee": 0
+    },
+    "material": null,
+    "sizeMeasurements": null
   },
   {
     "sku": "AIS-010",
@@ -438,16 +596,32 @@
     ],
     "imageSurcharge": 30000,
     "stock": "simulated-in-stock",
-    "mediaStatus": "original-canvas-typography",
+    "mediaStatus": "original-vector-mockup",
     "defaultColor": "#23334d",
     "gender": "unisex",
-    "personalization": "none",
+    "personalization": "art",
     "print": {
       "text": "SUN\n& SOUL",
       "width": 150,
       "color": "#eee5ce",
       "font": "Georgia"
-    }
+    },
+    "artwork": {
+      "id": "art",
+      "version": 1
+    },
+    "description": "Núi xanh, mặt trời đất nung và dòng nước tĩnh. Minh họa gốc vẽ riêng cho một chiếc áo mang chút thiên nhiên.",
+    "pricing": {
+      "version": 2,
+      "templateFee": 30000,
+      "includedFaces": [
+        "front"
+      ],
+      "faceFee": 30000,
+      "personalizationFee": 0
+    },
+    "material": null,
+    "sizeMeasurements": null
   },
   {
     "sku": "AIS-011",
@@ -475,16 +649,32 @@
     ],
     "imageSurcharge": 30000,
     "stock": "simulated-in-stock",
-    "mediaStatus": "original-canvas-typography",
+    "mediaStatus": "original-vector-mockup",
     "defaultColor": "#dfd0b4",
     "gender": "unisex",
-    "personalization": "date",
+    "personalization": "birthday",
     "print": {
       "text": "HAPPY\nBIRTHDAY",
       "width": 150,
       "color": "#86523a",
       "font": "Arial"
-    }
+    },
+    "artwork": {
+      "id": "birthday",
+      "version": 1
+    },
+    "description": "Một chiếc bánh, con số tuổi mới và lời chúc dành riêng cho người nhận. Đổi tuổi, tên và thông điệp trước khi chọn mua.",
+    "pricing": {
+      "version": 2,
+      "templateFee": 30000,
+      "includedFaces": [
+        "front"
+      ],
+      "faceFee": 30000,
+      "personalizationFee": 0
+    },
+    "material": null,
+    "sizeMeasurements": null
   },
   {
     "sku": "AIS-012",
@@ -512,15 +702,29 @@
     ],
     "imageSurcharge": 30000,
     "stock": "simulated-in-stock",
-    "mediaStatus": "original-canvas-typography",
+    "mediaStatus": "original-vector-mockup",
     "defaultColor": "#f8f6ee",
     "gender": "unisex",
-    "personalization": "none",
+    "personalization": "blank",
     "print": {
       "text": "YOUR\nSTORY",
       "width": 120,
       "color": "#86523a",
       "font": "Georgia"
-    }
+    },
+    "artwork": {
+      "id": "blank",
+      "version": 1
+    },
+    "description": "Bắt đầu với chiếc áo trống. Mở Studio để tải ảnh của bạn, thêm chữ và sắp xếp hình in ở cả hai mặt.",
+    "pricing": {
+      "version": 2,
+      "templateFee": 0,
+      "includedFaces": [],
+      "faceFee": 30000,
+      "personalizationFee": 0
+    },
+    "material": null,
+    "sizeMeasurements": null
   }
 ]
