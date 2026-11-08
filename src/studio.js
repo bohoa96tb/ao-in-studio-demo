@@ -1,5 +1,5 @@
-import {getProduct} from './product-store.js';
-import {presetDesign} from './catalog-filter.js';
+import {getProduct} from './product-store.js?v=p0review3';
+import {presetDesign} from './catalog-filter.js?v=p0review3';
 import {contrast} from './color-contrast.js';
 import {unitPrice,quantity} from './cart-price.js?v=catalog7';
 const $=s=>document.querySelector(s),copy=x=>structuredClone(x);

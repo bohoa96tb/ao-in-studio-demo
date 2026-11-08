@@ -1,4 +1,4 @@
-import {typeLabel,colorLabel} from './product-store.js';
+import {typeLabel,colorLabel} from './product-store.js?v=p0review3';
 import {unitPrice,totalPrice,quantity} from './cart-price.js?v=catalog7';
 const money=n=>n.toLocaleString('vi-VN')+'đ';
 const clone=x=>structuredClone(x);

@@ -1,15 +1,15 @@
-import {getProducts,resolveRail,typeLabel} from './product-store.js';
-import {presetDesign} from './catalog-filter.js';
-import {mountCatalog} from './product-catalog.js?v=p0review1';
-import {mountStyling} from './styling.js';
-import {mountHeatPress} from './heat-press.js';
-import {mountCart} from './cart.js?v=p0review1';
-import {mountStudio} from './studio.js?v=p0review1';
+import {getProducts,resolveRail,typeLabel} from './product-store.js?v=p0review3';
+import {presetDesign} from './catalog-filter.js?v=p0review3';
+import {mountCatalog} from './product-catalog.js?v=p0review3';
+import {mountStyling} from './styling.js?v=p0review3';
+import {mountHeatPress} from './heat-press.js?v=p0review3';
+import {mountCart} from './cart.js?v=p0review3';
+import {mountStudio} from './studio.js?v=p0review3';
 import {mountShowroom} from './circular-showroom.js';
 import {GarmentController} from './controller.js';
 import {rackPositions,slideStep} from './rack-layout.js';
 import {mobileRailPositions,mobileSwipeDestination} from './mobile-rail.js';
-import {validateCatalog,validateManifest} from './catalog.js';
+import {validateCatalog,validateManifest} from './catalog.js?v=p0review3';
 
 const $=selector=>document.querySelector(selector);
 const rack=$('#rack'),holder=$('#rack-items');
