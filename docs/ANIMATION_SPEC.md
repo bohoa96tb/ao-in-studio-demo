@@ -1,2 +1,4 @@
 # Animation spec
 Rail: idle profile → intent 80ms → 360ms quarter-turn → front; exit reverses in 280ms. Neighbor spring positions retain opacity. Mobile horizontal threshold 7px and horizontal/vertical ratio 1.2; snap based on velocity. Touch tap opens detail, next/previous alternate. Reduced motion jumps to endpoints; tab hidden stops RAF. Back is static authorized back view. Other four effects are pending; no placeholder controls claiming functionality.
+
+Phase 2: CSS rotateY/translateZ circle; six 60-degree positions, radius 240px/185px mobile, bounded release velocity and 650ms settle. Horizontal gesture threshold 8px; preserve vertical scrolling. Selected item syncs through rail updateInfo; inspect shares product dialog. CSS transform transitions only, no perpetual loop; offscreen transitions disabled.

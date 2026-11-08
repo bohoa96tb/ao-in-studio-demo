@@ -1,0 +1,16 @@
+// Original CSS 3D interaction; no third-party carousel source copied.
+export function mountShowroom({items,frontUrl,onSelect}){
+ const host=document.querySelector('#circle-stage'),ring=document.querySelector('#circle-ring'),name=document.querySelector('#circle-name'),count=document.querySelector('#circle-count');
+ const step=360/items.length,reduced=matchMedia('(prefers-reduced-motion:reduce)');let index=0,angle=0,drag=null,skipClick=false;
+ function paint(animate=true){ring.style.transition=animate&&!reduced.matches?'transform 650ms cubic-bezier(.2,.75,.2,1)':'none';ring.style.transform=`translateZ(calc(-1 * var(--radius))) rotateY(${angle}deg)`;name.textContent=items[index].name;count.textContent=`${index+1} / ${items.length}`;ring.querySelectorAll('button').forEach((b,i)=>{b.setAttribute('aria-current',String(i===index));b.tabIndex=i===index?0:-1})}
+ function select(i,notify=true){const delta=((i-index+items.length+items.length/2)%items.length)-items.length/2;angle-=delta*step;index=i;paint();if(notify)onSelect(i,false)}
+ ring.innerHTML='';items.forEach((item,i)=>{const b=document.createElement('button');b.className='circle-garment';b.style.transform=`rotateY(${i*step}deg) translateZ(var(--radius))`;b.setAttribute('aria-label','Chọn '+item.name);const img=new Image();img.src=frontUrl(i);img.alt='';img.loading='lazy';img.draggable=false;b.append(img);b.onclick=()=>{if(skipClick)return;select(i);};ring.append(b)});
+ document.querySelector('#circle-prev').onclick=()=>select((index-1+items.length)%items.length);document.querySelector('#circle-next').onclick=()=>select((index+1)%items.length);document.querySelector('#circle-inspect').onclick=()=>onSelect(index,true);
+ host.onkeydown=e=>{if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();select((index+(e.key==='ArrowRight'?1:-1)+items.length)%items.length)}};
+ host.onpointerdown=e=>{if(e.button!==0)return;drag={id:e.pointerId,x:e.clientX,y:e.clientY,start:angle,last:e.clientX,t:performance.now(),velocity:0,horizontal:false};skipClick=false};
+ host.onpointermove=e=>{if(!drag||e.pointerId!==drag.id)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(!drag.horizontal&&Math.abs(dx)>8&&Math.abs(dx)>Math.abs(dy)*1.2){drag.horizontal=true;host.setPointerCapture(e.pointerId)}if(!drag.horizontal)return;const t=performance.now();drag.velocity=(e.clientX-drag.last)/Math.max(1,t-drag.t);drag.last=e.clientX;drag.t=t;angle=drag.start+dx*.3;paint(false)};
+ function release(e){if(!drag||e.pointerId!==drag.id)return;const d=drag;drag=null;if(d.horizontal){skipClick=true;const projected=angle+Math.max(-step,Math.min(step,d.velocity*35));angle=Math.round(projected/step)*step;index=((Math.round(-angle/step)%items.length)+items.length)%items.length;paint();onSelect(index,false);setTimeout(()=>skipClick=false,100)}if(host.hasPointerCapture(e.pointerId))host.releasePointerCapture(e.pointerId)}
+ host.onpointerup=release;host.onpointercancel=e=>{drag=null;angle=-index*step;paint();if(host.hasPointerCapture(e.pointerId))host.releasePointerCapture(e.pointerId)};
+ new IntersectionObserver(([e])=>host.classList.toggle('offscreen',!e.isIntersecting)).observe(host);
+ paint(false);return {select:(i)=>select(i,false)};
+}

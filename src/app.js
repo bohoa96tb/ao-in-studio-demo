@@ -1,3 +1,4 @@
+import {mountShowroom} from './circular-showroom.js';
 import {GarmentController} from './controller.js';
 import {rackPositions,slideStep} from './rack-layout.js';
 import {mobileRailPositions,mobileSwipeDestination} from './mobile-rail.js';
@@ -6,11 +7,12 @@ import {validateCatalog,validateManifest} from './catalog.js';
 const $=selector=>document.querySelector(selector);
 const rack=$('#rack'),holder=$('#rack-items');
 const mobile=matchMedia('(max-width:700px)'),reduced=matchMedia('(prefers-reduced-motion:reduce)');
+let showroom;
 let catalog,states=[],active=-1,selected=0,pending=-1,intentTimer,ready=false,raf=0,lastTime=0,drag=null,railOffset=0,railVelocity=0,suppressClickUntil=0;
 const manifestUrl=item=>new URL('https://raw.githubusercontent.com/amirmushichge/interactive-garment-starter/574299fecfe9e1af5eea92c345b10e59e207fd18/public/'+item.motion);
 const assetUrl=(item,file)=>new URL(file,manifestUrl(item));
 function updateInfo(index){
-  selected=index;const item=catalog.items[index];
+  selected=index;showroom?.select(index);const item=catalog.items[index];
   $('#selected-index').textContent=String(index+1).padStart(2,'0')+' / '+String(states.length).padStart(2,'0');
   $('#selected-name').textContent=item.name;$('#selected-type').textContent=[item.type,item.color].filter(Boolean).join(' · ');
   $('#previous').disabled=!ready||index===0;$('#next').disabled=!ready||index===states.length-1;
@@ -167,7 +169,7 @@ async function boot(){
       s.image=image;paint(s,0);s.button.classList.add('ready');$('#load-counter').textContent=`${++loaded} / ${states.length}`;
     }));
     ready=true;states.forEach(s=>s.button.disabled=false);rack.setAttribute('aria-busy','false');$('#load-state').hidden=true;$('#inspect').disabled=false;updateInfo(selected);layout();
-    document.documentElement.dataset.ready='true';
+    showroom=mountShowroom({items:catalog.items,frontUrl:i=>assetUrl(catalog.items[i],states[i].manifest.front).href,onSelect:(i,inspect)=>{browse(i);if(inspect)openProduct(i)}});document.documentElement.dataset.ready='true';
   }catch(error){$('#load-text').textContent='Could not load previews';$('#load-counter').textContent='Check asset paths';rack.setAttribute('aria-busy','false');console.error(error.message);}
 }
 boot();

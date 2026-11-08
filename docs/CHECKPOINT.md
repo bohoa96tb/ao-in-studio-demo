@@ -1,2 +1,2 @@
-# CHECKPOINT
-Phase 0 partial: four repos cloned/read; garment example started but browser localhost blocked. Phase 1 implemented, six positions reuse two MIT motion studies. 12 data products only. React/TypeScript integration deferred; preserve stable vanilla controller first. Next: verify live and touch at five viewports, vendor pinned media and add distinct assets, then phase 2. No stages 2–6 completed.
+# Checkpoint — phase 2 implementation
+Parent: 47b36dd. Added CSS 3D circular showroom, pointer dragging with bounded velocity projection and snap; arrow/key alternatives; shared selection and same detail modal. Fixed missing manifest causing prior CI failure. Local lint/build + 11 tests pass. Five viewport browser suite extended for shared selection. CI and live verification pending for this change. Still two art studies repeated at six locations. React/Studio/styling/heat press/cart pending.
