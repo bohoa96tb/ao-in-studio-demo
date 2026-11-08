@@ -14,5 +14,7 @@ Pexels 9558713. Lifestyle photos are blank-garment Pexels photos only, always wi
 their caption; never composite customer artwork onto a worn-model photo and never
 present them as manufactured product photos. Polo SKUs have no licensed real photo
 yet — keep the labelled renderer fallback, do not substitute a crew photo.
-3D stays secondary: no GLB is licensed/verified yet (BINARYCLOTH unverified,
-Sketchfab oversized deleted). Print export must stay shading-free (drawArtwork only).
+3D stays secondary: BINARYCLOTH is CC BY 4.0 (verified via Sketchfab API,
+2026-11-09) but not yet integrated — its whole-garment UV does not match the
+Studio front/back canvases and the 4.44 MB GLB needs Draco/KTX2 optimisation
+plus artwork-position QA before any pilot. Sketchfab oversized model deleted. Print export must stay shading-free (drawArtwork only).

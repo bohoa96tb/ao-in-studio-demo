@@ -10,7 +10,7 @@ Ngày: 2026-11-09 (Asia/Tokyo). Nhánh: `feature/p2-real-product-visuals`, base 
   Loại Pexels 9558713 (tuổi người mẫu không xác minh được). Chi tiết: docs/P2_ASSET_LICENSES.md.
 - `drawShirt` thực hơn: hạt vải, nếp gấp, cổ theo kiểu, bóng phủ nhẹ lên hình in ở bản xem trước;
   export in vẫn sạch (drawArtwork thuần). products.json không đổi; IndexedDB v1/pricing không đổi.
-- Hero thêm CTA bộ sưu tập; badge loại ảnh trên thẻ catalog; 3D thêm đèn rim/fill + sRGB, vẫn là tính năng phụ (không GLB mới vì chưa xác minh license — BINARYCLOTH chưa rõ điều kiện tải, model oversized Sketchfab đã bị xoá).
+- Hero thêm CTA bộ sưu tập; badge loại ảnh trên thẻ catalog; 3D thêm đèn rim/fill + sRGB, vẫn là tính năng phụ. GLB BINARYCLOTH đã xác minh CC BY 4.0 qua Sketchfab API (Agent 3) nhưng chưa nhúng: UV toàn thân không khớp canvas Studio, cần nén + QA artwork ở pilot riêng. Model oversized Sketchfab đã bị xoá.
 - Ảnh thật tải hoãn (IntersectionObserver + fetchpriority=low) để không tranh LCP.
 
 ## QA P2 (chi tiết: docs/P2_QA_REPORT.md)

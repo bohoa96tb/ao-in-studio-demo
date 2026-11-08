@@ -24,9 +24,11 @@ không phải ảnh sản phẩm đã sản xuất, người mẫu không xác n
 | Pexels 9558713 — nam áo trắng, MART PRODUCTION | Trang nguồn gắn thẻ teen/thiếu niên; không xác minh được người mẫu đã trưởng thành → loại khỏi mọi vị trí thương mại |
 | Unsplash search `blank-t--shirt` | Trang tìm kiếm không phải giấy phép cho từng ảnh; chưa thẩm định từng tác giả/ảnh → không tải |
 | Sketchfab oversized t-shirt `3b6e78d6...` | Trang báo "Model deleted" khi truy cập 2026-11-09 → không có nguồn hợp lệ |
-| Sketchfab BINARYCLOTH men regular `4d055bb8...` | GLB 2K 4,44 MB / 4K 20,4 MB (theo mô tả tác giả); điều kiện license/tải không hiển thị đủ trên trang công khai đã đọc → chưa xác minh, không tải, không nhúng |
-| medialoot free tee mockup / freemockupworld / mockupworld | Điều khoản từng file PSD chưa xác minh + không được phân phối lại file nguồn; chỉ tham khảo ý tưởng bố cục, không tải/không dùng asset |
-| github.com/EdgeXGroups/EDGE-Website | Không xác minh được license/asset phù hợp trong đợt này → không dùng code/asset |
+| Sketchfab BINARYCLOTH men regular `4d055bb8...` | **Giấy phép ĐÃ xác minh qua Sketchfab API v3 (Agent 3, 2026-11-09): CC BY 4.0** — credit BINARYCLOTH (@binaryclothofficial), thương mại được phép, downloadable, GLB 2K 4,44 MB / 4K 20,4 MB, 15k verts, PBR + normal map. **Vẫn chưa nhúng trong P2** vì lý do kỹ thuật (không phải giấy phép): UV toàn thân 1 material không khớp 2 canvas trước/sau của Studio — cần decal/planar projection riêng + nén Draco/KTX2 về ~0,9–1,5 MB + QA vị trí artwork. Là ứng viên pilot P2.3 đợt sau; khi tải phải lưu trữ bằng chứng license API tại thời điểm tải (tác giả có thể đổi license sau, bản đã nhận vẫn có hiệu lực theo Sketchfab Help). Chỉ hợp phom nam regular — không đại diện oversize/polo. |
+| MediaLoot free tee PSD | Loại: Free License mâu thuẫn nội bộ — một bản giới hạn single-application, cấm dùng cho thiết kế phân phối nhiều người và cấm phân phối lại; bản khác lại nói khác khi có attribution. Không rõ ràng = không dùng cho e-commerce phục vụ nhiều khách |
+| FreeMockupWorld PSD | Loại: trang ghi free commercial nhưng Terms lại cấm khai thác thương mại khi chưa có đồng ý văn bản, kèm disclaimer tài liệu 'được cho là public domain' — nguồn gốc không xác minh được |
+| MockupWorld.co | Chỉ là aggregator, tự nó không cấp phép; FAQ yêu cầu kiểm tra license của từng creator ở link ngoài — không trích dẫn làm nguồn license |
+| github.com/EdgeXGroups/EDGE-Website | Repo không có LICENSE → all rights reserved: không copy code/GLB. Ghi nhận lead: tee.glb của họ suy từ 'fish t-shirt' của Gleb Gubkin (Sketchfab, CC BY 4.0 theo ghi chú của họ) và nén Draco 30 MB → ~0,9 MB — ứng viên tương lai, phải tự xác minh qua Sketchfab API trước khi dùng, ghi công Gleb Gubkin |
 | github.com/FrancescoCastaldi/mini-jersey-studio | MIT (ghi nhận), nhưng là áo đua xe đạp, tạo 2026-08; chỉ tham khảo ý tưởng planar UV projection, **không copy code/model/asset** |
 
 ## Vẫn giữ từ P0/P1

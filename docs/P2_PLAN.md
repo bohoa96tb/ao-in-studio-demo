@@ -31,8 +31,9 @@ docs P2_* = Agent tương ứng, PM chốt.
 - P2.2 Artwork vào ảnh ✅: cùng `drawArtwork()` cho catalog/detail/Studio/cart;
   lớp bóng/nếp vải chỉ ở bản xem trước, alpha thấp, không đổi toạ độ/chữ/màu artwork;
   export in (`export-art`) vẫn gọi `drawArtwork` thuần trên nền trong suốt.
-- P2.3 3D ⚠️ giữ phụ: BINARYCLOTH GLB 2K = 4,44 MB, giấy phép tải không hiển thị đủ trên trang công khai;
-  model oversized Sketchfab đã bị xoá. Không tải/không nhúng. Chỉ tinh chỉnh ánh sáng/sRGB cho model hiện tại;
+- P2.3 3D ⚠️ giữ phụ: BINARYCLOTH GLB 2K = 4,44 MB, **CC BY 4.0 đã xác minh qua Sketchfab API** (Agent 3);
+  vẫn chưa nhúng vì UV toàn thân không khớp canvas trước/sau của Studio và cần nén về ~0,9–1,5 MB + QA artwork —
+  để pilot riêng đợt sau. Model oversized Sketchfab đã bị xoá. Chỉ tinh chỉnh ánh sáng/sRGB cho model hiện tại;
   fallback 2D đã có sẵn khi WebGL/context-loss (đã xử lý ở P0/P1, chưa force-test — ghi rõ trong QA).
 - P2.4 Mua sắm ✅: hero 2 CTA; badge loại ảnh trên thẻ; gallery thêm "Người mặc" khi có ảnh khớp SKU/kiểu/màu;
   nhãn minh họa rõ; ảnh phụ lazy-load; `prefers-reduced-motion` đã có ở CSS/JS từ P1, giữ nguyên.
