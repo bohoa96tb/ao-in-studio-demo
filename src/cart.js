@@ -1,5 +1,5 @@
-import {typeLabel,colorLabel} from './product-store.js?v=p1content1';
-import {unitPrice,totalPrice,quantity,priceSummary} from './cart-price.js?v=p1content1';
+import {typeLabel,colorLabel} from './product-store.js?v=p2real1';
+import {unitPrice,totalPrice,quantity,priceSummary} from './cart-price.js?v=p2real1';
 const money=n=>n.toLocaleString('vi-VN')+'đ';
 const clone=x=>structuredClone(x);
 export function mountCart({onEdit}){

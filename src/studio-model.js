@@ -1,10 +1,10 @@
-import {outline} from './studio.js?v=p1content1';
+import {outline} from './studio.js?v=p2real1';
 export async function createModel(host,onFailure){
  const T=await import('https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js');
- const renderer=new T.WebGLRenderer({alpha:true,antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));host.append(renderer.domElement);renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();onFailure()});
- const scene=new T.Scene(),camera=new T.PerspectiveCamera(38,1,.1,100);camera.position.set(0,0,9);scene.add(new T.HemisphereLight(0xffffff,0x554e43,2));const light=new T.DirectionalLight(0xffffff,3);light.position.set(3,4,5);scene.add(light);
+ const renderer=new T.WebGLRenderer({alpha:true,antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));try{renderer.outputColorSpace=T.SRGBColorSpace}catch{}host.append(renderer.domElement);renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();onFailure()});
+ const scene=new T.Scene(),camera=new T.PerspectiveCamera(38,1,.1,100);camera.position.set(0,0,9);scene.add(new T.HemisphereLight(0xffffff,0x554e43,2));const light=new T.DirectionalLight(0xffffff,3);light.position.set(3,4,5);scene.add(light);const rim=new T.DirectionalLight(0xfff2df,1.1);rim.position.set(-4,2,-3);scene.add(rim);const fill=new T.DirectionalLight(0xdfe8ff,.7);fill.position.set(-3,1,4);scene.add(fill);
  const shape=new T.Shape();outline.forEach(([x,y],i)=>{const p=[(x-300)/150,(350-y)/150];i?shape.lineTo(...p):shape.moveTo(...p)});shape.closePath();
- const group=new T.Group();scene.add(group);const body=new T.Mesh(new T.ExtrudeGeometry(shape,{depth:.12,bevelEnabled:true,bevelSize:.035,bevelThickness:.025,bevelSegments:2,steps:1}),new T.MeshStandardMaterial({color:'#f8f6ee',roughness:.9}));body.position.z=-.06;group.add(body);
+ const group=new T.Group();scene.add(group);const body=new T.Mesh(new T.ExtrudeGeometry(shape,{depth:.12,bevelEnabled:true,bevelSize:.035,bevelThickness:.025,bevelSegments:3,steps:1}),new T.MeshStandardMaterial({color:'#f8f6ee',roughness:.86,metalness:0}));body.position.z=-.06;group.add(body);
  function face(back){const geo=new T.ShapeGeometry(shape);const uv=geo.attributes.uv,pos=geo.attributes.position;for(let i=0;i<uv.count;i++)uv.setXY(i,pos.getX(i)/4+.5,pos.getY(i)/(700/150)+.5);const mat=new T.MeshStandardMaterial({roughness:.9,transparent:true,side:T.FrontSide});const mesh=new T.Mesh(geo,mat);mesh.position.z=back?-.09:.09;if(back)mesh.rotation.y=Math.PI;group.add(mesh);return mat}
  const fm=face(false),bm=face(true);let ft=null,bt=null,visible=true,pending=0;
  function render(){pending=0;if(visible&&!document.hidden)renderer.render(scene,camera)}function schedule(){if(!pending)pending=requestAnimationFrame(render)}

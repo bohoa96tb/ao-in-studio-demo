@@ -1,16 +1,16 @@
-import {mountProductDetail} from './product-detail.js?v=p1content1';
-import {getProducts,resolveRail,typeLabel} from './product-store.js?v=p1content1';
-import {presetDesign} from './catalog-filter.js?v=p1content1';
-import {mountCatalog} from './product-catalog.js?v=p1content1';
-import {mountStyling} from './styling.js?v=p1content1';
-import {mountHeatPress} from './heat-press.js?v=p1content1';
-import {mountCart} from './cart.js?v=p1content1';
-import {mountStudio} from './studio.js?v=p1content1';
-import {mountShowroom} from './circular-showroom.js?v=p1content1';
-import {GarmentController} from './controller.js?v=p1content1';
-import {rackPositions,slideStep} from './rack-layout.js?v=p1content1';
-import {mobileRailPositions,mobileSwipeDestination} from './mobile-rail.js?v=p1content1';
-import {validateCatalog,validateManifest} from './catalog.js?v=p1content1';
+import {mountProductDetail} from './product-detail.js?v=p2real1';
+import {getProducts,resolveRail,typeLabel} from './product-store.js?v=p2real1';
+import {presetDesign} from './catalog-filter.js?v=p2real1';
+import {mountCatalog} from './product-catalog.js?v=p2real1';
+import {mountStyling} from './styling.js?v=p2real1';
+import {mountHeatPress} from './heat-press.js?v=p2real1';
+import {mountCart} from './cart.js?v=p2real1';
+import {mountStudio} from './studio.js?v=p2real1';
+import {mountShowroom} from './circular-showroom.js?v=p2real1';
+import {GarmentController} from './controller.js?v=p2real1';
+import {rackPositions,slideStep} from './rack-layout.js?v=p2real1';
+import {mobileRailPositions,mobileSwipeDestination} from './mobile-rail.js?v=p2real1';
+import {validateCatalog,validateManifest} from './catalog.js?v=p2real1';
 
 const $=selector=>document.querySelector(selector);
 const rack=$('#rack'),holder=$('#rack-items');
@@ -171,4 +171,5 @@ async function boot(){
 }
 boot();
 
+const realPhotoObserver=new IntersectionObserver(es=>{for(const e of es){if(e.isIntersecting){e.target.src=e.target.dataset.src;realPhotoObserver.unobserve(e.target)}}},{rootMargin:'400px'});document.querySelectorAll('#real-photos img[data-src]').forEach(i=>realPhotoObserver.observe(i));
 document.querySelector('#hero-design').onclick=()=>studio.focus();

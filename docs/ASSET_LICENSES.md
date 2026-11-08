@@ -31,3 +31,15 @@ previews; no external uploads or paid API. Labelled mockups, not product photos.
 Back is blank until customer adds layers; blank close-up is labelled print area.
 No lifestyle photos added without matching print/verified rights. P0 MIT media and
 attribution remain intact.
+
+## P2 real photos — 2026-11-09 (Asia/Tokyo)
+Four Pexels photographs of blank garments added in public/fixtures/real-tee/
+(hanger white tee — Dmitriy Steinke; black crew worn — MART PRODUCTION; couple in
+white tees — Israel Torres; white flat lay — Daniel & Hannah Snipes). Pexels License:
+free commercial use and editing, attribution not required but given in captions,
+footer docs and docs/P2_ASSET_LICENSES.md. Models do not endorse this demo.
+These photos never contain customer artwork and are never presented as photographs
+of this shop's manufactured products. Pexels photo 9558713 was evaluated and
+REJECTED (source page teen tagging; model age unverifiable) and is not used.
+No Sketchfab GLB, PSD mockup pack or Unsplash image was downloaded or used in P2;
+see docs/P2_ASSET_LICENSES.md for the full audit trail.
