@@ -1,4 +1,4 @@
-import {mountCatalog} from './product-catalog.js?v=qa8';
+import {mountCatalog} from './product-catalog.js?v=perf9';
 import {mountStyling} from './styling.js';
 import {mountHeatPress} from './heat-press.js';
 import {mountCart} from './cart.js?v=catalog7';
@@ -155,13 +155,14 @@ document.querySelectorAll('dialog').forEach(dialog=>{
 });
 addEventListener('resize',layout);mobile.addEventListener('change',layout);reduced.addEventListener('change',()=>activate(active));
 document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelIntent();stop();}else wake();});
+const manifestCache=new Map(),atlasCache=new Map();
 async function boot(){
   try{
     const response=await fetch(new URL('../config/catalog.json',import.meta.url));if(!response.ok)throw new Error('Catalog not found.');
     catalog=validateCatalog(await response.json());$('#site-title').firstChild.textContent=catalog.title||'Garment Showcase';
     for(const [i,item] of catalog.items.entries()){
-      const res=await fetch(manifestUrl(item));if(!res.ok)throw new Error('Motion manifest not found: '+item.id);
-      const manifest=validateManifest(await res.json());
+      if(!manifestCache.has(item.motion))manifestCache.set(item.motion,fetch(manifestUrl(item)).then(r=>{if(!r.ok)throw Error('Motion unavailable');return r.json()}).then(validateManifest));
+      const manifest=await manifestCache.get(item.motion);
       const button=document.createElement('button');button.className='garment';button.dataset.index=String(i);button.setAttribute('aria-label','Xem '+item.name);button.disabled=true;
       const wire=document.createElement('span');wire.className='wire';wire.setAttribute('aria-hidden','true');
       const fallback=document.createElement('img');fallback.src=assetUrl(item,manifest.profile).href;fallback.alt='';fallback.width=manifest.width;fallback.height=manifest.height;
@@ -175,11 +176,12 @@ async function boot(){
     }
     layout();let loaded=0;$('#load-counter').textContent=`0 / ${states.length}`;
     await Promise.all(states.map(async(s,i)=>{
-      const image=new Image();image.src=assetUrl(catalog.items[i],s.manifest.atlas).href;await image.decode();
+      const url=assetUrl(catalog.items[i],s.manifest.atlas).href;if(!atlasCache.has(url)){const image=new Image();image.src=url;atlasCache.set(url,image.decode().then(()=>image))}const image=await atlasCache.get(url);
       const {width,height,columns,frameCount}=s.manifest;
       if(image.naturalWidth!==width*columns||image.naturalHeight!==height*Math.ceil(frameCount/columns))throw new Error('Atlas dimensions do not match manifest: '+catalog.items[i].id);
       s.image=image;paint(s,0);s.button.classList.add('ready');$('#load-counter').textContent=`${++loaded} / ${states.length}`;
     }));
+    if(mobile.matches)states[selected].controller.setTarget(1,{immediate:true});
     ready=true;states.forEach(s=>s.button.disabled=false);rack.setAttribute('aria-busy','false');$('#load-state').hidden=true;$('#inspect').disabled=false;updateInfo(selected);layout();
     showroom=mountShowroom({items:catalog.items,frontUrl:i=>assetUrl(catalog.items[i],states[i].manifest.front).href,onSelect:(i,inspect)=>{browse(i);if(inspect)openProduct(i)}});document.documentElement.dataset.ready='true';
   }catch(error){$('#load-text').textContent='Could not load previews';$('#load-counter').textContent='Check asset paths';rack.setAttribute('aria-busy','false');console.error(error.message);}
