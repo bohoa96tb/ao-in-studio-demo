@@ -1,10 +1,10 @@
-import {getProducts,typeLabel,colorLabel} from './product-store.js?v=p1content1';
-import {filterProducts,presetDesign} from './catalog-filter.js?v=p1content1';
-import {unitPrice,money} from './cart-price.js?v=p1content1';
+import {getProducts,typeLabel,colorLabel} from './product-store.js?v=p2real1';
+import {filterProducts,presetDesign} from './catalog-filter.js?v=p2real1';
+import {unitPrice,money} from './cart-price.js?v=p2real1';
 export async function mountCatalog(studio,detail){
  const host=document.querySelector('#product-catalog');
  await new Promise(resolve=>{const o=new IntersectionObserver(([e])=>{if(e.isIntersecting){o.disconnect();resolve()}},{rootMargin:'120px'});o.observe(host)});
- host.innerHTML=`<div class="catalog-heading"><div><p class="eyebrow">BỘ SƯU TẬP</p><h2>Mặc điều bạn yêu.</h2><p>Chọn một hình in. Viết tiếp câu chuyện của bạn.</p></div><span class="catalog-note">Giá cho một áo, theo mẫu đang xem.<br>Hình dựng minh họa · Chưa nhận đơn thật.</span></div>
+ host.innerHTML=`<div class="catalog-heading"><div><p class="eyebrow">BỘ SƯU TẬP</p><h2>Mặc điều bạn yêu.</h2><p>Chọn một hình in. Viết tiếp câu chuyện của bạn.</p></div><span class="catalog-note">Giá cho một áo, theo mẫu đang xem.<br>Hình dựng minh họa · Ảnh người mặc thật (áo trống) ở mục Người mặc trong chi tiết · Chưa nhận đơn thật.</span></div>
  <div class="catalog-searchbar"><label class="catalog-search-label"><span class="sr-only">Tìm mẫu</span><input id="catalog-search" type="search" placeholder="Tìm áo gia đình, tên, ngày sinh…" autocomplete="off"></label><button id="catalog-filter-open">Bộ lọc</button></div>
  <div id="catalog-chips" class="catalog-chips" role="group" aria-label="Chủ đề thiết kế"></div>
  <div class="catalog-results"><p id="catalog-count" role="status"></p><button id="catalog-reset" class="text-button">Xóa bộ lọc</button></div>
@@ -35,8 +35,9 @@ export async function mountCatalog(studio,detail){
    const price=document.createElement('p');price.className='catalog-price';price.textContent=money(unitPrice(presetDesign(p)));
    const hint=document.createElement('span');hint.className='catalog-price-hint';hint.textContent=p.photoBase?'Gồm hình in tuyển chọn':p.artwork?.id==='blank'?'Áo trống · chưa gồm phí in':'Gồm hình in mặt trước';
    const swatches=document.createElement('div');swatches.className='catalog-swatches';swatches.setAttribute('aria-label','Màu áo có thể chọn');for(const c of p.colors){const dot=document.createElement('span');dot.style.backgroundColor=c;dot.title=colorLabel(c);const name=document.createElement('span');name.className='sr-only';name.textContent=colorLabel(c);dot.append(name);swatches.append(dot)}
+   const badge=document.createElement('span');badge.className='catalog-badge';badge.textContent=p.photoBase?'Ảnh ý tưởng · có giấy phép MIT':'Mockup minh họa · đúng artwork của mẫu';
    const btn=document.createElement('button');btn.className='catalog-design';btn.textContent='Thiết kế mẫu này';picture.onclick=btn.onclick=()=>detail.open(p,f.color?{color:f.color}:{});
-   card.append(picture,tag,h,price,hint,swatches,btn);grid.append(card);imageObserver.observe(card);
+   card.append(picture,tag,h,badge,price,hint,swatches,btn);grid.append(card);imageObserver.observe(card);
   }
  }
  for(const c of ['',...new Set(products.map(p=>p.category))]){const b=document.createElement('button');b.type='button';b.dataset.category=c;b.textContent=c||'Tất cả';b.onclick=()=>{category=c;render()};chips.append(b)}

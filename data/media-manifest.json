@@ -1,0 +1,195 @@
+{
+  "bySku": {
+    "AIS-001": {
+      "fallback": "renderer",
+      "lifestyle": [
+        "couple-white-outdoor",
+        "crew-white-hanger"
+      ],
+      "mockup": "renderer-realistic"
+    },
+    "AIS-002": {
+      "fallback": "renderer",
+      "lifestyle": [
+        "crew-white-flatlay"
+      ],
+      "mockup": "renderer-realistic"
+    },
+    "AIS-003": {
+      "fallback": "renderer",
+      "lifestyle": [],
+      "missing": "Chưa có ảnh polo chụp thật được cấp phép phù hợp; không dùng ảnh crew thay cho polo.",
+      "mockup": "renderer-realistic"
+    },
+    "AIS-004": {
+      "fallback": "renderer",
+      "lifestyle": [
+        "crew-white-hanger",
+        "crew-black-woman"
+      ],
+      "mockup": "renderer-realistic"
+    },
+    "AIS-005": {
+      "fallback": "renderer",
+      "lifestyle": [
+        "crew-white-flatlay"
+      ],
+      "mockup": "renderer-realistic"
+    },
+    "AIS-006": {
+      "fallback": "renderer",
+      "lifestyle": [],
+      "missing": "Chưa có ảnh polo chụp thật được cấp phép phù hợp.",
+      "mockup": "renderer-realistic"
+    },
+    "AIS-007": {
+      "fallback": "renderer",
+      "lifestyle": [
+        "crew-black-woman",
+        "crew-white-hanger"
+      ],
+      "mockup": "renderer-realistic"
+    },
+    "AIS-008": {
+      "fallback": "renderer",
+      "lifestyle": [
+        "crew-white-flatlay"
+      ],
+      "mockup": "renderer-realistic"
+    },
+    "AIS-009": {
+      "fallback": "renderer",
+      "lifestyle": [],
+      "missing": "Chưa có ảnh polo chụp thật được cấp phép phù hợp.",
+      "mockup": "renderer-realistic"
+    },
+    "AIS-010": {
+      "fallback": "renderer",
+      "lifestyle": [
+        "crew-white-hanger"
+      ],
+      "mockup": "renderer-realistic"
+    },
+    "AIS-011": {
+      "fallback": "renderer",
+      "lifestyle": [
+        "crew-white-flatlay"
+      ],
+      "mockup": "renderer-realistic"
+    },
+    "AIS-012": {
+      "fallback": "renderer",
+      "lifestyle": [],
+      "missing": "Chưa có ảnh polo chụp thật được cấp phép phù hợp; áo tải ảnh phải bắt đầu từ áo trống.",
+      "mockup": "renderer-realistic"
+    },
+    "AIS-M01": {
+      "fallback": "licensed-original-motion",
+      "lifestyle": [
+        "crew-white-hanger",
+        "crew-white-flatlay"
+      ],
+      "mockup": "renderer"
+    },
+    "AIS-M02": {
+      "fallback": "licensed-original-motion",
+      "lifestyle": [],
+      "mockup": "renderer"
+    }
+  },
+  "lifestyle": [
+    {
+      "author": "Dmitriy Steinke",
+      "color": "#f8f6ee",
+      "containsCustomerArtwork": false,
+      "file": "public/fixtures/real-tee/crew-white-hanger.webp",
+      "garmentType": "crew",
+      "id": "crew-white-hanger",
+      "kind": "photograph",
+      "labelVi": "Ảnh chụp áo trắng trống trên móc — Pexels / Dmitriy Steinke. Minh họa phom áo, không chứa hình in của bạn.",
+      "license": "Pexels License (free commercial use, no attribution required; attribution given voluntarily)",
+      "provider": "Pexels",
+      "role": "flat-product-illustration",
+      "sourceUrl": "https://www.pexels.com/photo/hand-holds-hanger-with-t-shirt-20669538/",
+      "verified": "2026-11-09",
+      "view": "front"
+    },
+    {
+      "author": "MART PRODUCTION",
+      "color": "#242424",
+      "containsCustomerArtwork": false,
+      "file": "public/fixtures/real-tee/crew-black-woman.webp",
+      "garmentType": "crew",
+      "id": "crew-black-woman",
+      "kind": "photograph",
+      "labelVi": "Ảnh người mặc áo đen cổ tròn trống — Pexels / MART PRODUCTION. Người mẫu không xác nhận thương hiệu; ảnh minh họa, không chứa hình in của bạn.",
+      "license": "Pexels License (free commercial use, no attribution required; attribution given voluntarily)",
+      "provider": "Pexels",
+      "role": "worn-lifestyle",
+      "sourceUrl": "https://www.pexels.com/photo/woman-in-black-crew-neck-t-shirt-9558583/",
+      "verified": "2026-11-09",
+      "view": "front-worn"
+    },
+    {
+      "author": "Israel Torres",
+      "color": "#f8f6ee",
+      "containsCustomerArtwork": false,
+      "file": "public/fixtures/real-tee/couple-white-outdoor.webp",
+      "garmentType": "crew",
+      "id": "couple-white-outdoor",
+      "kind": "photograph",
+      "labelVi": "Ảnh đôi mặc áo trắng trống ngoài trời — Pexels / Israel Torres. Người mẫu không xác nhận thương hiệu; ảnh minh họa, không chứa hình in của bạn.",
+      "license": "Pexels License (free commercial use, no attribution required; attribution given voluntarily)",
+      "provider": "Pexels",
+      "role": "worn-lifestyle",
+      "skus": [
+        "AIS-001"
+      ],
+      "sourceUrl": "https://www.pexels.com/photo/woman-and-man-in-white-t-shirts-25462458/",
+      "verified": "2026-11-09",
+      "view": "front-worn-couple"
+    },
+    {
+      "author": "Daniel & Hannah Snipes",
+      "color": "#f8f6ee",
+      "containsCustomerArtwork": false,
+      "file": "public/fixtures/real-tee/crew-white-flatlay.webp",
+      "garmentType": "crew",
+      "id": "crew-white-flatlay",
+      "kind": "photograph",
+      "labelVi": "Ảnh phẳng áo trắng trống trên sàn gỗ — Pexels / Daniel & Hannah Snipes. Minh họa vải và ánh sáng, không chứa hình in của bạn. Không dùng làm ảnh hero chính.",
+      "license": "Pexels License (free commercial use, no attribution required; attribution given voluntarily)",
+      "provider": "Pexels",
+      "role": "flatlay-illustration",
+      "sourceUrl": "https://www.pexels.com/photo/minimalist-fashion-flat-lay-of-white-t-shirt-37704838/",
+      "verified": "2026-11-09",
+      "view": "front-flatlay"
+    }
+  ],
+  "note": "Media manifest P2. lifestyle = anh chup that ao trong goc (blank) tu Pexels, chi dung lam anh nguoi mac / phang minh hoa. Chung KHONG chua hinh in cua khach va KHONG phai anh san pham da san xuat cua shop. mockup = anh dung bang Studio renderer tu dung artwork khach chon, co them bong/nep vai o lop xem truoc; file in goc xuat rieng, khong chua bong vai.",
+  "printZones": {
+    "crew": {
+      "cm": 28,
+      "h": 280,
+      "w": 180,
+      "x": 210,
+      "y": 200
+    },
+    "oversize": {
+      "cm": 32,
+      "h": 300,
+      "w": 210,
+      "x": 195,
+      "y": 195
+    },
+    "polo": {
+      "cm": 24,
+      "h": 230,
+      "w": 170,
+      "x": 215,
+      "y": 250
+    }
+  },
+  "updated": "2026-11-09",
+  "version": 1
+}

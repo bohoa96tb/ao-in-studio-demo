@@ -1,3 +1,34 @@
+# ÁO IN STUDIO — checkpoint P2 (mới nhất)
+
+Ngày: 2026-11-09 (Asia/Tokyo). Nhánh: `feature/p2-real-product-visuals`, base main `b15dedc`.
+**P2 chưa merge.** PR chờ CI xanh + chủ repo duyệt; bản live vẫn là P1 (`?v=p1content1`).
+
+## P2 đã làm
+- Media manifest: `data/media-manifest.json` (canonical) + `src/media-manifest.js` (mirror, test khóa).
+- 4 ảnh Pexels áo trống đã thẩm định (hanger/Steinke, đen/MART, đôi/Torres, flat-lay/Snipes) —
+  mục "Phom áo ngoài đời" + tab "Người mặc" ở chi tiết (khớp SKU/kiểu/màu; polo tự ẩn).
+  Loại Pexels 9558713 (tuổi người mẫu không xác minh được). Chi tiết: docs/P2_ASSET_LICENSES.md.
+- `drawShirt` thực hơn: hạt vải, nếp gấp, cổ theo kiểu, bóng phủ nhẹ lên hình in ở bản xem trước;
+  export in vẫn sạch (drawArtwork thuần). products.json không đổi; IndexedDB v1/pricing không đổi.
+- Hero thêm CTA bộ sưu tập; badge loại ảnh trên thẻ catalog; 3D thêm đèn rim/fill + sRGB, vẫn là tính năng phụ. GLB BINARYCLOTH đã xác minh CC BY 4.0 qua Sketchfab API (Agent 3) nhưng chưa nhúng: UV toàn thân không khớp canvas Studio, cần nén + QA artwork ở pilot riêng. Model oversized Sketchfab đã bị xoá.
+- Ảnh thật tải hoãn (IntersectionObserver + fetchpriority=low) để không tranh LCP.
+
+## QA P2 (chi tiết: docs/P2_QA_REPORT.md)
+Unit 24/24; browser + interaction + P0 + P1 suite đạt ở 360/390/430/768/1440, axe 0 vi phạm ở các trạng thái đã quét.
+Lighthouse mobile cục bộ: Perf 89, A11y 96, CLS 0, LCP 2713–2859 ms — **LCP ≤2,5 s vẫn CHƯA ĐẠT** (P1 cũng chưa đạt).
+Chưa kiểm: điện thoại thật, force WebGL context-loss, CI của PR.
+
+## Việc tiếp theo
+1. Chủ repo duyệt PR P2; theo dõi GitHub Actions; chỉ merge khi CI xanh, rồi xác nhận GitHub Pages đã cập nhật bản mới.
+2. Bổ sung ảnh polo chụp thật + ảnh gia đình + mặt sau người mặc khi có nguồn có phép (qua quy trình Agent 1).
+3. Tối ưu LCP về ≤2,5 s ổn định trên hosting thật; force-test WebGL/ảnh lỗi.
+4. Chỉ thêm chất liệu/bảng size/chính sách khi người bán cung cấp số liệu xác minh. Giữ trạng thái demo.
+
+## Cách tiếp tục nhanh
+Đọc AGENTS.md, checkpoint này, docs/P2_PLAN.md, P2_ASSET_LICENSES.md, P2_QA_REPORT.md và đúng module định sửa.
+Giữ SKU/giá/snapshot/IndexedDB/attribution. Không dùng lại Pexels 9558713.
+
+---
 # ÁO IN STUDIO — checkpoint phát hành P0 + P1
 
 Ngày: 2026-11-09 (Asia/Tokyo).

@@ -1,6 +1,6 @@
-import {readableInk} from './color-contrast.js?v=p1content1';
-import {artworkLayers} from './artwork-library.js?v=p1content1';
-import {unitPrice} from './cart-price.js?v=p1content1';
+import {readableInk} from './color-contrast.js?v=p2real1';
+import {artworkLayers} from './artwork-library.js?v=p2real1';
+import {unitPrice} from './cart-price.js?v=p2real1';
 export const normalize=text=>String(text||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/Đ/g,'D').toLowerCase().trim();
 export function filterProducts(products,f){const q=normalize(f.q);return products.filter(p=>(!q||normalize(p.name+' '+p.category+' '+p.sku).includes(q))&&(!f.category||p.category===f.category)&&(!f.type||p.type===f.type)&&(!f.color||p.colors.includes(f.color))&&(!f.gender||p.gender===f.gender||p.gender==='unisex')&&unitPrice(presetDesign(p))<=Number(f.max||1000000))}
 export function presetDesign(p,input={}){

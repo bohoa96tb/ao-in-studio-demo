@@ -1,1 +1,18 @@
-{"name":"ao-in-studio-demo","version":"0.1.0","type":"module","scripts":{"dev":"vite --host 0.0.0.0","build":"node scripts/build.mjs","test":"node --test tests/runtime.test.mjs tests/server.test.mjs tests/ltx.test.mjs tests/cart.test.mjs tests/catalog-filter.test.mjs","lint":"node --check src/app.js","test:browser":"node tests/browser.mjs"},"devDependencies":{"@axe-core/playwright":"^4.14.0","lighthouse":"^13.6.0","playwright":"^1.50.0","vite":"^6.0.0"}}
+{
+  "name": "ao-in-studio-demo",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "node scripts/build.mjs",
+    "test": "node --test tests/runtime.test.mjs tests/server.test.mjs tests/ltx.test.mjs tests/cart.test.mjs tests/catalog-filter.test.mjs tests/media-manifest.test.mjs",
+    "lint": "node --check src/app.js",
+    "test:browser": "node tests/browser.mjs"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "lighthouse": "^13.6.0",
+    "playwright": "^1.50.0",
+    "vite": "^6.0.0"
+  }
+}

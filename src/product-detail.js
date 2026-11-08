@@ -1,12 +1,13 @@
-import {presetDesign} from './catalog-filter.js?v=p1content1';
-import {schemas,defaults,animalForYear} from './artwork-library.js?v=p1content1';
-import {priceBreakdown,money,unitPrice} from './cart-price.js?v=p1content1';
-import {typeLabel,colorLabel} from './product-store.js?v=p1content1';
+import {presetDesign} from './catalog-filter.js?v=p2real1';
+import {schemas,defaults,animalForYear} from './artwork-library.js?v=p2real1';
+import {priceBreakdown,money,unitPrice} from './cart-price.js?v=p2real1';
+import {typeLabel,colorLabel} from './product-store.js?v=p2real1';
+import {lifestyleFor} from './media-manifest.js?v=p2real1';
 /** Single shopping detail/personalisation entry for rail, circle and catalogue. */
 export function mountProductDetail(studio){
  const dialog=document.querySelector('#product-dialog');
  dialog.innerHTML=`<div class="dialog-header"><span class="eyebrow">MẪU ÁO CỦA BẠN</span><button class="close-button" data-close="product-dialog" aria-label="Đóng chi tiết">Đóng ×</button></div>
- <div class="product-layout"><div class="product-gallery"><div class="detail-stage" id="detail-stage" tabindex="0" role="region" aria-label="Ảnh sản phẩm, dùng phím mũi tên để cuộn khi phóng to"><img id="detail-image" alt="" width="600" height="700"></div><div class="view-tabs" role="group" aria-label="Góc xem sản phẩm"><button id="view-front" aria-pressed="true">Mặt trước</button><button id="view-back" aria-pressed="false">Mặt sau</button><button id="view-close" aria-pressed="false">Cận hình in</button><button id="detail-zoom" aria-pressed="false">Phóng to</button></div><p id="media-note" class="media-note"></p></div>
+ <div class="product-layout"><div class="product-gallery"><div class="detail-stage" id="detail-stage" tabindex="0" role="region" aria-label="Ảnh sản phẩm, dùng phím mũi tên để cuộn khi phóng to"><img id="detail-image" alt="" width="600" height="700"></div><div class="view-tabs" role="group" aria-label="Góc xem sản phẩm"><button id="view-front" aria-pressed="true">Mặt trước</button><button id="view-back" aria-pressed="false">Mặt sau</button><button id="view-close" aria-pressed="false">Cận hình in</button><button id="view-worn" aria-pressed="false">Người mặc</button><button id="detail-zoom" aria-pressed="false">Phóng to</button></div><p id="media-note" class="media-note"></p></div>
  <div class="product-copy"><p class="eyebrow" id="product-type"></p><h2 id="product-title"></h2><p id="product-description"></p><div class="detail-price"><strong id="detail-price"></strong><span> / một áo · giá minh họa</span></div>
  <label>Màu áo<select id="detail-color"></select></label><label>Cỡ áo<select id="detail-size"></select></label>
  <form id="product-personal" class="personal-panel" novalidate><h3>Thêm dấu ấn của bạn</h3><div id="personal-fields"></div></form><p id="personal-help" class="price-explanation"></p>
@@ -15,7 +16,8 @@ export function mountProductDetail(studio){
  </div></div>`;
  let product,values={},design,gallery,side='front',generation=0,inputTimer;const saved=new Map();
  const $=s=>dialog.querySelector(s);
- function view(face){side=face;for(const [id,key]of [['view-front','front'],['view-back','back'],['view-close','close']])$('#'+id).setAttribute('aria-pressed',String(face===key));if(gallery){$('#detail-image').src=gallery[face];$('#detail-image').alt=product.name+' — '+({front:'mặt trước',back:'mặt sau',close:'cận hình in'})[face]}}
+ function wornPhoto(){return lifestyleFor(product,values.color)[0]||null}
+ function view(face){side=face;for(const [id,key]of [['view-front','front'],['view-back','back'],['view-close','close'],['view-worn','worn']])$('#'+id).setAttribute('aria-pressed',String(face===key));if(face==='worn'){const ph=wornPhoto();if(ph){$('#detail-image').src=new URL('../'+ph.file,import.meta.url).href;$('#detail-image').alt=product.name+' — ảnh người mặc minh họa';$('#media-note').textContent=ph.labelVi}return}if(gallery){$('#detail-image').src=gallery[face];$('#detail-image').alt=product.name+' — '+({front:'mặt trước',back:'mặt sau',close:'cận hình in'})[face];$('#media-note').textContent=product.photoBase?'Hình ý tưởng có giấy phép MIT; không phải ảnh áo đã sản xuất.':'Ảnh dựng từ đúng artwork gốc, có bóng vải minh họa ở bản xem trước. Mặt sau chưa in; không phải ảnh chụp sản phẩm.'}}
  function fields(){
   const root=$('#personal-fields');root.replaceChildren();const theme=product.artwork?.id,fields=schemas[theme]||[];
   $('#product-personal').hidden=!fields.length;
@@ -25,7 +27,7 @@ export function mountProductDetail(studio){
  function price(){const p=priceBreakdown(design);$('#detail-price').textContent=money(unitPrice(design));const dl=$('#detail-breakdown');dl.replaceChildren();for(const [label,value]of [['Áo nền',p.base],['Hình in mẫu',p.template],['Cá nhân hóa trong mẫu',p.personalization],['Mặt in thêm',p.extraPrint]]){const row=document.createElement('div'),dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=money(value);row.append(dt,dd);dl.append(row)}$('#detail-fee-note').textContent=product.photoBase?'Giá áo nền đã gồm hình in tuyển chọn có sẵn. Thêm nội dung mới: 30.000đ cho mỗi mặt có lớp in mới.':product.artwork?.id==='blank'?'Thêm nội dung vào mặt trước hoặc sau: 30.000đ mỗi mặt.':'Hình in mẫu mặt trước: 30.000đ, đã tính trong giá hiển thị. Đổi tên/nội dung trên mặt này không thêm phí. Thêm hình hoặc chữ mặt sau: 30.000đ.'}
  async function refresh(){
   const token=++generation;$('#open-studio').disabled=true;dialog.dataset.previewReady='false';$('#detail-error').textContent='';
-  design=presetDesign(product,values);saved.set(product.sku,{...values});price();
+  design=presetDesign(product,values);saved.set(product.sku,{...values});price();$('#view-worn').hidden=!wornPhoto();if(side==='worn'&&!wornPhoto())view('front');else if(side==='worn')view('worn');
   try{const next=await studio.gallery(design);if(token!==generation)return;gallery=next;view(side);dialog.dataset.previewReady='true';$('#open-studio').disabled=false}
   catch{if(token===generation)$('#detail-error').textContent='Chưa tải đủ hình xem trước. Vui lòng thử chọn lại mẫu.'}
  }
@@ -38,7 +40,7 @@ export function mountProductDetail(studio){
  };
  $('#detail-color').onchange=e=>{values.color=e.target.value;refresh()};
  $('#detail-size').onchange=e=>{values.size=e.target.value;refresh()};
- $('#view-front').onclick=()=>view('front');$('#view-back').onclick=()=>view('back');$('#view-close').onclick=()=>view('close');
+ $('#view-front').onclick=()=>view('front');$('#view-back').onclick=()=>view('back');$('#view-close').onclick=()=>view('close');$('#view-worn').onclick=()=>view('worn');
  $('#detail-zoom').onclick=()=>{const zoom=$('#detail-stage').classList.toggle('zoomed');$('#detail-zoom').setAttribute('aria-pressed',String(zoom));$('#detail-zoom').textContent=zoom?'Thu nhỏ':'Phóng to'};
  $('#open-studio').onclick=async()=>{const selected=structuredClone(design);dialog.close();await studio.newDesign(selected)};
  return {async open(p,initial={}){
@@ -48,7 +50,7 @@ export function mountProductDetail(studio){
   $('#detail-color').replaceChildren(...p.colors.map(c=>new Option(colorLabel(c),c)));$('#detail-color').value=values.color||p.defaultColor;
   values.color=$('#detail-color').value;$('#detail-color').disabled=!!p.photoBase;
   $('#detail-size').replaceChildren(...p.sizes.map(s=>new Option(s,s)));$('#detail-size').value=values.size||'M';values.size=$('#detail-size').value;
-  $('#media-note').textContent=p.photoBase?'Hình ý tưởng có giấy phép MIT; không phải ảnh áo đã sản xuất.':'Ảnh dựng từ đúng artwork gốc. Mặt sau chưa in; không phải ảnh chụp sản phẩm.';
+  $('#media-note').textContent=p.photoBase?'Hình ý tưởng có giấy phép MIT; không phải ảnh áo đã sản xuất.':'Ảnh dựng từ đúng artwork gốc, có bóng vải minh họa ở bản xem trước. Mặt sau chưa in; không phải ảnh chụp sản phẩm.';$('#view-worn').hidden=!lifestyleFor(p,values.color).length;
   $('#detail-stage').classList.remove('zoomed');$('#detail-zoom').setAttribute('aria-pressed','false');$('#detail-zoom').textContent='Phóng to';$('#detail-image').removeAttribute('src');
   $('#view-close').textContent=p.artwork?.id==='blank'?'Cận vùng in':'Cận hình in';fields();if(!dialog.open)dialog.showModal();await refresh();
  }};
