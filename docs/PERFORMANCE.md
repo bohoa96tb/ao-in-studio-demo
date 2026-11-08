@@ -43,3 +43,14 @@ manifest failure no longer rejects the whole rail. Production caching and physic
 mobile-network validation are still pending. Do not generalise this single lab run to
 all customer devices. Full lighthouse.json and performance-summary.json are in the
 Actions qa-results artifact 13622650972.
+
+## P1 feature measurement — 2026-11-09 (Asia/Tokyo)
+Application cd4e1057, green run42497201781. Lighthouse mobile localhost simulation,
+RTT150ms/1638.4Kbps/CPU4x: Performance98, Accessibility96, LCP2449ms, CLS0, TBT0ms.
+One lab run; do not interpret zero TBT as measured real-world INP or universal smoothness.
+LCP remains close to2.5s and needs device/network confirmation. P0 comparison run:
+Performance89, Accessibility96,LCP2430ms,CLS0,TBT368ms.
+Original SVG loads only when a catalogue card/detail/circular collection is requested.
+Catalogue WebP previews use420x490 dimensions and intersection-driven loading; detail
+views600x700. New content adds no WebGL loop or remote image/font service.
+Further runs are attached to PR #2; use their recorded summaries rather than extrapolate.

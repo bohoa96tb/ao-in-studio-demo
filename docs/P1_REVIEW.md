@@ -36,3 +36,9 @@ GLB/3D effects or production specs. Lunar-year field does not convert Gregorian 
 around Tết; UI explains manual correction. Zodiac/number themes are entertainment.
 Original motion photos stay2D-locked. Physical devices, production print certification,
 and field INP are outside available QA. No paid services or external model photos.
+
+New designs changing garment type in Studio use the shared base price mapping
+(crew199k/oversize219k/polo239k). Stored unedited old designs are never repriced.
+Feature validation passed atcd4e1057; visual framing candidate44ad4b9d and its extra
+browser gate are documented in QA_REPORT. Never infer production specifications from
+the illustrated mockup shape.
