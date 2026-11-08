@@ -1,3 +1,5 @@
+import {mountStyling} from './styling.js';
+import {mountHeatPress} from './heat-press.js';
 import {mountCart} from './cart.js';
 import {mountStudio} from './studio.js';
 import {mountShowroom} from './circular-showroom.js';
@@ -12,6 +14,10 @@ const mobile=matchMedia('(max-width:700px)'),reduced=matchMedia('(prefers-reduce
 let showroom;
 const cart=mountCart({onEdit:(design,id)=>studio.restore(design,id)});
 const studio=mountStudio({onAdd:(design,previews,id)=>cart.add(design,previews,id)});
+const styling=mountStyling(studio);
+const heatPress=mountHeatPress(studio,{tryOn:()=>styling.open()});
+document.querySelector('#studio-try').onclick=()=>styling.open();
+document.querySelector('#studio-press').onclick=()=>heatPress.open();
 let catalog,states=[],active=-1,selected=0,pending=-1,intentTimer,ready=false,raf=0,lastTime=0,drag=null,railOffset=0,railVelocity=0,suppressClickUntil=0;
 const manifestUrl=item=>new URL('https://raw.githubusercontent.com/amirmushichge/interactive-garment-starter/574299fecfe9e1af5eea92c345b10e59e207fd18/public/'+item.motion);
 const assetUrl=(item,file)=>new URL(file,manifestUrl(item));
