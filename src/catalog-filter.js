@@ -1,4 +1,14 @@
-import {readableInk} from './color-contrast.js';
+import {readableInk} from './color-contrast.js?v=p1content1';
+import {artworkLayers} from './artwork-library.js?v=p1content1';
+import {unitPrice} from './cart-price.js?v=p1content1';
 export const normalize=text=>String(text||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/Đ/g,'D').toLowerCase().trim();
-export function filterProducts(products,f){const q=normalize(f.q);return products.filter(p=>(!q||normalize(p.name+' '+p.category+' '+p.sku).includes(q))&&(!f.category||p.category===f.category)&&(!f.type||p.type===f.type)&&(!f.color||p.colors.includes(f.color))&&(!f.gender||p.gender===f.gender||p.gender==='unisex')&&p.basePrice<=Number(f.max||1000000))}
-export function presetDesign(p,{name='',date='',color=''}={}){let text=p.print.text;if(p.personalization==='name'&&name.trim())text=name.trim().slice(0,24);if(p.personalization==='date'&&/^\d{4}-\d{2}-\d{2}$/.test(date)){const [y,m,d]=date.split('-');text='SINCE\n'+d+'.'+m+'.'+y}return {productId:p.sku,productName:p.name,type:p.type,basePrice:p.basePrice,color:p.photoBase?p.defaultColor:color||p.defaultColor,size:'M',quantity:1,side:'front',baseImages:p.photoBase?{front:p.front,back:p.back}:null,lockedBase:!!p.photoBase,faces:{front:p.photoBase?[]:[{kind:'text',text,x:300,y:320,width:p.print.width,height:100,angle:0,color:readableInk(color||p.defaultColor,p.print.color),font:p.print.font}],back:[]}}}
+export function filterProducts(products,f){const q=normalize(f.q);return products.filter(p=>(!q||normalize(p.name+' '+p.category+' '+p.sku).includes(q))&&(!f.category||p.category===f.category)&&(!f.type||p.type===f.type)&&(!f.color||p.colors.includes(f.color))&&(!f.gender||p.gender===f.gender||p.gender==='unisex')&&unitPrice(presetDesign(p))<=Number(f.max||1000000))}
+export function presetDesign(p,input={}){
+ const color=p.photoBase?p.defaultColor:p.colors.includes(input.color)?input.color:p.defaultColor;
+ const artwork=p.artwork?artworkLayers(p,input,readableInk(color,p.print.color)):null;
+ const layers=p.photoBase?[]:artwork?.layers??[{kind:'text',text:p.print.text,x:300,y:320,width:p.print.width,height:100,angle:0,color:readableInk(color,p.print.color),font:p.print.font}];
+ return {productId:p.sku,productName:p.name,type:p.type,basePrice:p.basePrice,color,size:p.sizes.includes(input.size)?input.size:'M',quantity:1,side:'front',
+ baseImages:p.photoBase?{front:p.front,back:p.back}:null,lockedBase:!!p.photoBase,
+ ...(p.pricing?{pricing:structuredClone(p.pricing)}:{}),
+ ...(artwork?{artwork:{...p.artwork},personalization:artwork.personalization}:{}),faces:{front:layers,back:[]}};
+}

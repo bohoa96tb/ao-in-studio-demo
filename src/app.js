@@ -1,15 +1,16 @@
-import {getProducts,resolveRail,typeLabel} from './product-store.js?v=p0review3';
-import {presetDesign} from './catalog-filter.js?v=p0review3';
-import {mountCatalog} from './product-catalog.js?v=p0review3';
-import {mountStyling} from './styling.js?v=p0review3';
-import {mountHeatPress} from './heat-press.js?v=p0review3';
-import {mountCart} from './cart.js?v=p0review3';
-import {mountStudio} from './studio.js?v=p0review3';
-import {mountShowroom} from './circular-showroom.js';
-import {GarmentController} from './controller.js';
-import {rackPositions,slideStep} from './rack-layout.js';
-import {mobileRailPositions,mobileSwipeDestination} from './mobile-rail.js';
-import {validateCatalog,validateManifest} from './catalog.js?v=p0review3';
+import {mountProductDetail} from './product-detail.js?v=p1content1';
+import {getProducts,resolveRail,typeLabel} from './product-store.js?v=p1content1';
+import {presetDesign} from './catalog-filter.js?v=p1content1';
+import {mountCatalog} from './product-catalog.js?v=p1content1';
+import {mountStyling} from './styling.js?v=p1content1';
+import {mountHeatPress} from './heat-press.js?v=p1content1';
+import {mountCart} from './cart.js?v=p1content1';
+import {mountStudio} from './studio.js?v=p1content1';
+import {mountShowroom} from './circular-showroom.js?v=p1content1';
+import {GarmentController} from './controller.js?v=p1content1';
+import {rackPositions,slideStep} from './rack-layout.js?v=p1content1';
+import {mobileRailPositions,mobileSwipeDestination} from './mobile-rail.js?v=p1content1';
+import {validateCatalog,validateManifest} from './catalog.js?v=p1content1';
 
 const $=selector=>document.querySelector(selector);
 const rack=$('#rack'),holder=$('#rack-items');
@@ -17,13 +18,13 @@ const mobile=matchMedia('(max-width:700px)'),reduced=matchMedia('(prefers-reduce
 let showroom;
 const cart=mountCart({onEdit:(design,id)=>studio.restore(design,id)});
 const studio=mountStudio({onAdd:(design,previews,id)=>cart.add(design,previews,id)});
-mountCatalog(studio);
+const productDetail=mountProductDetail(studio);mountCatalog(studio,productDetail);
 const styling=mountStyling(studio);
 const heatPress=mountHeatPress(studio,{tryOn:()=>styling.open()});
 document.querySelector('#studio-try').onclick=()=>styling.open();
 document.querySelector('#studio-press').onclick=()=>heatPress.open();
 let motionIntent=false;
-let currentDetail=null,allProducts=[];
+let allProducts=[];
 let catalog,states=[],active=-1,selected=0,pending=-1,intentTimer,ready=false,raf=0,lastTime=0,drag=null,railOffset=0,railVelocity=0,suppressClickUntil=0;
 const manifestUrl=item=>new URL('../public/'+item.motion,import.meta.url);
 const assetUrl=(item,file)=>new URL(file,manifestUrl(item));
@@ -138,14 +139,9 @@ function browse(index){
 }
 $('#previous').addEventListener('click',()=>browse(selected-1));$('#next').addEventListener('click',()=>browse(selected+1));
 $('#inspect').addEventListener('click',()=>openProduct(selected));
-function detailSide(back){
- if(!currentDetail)return;const face=back?'back':'front';const p=currentDetail;$('#detail-image').src=p.photoBase?new URL('../'+p[face],import.meta.url).href:studio.mockup(presetDesign(p),face);$('#detail-image').alt=p.name+' — '+(back?'mặt sau':'mặt trước');$('#view-front').setAttribute('aria-pressed',String(!back));$('#view-back').setAttribute('aria-pressed',String(back));
-}
-function showDetail(item){
- currentDetail=item;showroom?.select(allProducts.findIndex(p=>p.sku===item.sku));$('#product-dialog').dataset.productId=item.sku;$('#product-title').textContent=item.name;$('#product-type').textContent=typeLabel(item.type)+' · '+item.sku;$('#product-description').textContent=item.description||'Thêm tên, ngày sinh hoặc hình riêng để tạo chiếc áo của bạn.';$('#product-color').textContent=item.colorName||'Nhiều màu';$('#product-preview').textContent=item.photoBase?'Hình in tuyển chọn có sẵn':'Có thể chỉnh nội dung';$('#view-back').hidden=false;$('#view-back').disabled=false;$('#product-link').hidden=true;detailSide(false);$('#product-dialog').showModal();
-}
+function showDetail(item){showroom?.select(allProducts.findIndex(p=>p.sku===item.sku));productDetail.open(item)}
 function openProduct(index){if(!ready)return;motionIntent=true;cancelIntent();activate(index);showDetail(catalog.items[index])}
-$('#view-front').addEventListener('click',()=>detailSide(false));$('#view-back').addEventListener('click',()=>detailSide(true));
+
 document.querySelectorAll('[data-close]').forEach(button=>button.addEventListener('click',()=>document.getElementById(button.dataset.close).close()));
 $('#about-open').addEventListener('click',()=>{cancelIntent();$('#about-dialog').showModal();});
 document.querySelectorAll('dialog').forEach(dialog=>{
@@ -170,9 +166,9 @@ async function boot(){
  button.addEventListener('focus',()=>{if(button.matches(':focus-visible'))browse(i)});button.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();const n=Math.max(0,Math.min(states.length-1,i+(e.key==='ArrowRight'?1:-1)));states[n].button.focus();browse(n)}});states.push(state);
  }
  states[0].controller.setTarget(1,{immediate:true});ready=true;rack.setAttribute('aria-busy','false');$('#load-state').hidden=true;$('#inspect').disabled=false;updateInfo(0);layout();
- const circularOption=$('#circular-option');function openCircle(){if(!circularOption.open||showroom)return;showroom=mountShowroom({items:allProducts,frontUrl:i=>allProducts[i].photoBase?new URL('../'+allProducts[i].front,import.meta.url).href:studio.mockup(presetDesign(allProducts[i])),onSelect:(i,inspect)=>{const p=allProducts[i],railIndex=catalog.items.findIndex(r=>r.sku===p.sku);if(railIndex>=0)browse(railIndex);if(inspect)showDetail(p)}});showroom.select(allProducts.findIndex(p=>p.sku===catalog.items[selected].sku));}circularOption.addEventListener('toggle',openCircle);openCircle();document.documentElement.dataset.ready='true';
+ const circularOption=$('#circular-option');let circleLoading=false;async function openCircle(){if(!circularOption.open||showroom||circleLoading)return;circleLoading=true;await Promise.all(allProducts.map(p=>studio.prepare(presetDesign(p))));showroom=mountShowroom({items:allProducts,frontUrl:i=>allProducts[i].photoBase?new URL('../'+allProducts[i].front,import.meta.url).href:studio.mockup(presetDesign(allProducts[i])),onSelect:(i,inspect)=>{const p=allProducts[i],railIndex=catalog.items.findIndex(r=>r.sku===p.sku);if(railIndex>=0)browse(railIndex);if(inspect)showDetail(p)}});showroom.select(allProducts.findIndex(p=>p.sku===catalog.items[selected].sku));}circularOption.addEventListener('toggle',openCircle);openCircle();document.documentElement.dataset.ready='true';
  }catch{$('#load-text').textContent='Tủ áo chưa tải xong. Bạn vẫn có thể tự thiết kế ở phía dưới.';$('#load-counter').textContent='';rack.setAttribute('aria-busy','false');}
 }
 boot();
-document.querySelector('#open-studio').onclick=async()=>{if(!currentDetail)return;const id=currentDetail.sku;document.querySelector('#product-dialog').close();await studio.open(id)};
+
 document.querySelector('#hero-design').onclick=()=>studio.focus();

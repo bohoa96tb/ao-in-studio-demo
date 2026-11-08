@@ -1,4 +1,4 @@
-import {outline} from './studio.js';
+import {outline} from './studio.js?v=p1content1';
 export async function createModel(host,onFailure){
  const T=await import('https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js');
  const renderer=new T.WebGLRenderer({alpha:true,antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));host.append(renderer.domElement);renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();onFailure()});

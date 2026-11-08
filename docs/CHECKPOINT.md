@@ -29,3 +29,29 @@ Next: user reviews P0; keep main unchanged. Then P1 Studio grouping, licensed3D 
 quality/performance evaluation, fitting/heat-press flow, differentiated template artwork.
 Outstanding QA: physical devices, forced no-WebGL/context loss, failed base photos,
 hosted-site/field performance. See P0_REVIEW, QA_REPORT and PERFORMANCE for exact scope.
+
+## Active P1 — 2026-11-09 (Asia/Tokyo)
+Branch feature/p1-collection-shopping based on434ce99d from P0. Do not merge P0 or P1.
+See P1_REVIEW.md for scope/data/fee compatibility. Original artwork, themed forms,
+mobile catalogue, live detail gallery and shared price breakdown implemented.
+Local lint/build and19 unit tests pass. Browser/Lighthouse and before/after screenshots
+pending CI; do not claim they passed before observing workflow results.
+
+## P1 review candidate — 2026-11-09 (Asia/Tokyo)
+PR https://github.com/bohoa96tb/ao-in-studio-demo/pull/2
+Base redesign/p0-product-identity; head feature/p1-collection-shopping.
+Do not merge either PR without user approval. Main/Pages unchanged.
+Feature code cd4e1057 validated in green Actions42497201781:20 unit tests, P0 five-width
+regression, P1 all12 themes at390 plus other four widths, matching snapshots/cart,
+touch/keyboard/axe. Lighthouse98/96,LCP2449ms,CLS0,TBT0ms in a single mobile lab run.
+Candidate44ad4b9d adds the image-framing fix found by visual QA and an automated check;
+consult the latest PR check for that candidate's final status. No other feature changes.
+55 original SVGs,14 unchanged SKUs, theme-specific forms, consistent WebP previews,
+native filter panel and shared fee breakdown. Old drafts/cart keep original snapshots
+and legacy tariff; new type changes update base price via cart-price.js.
+Review preview reuses existing hosting project appgprj_6af08f4c98c8819188c52cb0da13822f:
+https://ao-in-studio-p0-review.bohoa1996tb.chatgpt.site/
+Existing audience was public at start of P1; do not change access or create another Site.
+Publish only the candidate that passes QA; deployment status must be verified.
+Next: user reviews artwork/catalogue/detail/mobile; then address real materials/sizes,
+matching licensed lifestyle photos and physical-device QA. No new3D scope this phase.

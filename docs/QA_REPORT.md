@@ -29,3 +29,39 @@ context loss/no-WebGL and missing front/back base photographs were not injected 
 P0 suite. No measured field INP/FPS; no production print certification. Existing2D
 fallback remains, but do not claim these untested failure paths passed. Full P1 not done.
 Private preview is a separate deployment of this same application build; main unchanged.
+
+## P1 implementation — validation in progress
+Local lint/build and19 unit tests pass: legacy/v2 price compatibility, template fees,
+blank/extra faces, SKU uniqueness, text contrast,12 distinct themes, animal/zodiac
+alternatives, invalid date/age handling and couple/family/name compositions.
+Manual internal desktop preview verified original animal artwork and theme-specific
+fields. Full CI browser/Lighthouse/screenshot comparison pending.
+
+## P1 verified feature checkpoint — 2026-11-09 (Asia/Tokyo)
+Feature application cd4e10570996d589a3ec22cfce4cd4453d54a16e:
+Actions42497201781 / job128781996768 SUCCESS, artifact13623184423.
+- Lint/build and20 logic tests pass, including frozen legacy fee policy and empty-text
+  fee handling for new designs.
+- Complete P0 regression at360/390/430/768/1440 still passes: Studio/upload/front/back,
+  undo/reload, cart/quantity/edit/demo checkout, fitting/heat press and matching artwork,
+  reduced motion, rail/circle and catalogue filters. P0 missing atlas/manifest cases pass.
+- P1 suite:12 distinct theme journeys at390; name-layout journey at360/430/768/1440.
+  All verify WebP/front/back/close gallery, actual changed image after personalisation,
+  exported JSON artwork/snapshot, Studio handoff, cart identity/reload/edit. Vietnamese
+  year2023 produces cat artwork, not rabbit. Blank product starts without unrelated art.
+  Changing a new design to polo and back updates base/total through shared pricing.
+- Mobile catalogue is two columns at360/390/430. No page horizontal overflow or uncaught
+  pageerrors. Detail Axe scan has no serious/critical violations; extended page scans
+  at390/1440 have zero violations. Keyboard/touch/fitting valid/invalid drops pass.
+- Before screenshots from pinned P0 at434ce99d: home/catalogue/card/detail/Studio390.
+  After screenshots at all5 widths for the same five interface areas. Stored in artifact.
+- Lighthouse mobile navigation (localhost, simulated RTT150ms/1638.4Kbps/CPU4x):
+  Performance98, Accessibility96, LCP2449ms, CLS0, TBT0ms. Single lab sample, not field INP,
+  hardware FPS or real-network Android evidence. P0 sample89/96, LCP2430ms,TBT368ms.
+- Visual inspection found P0 inherited290px gallery height and generic button padding
+  shrinking product thumbnails. Candidate44ad4b9d fixes full6:7 framing/thumbnail padding,
+  and adds a framing assertion to the browser suite. The PR carries the candidate CI gate.
+
+Limits: original stylised vectors and 2D mockups; no real lifestyle/product photographs,
+verified fabric/size measurements/delivery/durability, new GLB, physical Android/iPhone,
+forced WebGL context-loss/no-WebGL or certified production exports. No payment/backend.
