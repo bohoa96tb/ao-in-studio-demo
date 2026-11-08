@@ -16,3 +16,16 @@ atlas decoding and redesigned Hero. Local lint/build and 16 unit tests pass.
 Browser regression, new product-identity/failure-injection tests and Lighthouse pending
 GitHub Actions; do not claim CI or performance passed before observing results.
 Do not merge this review branch or alter production until the user reviews the PR.
+
+
+### P0 validated checkpoint
+Reviewed application commit2e88fba68aac450aa13b7012dc03abdb3580d764.
+PR https://github.com/bohoa96tb/ao-in-studio-demo/pull/1 — not merged.
+Actions42492802283 SUCCESS: lint/build,16 unit tests,5-width full regression,
+5-width identity/draft tests and two motion-failure injections; touch/keyboard/axe pass.
+Lighthouse89/96,LCP2448ms,CLS0,TBT362ms (single simulated mobile lab run).
+Preview: https://ao-in-studio-p0-review.bohoa1996tb.chatgpt.site (owner-private; deployment status must be checked before handoff).
+Next: user reviews P0; keep main unchanged. Then P1 Studio grouping, licensed3D asset
+quality/performance evaluation, fitting/heat-press flow, differentiated template artwork.
+Outstanding QA: physical devices, forced no-WebGL/context loss, failed base photos,
+hosted-site/field performance. See P0_REVIEW, QA_REPORT and PERFORMANCE for exact scope.
