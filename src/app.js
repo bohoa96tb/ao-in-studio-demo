@@ -170,7 +170,7 @@ async function boot(){
  button.addEventListener('focus',()=>{if(button.matches(':focus-visible'))browse(i)});button.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();const n=Math.max(0,Math.min(states.length-1,i+(e.key==='ArrowRight'?1:-1)));states[n].button.focus();browse(n)}});states.push(state);
  }
  states[0].controller.setTarget(1,{immediate:true});ready=true;rack.setAttribute('aria-busy','false');$('#load-state').hidden=true;$('#inspect').disabled=false;updateInfo(0);layout();
- showroom=mountShowroom({items:allProducts,frontUrl:i=>allProducts[i].photoBase?new URL('../'+allProducts[i].front,import.meta.url).href:studio.mockup(presetDesign(allProducts[i])),onSelect:(i,inspect)=>{const p=allProducts[i],railIndex=catalog.items.findIndex(r=>r.sku===p.sku);if(railIndex>=0)browse(railIndex);if(inspect)showDetail(p)}});document.documentElement.dataset.ready='true';
+ const circularOption=$('#circular-option');function openCircle(){if(!circularOption.open||showroom)return;showroom=mountShowroom({items:allProducts,frontUrl:i=>allProducts[i].photoBase?new URL('../'+allProducts[i].front,import.meta.url).href:studio.mockup(presetDesign(allProducts[i])),onSelect:(i,inspect)=>{const p=allProducts[i],railIndex=catalog.items.findIndex(r=>r.sku===p.sku);if(railIndex>=0)browse(railIndex);if(inspect)showDetail(p)}});showroom.select(allProducts.findIndex(p=>p.sku===catalog.items[selected].sku));}circularOption.addEventListener('toggle',openCircle);openCircle();document.documentElement.dataset.ready='true';
  }catch{$('#load-text').textContent='Tủ áo chưa tải xong. Bạn vẫn có thể tự thiết kế ở phía dưới.';$('#load-counter').textContent='';rack.setAttribute('aria-busy','false');}
 }
 boot();
