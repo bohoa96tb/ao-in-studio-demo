@@ -1,2 +1,2 @@
-# QA — phase 2
-Verified commit 2bbc18dc24d3fd6780403352265f096e0f56a2b6. GitHub Actions run 42486722713 job 128750100700 SUCCESS: lint, build, 11/11 tests. Browser suite on 360/390/430/768/1440: detail, back, circle selection consistency, no horizontal overflow and zero pageerror. These are automated Chromium viewports, not physical devices or measured touch gestures. Lighthouse/FPS/INP unmeasured. Local browser remains sandbox-blocked. Two sample designs repeated at six positions. Remote pinned media dependency remains.
+# QA_REPORT
+Phase 3 local syntax/build and 11 tests pass. Extended browser test covers front/back Vietnamese text, draft restore, duplication/undo and invalid SVG rejection at five widths. Results pending CI. 3D render, exports, image drag, context loss and physical touch require further verification. No Lighthouse or FPS claims.

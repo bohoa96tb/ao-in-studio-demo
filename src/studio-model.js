@@ -1,0 +1,15 @@
+import {outline} from './studio.js';
+export async function createModel(host,onFailure){
+ const T=await import('https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js');
+ const renderer=new T.WebGLRenderer({alpha:true,antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));host.append(renderer.domElement);renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();onFailure()});
+ const scene=new T.Scene(),camera=new T.PerspectiveCamera(38,1,.1,100);camera.position.set(0,0,9);scene.add(new T.HemisphereLight(0xffffff,0x554e43,2));const light=new T.DirectionalLight(0xffffff,3);light.position.set(3,4,5);scene.add(light);
+ const shape=new T.Shape();outline.forEach(([x,y],i)=>{const p=[(x-300)/150,(350-y)/150];i?shape.lineTo(...p):shape.moveTo(...p)});shape.closePath();
+ const group=new T.Group();scene.add(group);const body=new T.Mesh(new T.ExtrudeGeometry(shape,{depth:.12,bevelEnabled:true,bevelSize:.035,bevelThickness:.025,bevelSegments:2,steps:1}),new T.MeshStandardMaterial({color:'#f8f6ee',roughness:.9}));body.position.z=-.06;group.add(body);
+ function face(back){const geo=new T.ShapeGeometry(shape);const uv=geo.attributes.uv,pos=geo.attributes.position;for(let i=0;i<uv.count;i++)uv.setXY(i,pos.getX(i)/4+.5,pos.getY(i)/(700/150)+.5);const mat=new T.MeshStandardMaterial({roughness:.9,transparent:true,side:T.FrontSide});const mesh=new T.Mesh(geo,mat);mesh.position.z=back?-.09:.09;if(back)mesh.rotation.y=Math.PI;group.add(mesh);return mat}
+ const fm=face(false),bm=face(true);let ft=null,bt=null,visible=true,pending=0;
+ function render(){pending=0;if(visible&&!document.hidden)renderer.render(scene,camera)}function schedule(){if(!pending)pending=requestAnimationFrame(render)}
+ function resize(){const w=host.clientWidth||400,h=460;renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();schedule()}
+ let down=null;renderer.domElement.style.touchAction='pan-y';renderer.domElement.onpointerdown=e=>{down={x:e.clientX,y:e.clientY,r:group.rotation.y,locked:false}};renderer.domElement.onpointermove=e=>{if(!down)return;const dx=e.clientX-down.x;if(!down.locked&&Math.abs(dx)>8&&Math.abs(dx)>Math.abs(e.clientY-down.y)){down.locked=true;renderer.domElement.setPointerCapture(e.pointerId)}if(down.locked){group.rotation.y=down.r+dx*.012;schedule()}};renderer.domElement.onpointerup=renderer.domElement.onpointercancel=()=>down=null;
+ new ResizeObserver(resize).observe(host);new IntersectionObserver(([e])=>{visible=e.isIntersecting;schedule()}).observe(host);document.addEventListener('visibilitychange',schedule);
+ return {resize,update(color,front,back,side){body.material.color.set(color);if(!ft){ft=new T.CanvasTexture(front);bt=new T.CanvasTexture(back);ft.colorSpace=bt.colorSpace=T.SRGBColorSpace;fm.map=ft;bm.map=bt;fm.needsUpdate=bm.needsUpdate=true}ft.needsUpdate=bt.needsUpdate=true;group.rotation.y=side==='back'?Math.PI:0;schedule()}};
+}

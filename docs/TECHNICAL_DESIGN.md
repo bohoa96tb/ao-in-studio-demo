@@ -1,2 +1,2 @@
-# Architecture
-Phase 1 uses source-tested vanilla ES modules with Vite dev support. src/app.js coordinates catalog, rack-layout/mobile-rail and frame controller. config/catalog.json owns rail entries. Prepared atlases use 2D canvases, no WebGL. React/TypeScript, normalized design state, IndexedDB and later modules pending. Product list separate data/products.json contains 12 business entries; motion rail only showcases two authorized artwork studies in six positions. Production should replace repetitions with owned matching media.
+# TECHNICAL_DESIGN
+Studio module uses one local state snapshot, faces front/back, layers with image/text geometry. Draft snapshot including uploaded raster data lives in IndexedDB, history memory capped at 30. No localStorage images or upload API. canvas front/back passed into CanvasTexture, original procedural extrusion and side materials; one WebGL canvas on demand, render only on events. Separate design from prepared motion footage.

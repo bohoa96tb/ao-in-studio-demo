@@ -1,3 +1,4 @@
+import {mountStudio} from './studio.js';
 import {mountShowroom} from './circular-showroom.js';
 import {GarmentController} from './controller.js';
 import {rackPositions,slideStep} from './rack-layout.js';
@@ -8,6 +9,7 @@ const $=selector=>document.querySelector(selector);
 const rack=$('#rack'),holder=$('#rack-items');
 const mobile=matchMedia('(max-width:700px)'),reduced=matchMedia('(prefers-reduced-motion:reduce)');
 let showroom;
+const studio=mountStudio();
 let catalog,states=[],active=-1,selected=0,pending=-1,intentTimer,ready=false,raf=0,lastTime=0,drag=null,railOffset=0,railVelocity=0,suppressClickUntil=0;
 const manifestUrl=item=>new URL('https://raw.githubusercontent.com/amirmushichge/interactive-garment-starter/574299fecfe9e1af5eea92c345b10e59e207fd18/public/'+item.motion);
 const assetUrl=(item,file)=>new URL(file,manifestUrl(item));
@@ -173,3 +175,5 @@ async function boot(){
   }catch(error){$('#load-text').textContent='Could not load previews';$('#load-counter').textContent='Check asset paths';rack.setAttribute('aria-busy','false');console.error(error.message);}
 }
 boot();
+
+document.querySelector('#open-studio').onclick=()=>{document.querySelector('#product-dialog').close();studio.open(catalog.items[selected].id)};
