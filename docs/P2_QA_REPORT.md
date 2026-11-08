@@ -51,4 +51,5 @@ Mã kiểm thử: nhánh `feature/p2-real-product-visuals` (trước commit ch�
 - Force WebGL context-loss / tắt WebGL bằng tiêm lỗi: chưa làm. Quan sát phụ: ở headless không WebGL,
   Studio tự rơi về 2D kèm thông báo — đây là bằng chứng hành vi fallback, không phải force-test.
 - Lỗi tải từng file ảnh front/back của motion (suite P0 chỉ abort atlas + manifest).
+- Browser regression gieo sẵn (pre-seed) giỏ/draft legacy unversioned trong IndexedDB v1 rồi tải bản P2: pricing legacy đã có unit test ở `cart.test.mjs`, nhưng chưa có test trình duyệt dạng gieo sẵn này (đề xuất của Agent 4/6).
 - CI trên GitHub Actions cho PR P2: chờ khi PR được tạo; merge chỉ khi CI xanh.
