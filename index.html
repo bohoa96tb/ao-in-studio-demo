@@ -3,41 +3,40 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="Showroom áo in tương tác. Bản demo Giai đoạn 1.">
+  <meta name="description" content="Áo in theo yêu cầu: chọn mẫu, thêm tên hoặc hình riêng và xem trước thành phẩm.">
   <meta name="theme-color" content="#f5f3ee">
   <title>ÁO IN STUDIO — Chiếc áo của bạn</title>
-  <link rel="stylesheet" href="src/style.css?v=perf9">
-  <script type="module" src="src/app.js?v=perf9"></script>
-<link rel="preload" as="image" href="https://raw.githubusercontent.com/amirmushichge/interactive-garment-starter/574299fecfe9e1af5eea92c345b10e59e207fd18/public/fixtures/lake-white-v3/front.webp" fetchpriority="high"></head>
+  <link rel="stylesheet" href="src/style.css?v=p0review3">
+  <script type="module" src="src/app.js?v=p0review3"></script>
+<link rel="preload" as="image" href="public/hero.webp" fetchpriority="high"></head>
 <body>
   <a class="skip" href="#showcase">Đến tủ áo</a>
   <header class="site-header">
     <a class="wordmark" href="#showcase" id="site-title">ÁO IN STUDIO<span aria-hidden="true">↗</span></a>
-    <a class="catalog-nav" href="#product-catalog">Bộ sưu tập</a><button id="cart-open" class="text-button">Giỏ hàng (<span id="cart-count">0</span>)</button><span class="edition">BỘ SƯU TẬP / 01</span>
-    <button class="text-button" id="about-open">Về bản demo <span aria-hidden="true">↗</span></button>
+    <a class="catalog-nav" href="#product-catalog">Bộ sưu tập</a><button id="cart-open" class="text-button">Giỏ hàng (<span id="cart-count">0</span>)</button>
   </header>
   <main id="showcase">
     <div class="intro">
-      <p class="eyebrow">THIẾT KẾ RIÊNG · MẶC ĐIỀU BẠN YÊU</p>
-      <h1>CHIẾC ÁO CỦA BẠN.<br><em>CÂU CHUYỆN CỦA BẠN.</em></h1>
-      <p class="intro-note" id="interaction-hint">Chọn áo, tạo hình in riêng và xem trước sản phẩm trước khi đặt.</p>
+      <p class="eyebrow">ÁO IN THEO YÊU CẦU</p>
+      <h1>Một chiếc áo.<br><em>Rất riêng bạn.</em></h1>
+      <p class="hero-description">Chọn mẫu yêu thích. Thêm câu chuyện của bạn.</p><button id="hero-design" class="hero-cta">Tự thiết kế ngay <span aria-hidden="true">↗</span></button><p class="intro-note" id="interaction-hint">Vuốt để khám phá bộ sưu tập</p>
     </div>
     <div class="rack" id="rack" role="region" aria-label="Tủ áo tương tác" aria-busy="true">
       <div class="rail" aria-hidden="true"></div>
-      <img id="rail-poster" src="https://raw.githubusercontent.com/amirmushichge/interactive-garment-starter/574299fecfe9e1af5eea92c345b10e59e207fd18/public/fixtures/lake-white-v3/front.webp" width="384" height="448" fetchpriority="high" alt="Mẫu áo Hồ núi, đang chuẩn bị tủ áo tương tác"><div class="rack-items" id="rack-items"></div>
+      <img id="rail-poster" src="public/hero.webp" width="384" height="448" fetchpriority="high" alt="Mẫu áo Hồ núi, đang chuẩn bị tủ áo tương tác"><div class="rack-items" id="rack-items"></div>
       <div class="load-state" id="load-state" role="status"><span id="load-text">Đang chuẩn bị tủ áo</span><span id="load-counter">0 / 2</span></div>
     </div>
     <div class="collection-bar">
-      <div class="selected-info" aria-live="polite"><span id="selected-index">01 / 02</span><h2 id="selected-name">Alpine lake</h2><p id="selected-type">Oversized cotton T-shirt · White</p></div>
+      <div class="selected-info" aria-live="polite"><span id="selected-index">01 / 02</span><h2 id="selected-name">Hồ núi</h2><p id="selected-type">Dáng rộng · Trắng · 219.000đ</p></div>
       <div class="browse-controls"><button id="previous" class="arrow-button" disabled aria-label="Áo trước">←</button><button id="next" class="arrow-button" disabled aria-label="Áo tiếp theo">→</button><button id="inspect" class="inspect-button" disabled>Xem áo <span aria-hidden="true">↗</span></button></div>
     </div>
-    <p class="fixture-note">Vuốt để khám phá · Ảnh chuyển động mẫu MIT, chưa phải sản phẩm đang bán</p>
-  <section class="circular" id="collections"><div class="circle-heading"><p class="eyebrow">02 / SHOWROOM 360°</p><h2>KHÁM PHÁ BỘ SƯU TẬP</h2><p>Kéo ngang để xoay giá áo. Chạm một mẫu để đưa ra phía trước.</p></div><div id="circle-stage" class="circle-stage" role="region" tabindex="0" aria-label="Giá áo xoay 360 độ"><div class="circle-floor"></div><div id="circle-ring" class="circle-ring"></div></div><div class="circle-info"><span id="circle-count" aria-live="polite"></span><h3 id="circle-name"></h3><div class="circle-controls"><button id="circle-prev" aria-label="Xoay trái">←</button><button id="circle-next" aria-label="Xoay phải">→</button><button id="circle-inspect">Xem áo này ↗</button></div></div><small>Hai thiết kế chuyển động mẫu MIT được trưng bày tại sáu vị trí.</small></section><section id="product-catalog" class="effect-section"></section><section id="studio" class="studio"></section><section id="styling" class="effect-section"></section><section id="heat-press" class="effect-section"></section><section class="next-stage"><span>01 / KHÁM PHÁ</span><h2>Từ một chiếc áo.<br>Đến dấu ấn của riêng bạn.</h2><p>Chọn mẫu trên thanh treo để xem mặt trước, mặt sau và thông tin sản phẩm.</p><div>Studio thiết kế &nbsp; / &nbsp; Thử phối &nbsp; / &nbsp; Ép nhiệt &nbsp; / &nbsp; Giỏ hàng demo</div><small>Trải nghiệm minh họa · Chưa nhận đơn hàng thật.</small></section></main>
-  <footer class="site-footer"><span>Demo Giai đoạn 1 · Chưa nhận đơn hàng</span><a href="README.md" target="_blank" rel="noopener">Tài liệu dự án ↗</a><span>Chuyển động mẫu: Amir Mušić · MIT</span></footer>
+    <p id="rail-status" class="rail-status" role="status"></p>
+  <details class="optional-experience" id="circular-option"><summary>Khám phá giá áo xoay 360° <span aria-hidden="true">＋</span></summary><section class="circular" id="collections"><div class="circle-heading"><p class="eyebrow">GÓC KHÁM PHÁ</p><h2>Một góc nhìn khác</h2><p>Kéo ngang để xoay giá áo. Chạm một mẫu để đưa ra phía trước.</p></div><div id="circle-stage" class="circle-stage" role="region" tabindex="0" aria-label="Giá áo xoay 360 độ"><div class="circle-floor"></div><div id="circle-ring" class="circle-ring"></div></div><div class="circle-info"><span id="circle-count" aria-live="polite"></span><h3 id="circle-name"></h3><div class="circle-controls"><button id="circle-prev" aria-label="Xoay trái">←</button><button id="circle-next" aria-label="Xoay phải">→</button><button id="circle-inspect">Xem áo này ↗</button></div></div></section></details><section id="product-catalog" class="effect-section"></section><section id="studio" class="studio"></section><section id="styling" class="effect-section"></section><section id="heat-press" class="effect-section"></section></main>
+  <footer class="site-footer"><div><strong>ÁO IN STUDIO</strong><p>Chọn áo. Tạo dấu ấn riêng.</p><small>Bản trải nghiệm — chưa nhận đơn hàng thật.</small></div><div><button id="about-open" class="text-button">Thông tin &amp; ghi công</button><a href="docs/ASSET_LICENSES.md" target="_blank" rel="noopener">Nguồn hình ảnh và giấy phép ↗</a><small>Chuyển động tuyển chọn: Amir Mušić · MIT</small></div></footer>
   <dialog id="product-dialog" aria-labelledby="product-title">
     <div class="dialog-header"><span class="eyebrow">CHI TIẾT MẪU ÁO</span><button class="close-button" data-close="product-dialog" aria-label="Đóng chi tiết">Đóng ×</button></div>
-    <div class="product-layout"><div class="detail-stage"><img id="detail-image" alt="" width="384" height="448"></div><div class="product-copy"><p class="eyebrow" id="product-type"></p><h2 id="product-title"></h2><p id="product-description"></p><dl><div><dt>Màu</dt><dd id="product-color"></dd></div><div><dt>Hình ảnh</dt><dd id="product-preview">Generated garment concept</dd></div></dl><button id="open-studio" class="inspect-button">Tự thiết kế mẫu này ↗</button><div class="view-tabs" role="group" aria-label="Product side"><button id="view-front" aria-pressed="true">Mặt trước</button><button id="view-back" aria-pressed="false">Mặt sau</button></div><a id="product-link" hidden target="_blank" rel="noopener">View this product ↗</a><p class="detail-note">The rail rotates on hover. This detail view uses static front and back images; it does not simulate an unseen product side.</p></div></div>
+    <div class="product-layout"><div class="detail-stage"><img id="detail-image" alt="" width="384" height="448"></div><div class="product-copy"><p class="eyebrow" id="product-type"></p><h2 id="product-title"></h2><p id="product-description"></p><dl><div><dt>Màu</dt><dd id="product-color"></dd></div><div><dt>Hình ảnh</dt><dd id="product-preview">Mẫu tuyển chọn</dd></div></dl><button id="open-studio" class="inspect-button">Tự thiết kế mẫu này ↗</button><div class="view-tabs" role="group" aria-label="Mặt áo"><button id="view-front" aria-pressed="true">Mặt trước</button><button id="view-back" aria-pressed="false">Mặt sau</button></div><a id="product-link" hidden target="_blank" rel="noopener">Xem sản phẩm ↗</a></div></div>
   </dialog>
-  <dialog id="about-dialog" aria-labelledby="about-title"><div class="dialog-header"><span class="eyebrow">BẢN DEMO</span><button class="close-button" data-close="about-dialog" aria-label="Close explanation">Đóng ×</button></div><div class="about-copy"><h2>ÁO IN STUDIO</h2><p>Giai đoạn 1: khám phá áo, xoay từ góc nghiêng sang mặt trước và xem chi tiết trước/sau.</p><p>Chuyển động và hai mẫu đồ họa được cung cấp bởi Amir Mušić theo MIT. Đây là hình ảnh ý tưởng tạo sẵn, chưa phải ảnh sản phẩm thật. Thiết kế tùy chỉnh 3D, thử phối và giỏ hàng sẽ được xây theo checkpoint.</p></div></dialog>
+  <dialog id="about-dialog" aria-labelledby="about-title"><div class="dialog-header"><span class="eyebrow">BẢN DEMO</span><button class="close-button" data-close="about-dialog" aria-label="Đóng thông tin">Đóng ×</button></div><div class="about-copy"><h2>ÁO IN STUDIO</h2><p>Khám phá mẫu áo, thêm lời nhắn hoặc ảnh riêng và xem trước trước khi chọn mua.</p><p>Đây là bản trải nghiệm, chưa nhận đơn hàng hay thanh toán thật. Mô hình và thử phối là minh họa, không xác định size hoặc độ vừa vặn.</p><p>Hai mẫu chuyển động Hồ núi và Lá bài được Amir Mušić phát hành theo MIT. Hình ý tưởng và chuyển động được tạo bằng công cụ hình ảnh/video; không phải ảnh sản phẩm đã sản xuất. Các mẫu chữ, người minh họa và hiệu ứng ép nhiệt được biên soạn riêng cho dự án.</p><a href="LICENSE-ASSETS.md" target="_blank" rel="noopener">Giấy phép mẫu chuyển động ↗</a></div></dialog>
 <dialog id="cart-dialog" aria-label="Giỏ hàng demo"></dialog></body>
 </html>

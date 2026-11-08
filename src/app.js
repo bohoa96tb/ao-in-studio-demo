@@ -1,13 +1,15 @@
-import {mountCatalog} from './product-catalog.js?v=perf9';
-import {mountStyling} from './styling.js';
-import {mountHeatPress} from './heat-press.js';
-import {mountCart} from './cart.js?v=catalog7';
-import {mountStudio} from './studio.js?v=qa8';
+import {getProducts,resolveRail,typeLabel} from './product-store.js?v=p0review3';
+import {presetDesign} from './catalog-filter.js?v=p0review3';
+import {mountCatalog} from './product-catalog.js?v=p0review3';
+import {mountStyling} from './styling.js?v=p0review3';
+import {mountHeatPress} from './heat-press.js?v=p0review3';
+import {mountCart} from './cart.js?v=p0review3';
+import {mountStudio} from './studio.js?v=p0review3';
 import {mountShowroom} from './circular-showroom.js';
 import {GarmentController} from './controller.js';
 import {rackPositions,slideStep} from './rack-layout.js';
 import {mobileRailPositions,mobileSwipeDestination} from './mobile-rail.js';
-import {validateCatalog,validateManifest} from './catalog.js';
+import {validateCatalog,validateManifest} from './catalog.js?v=p0review3';
 
 const $=selector=>document.querySelector(selector);
 const rack=$('#rack'),holder=$('#rack-items');
@@ -20,17 +22,19 @@ const styling=mountStyling(studio);
 const heatPress=mountHeatPress(studio,{tryOn:()=>styling.open()});
 document.querySelector('#studio-try').onclick=()=>styling.open();
 document.querySelector('#studio-press').onclick=()=>heatPress.open();
+let motionIntent=false;
+let currentDetail=null,allProducts=[];
 let catalog,states=[],active=-1,selected=0,pending=-1,intentTimer,ready=false,raf=0,lastTime=0,drag=null,railOffset=0,railVelocity=0,suppressClickUntil=0;
-const manifestUrl=item=>new URL('https://raw.githubusercontent.com/amirmushichge/interactive-garment-starter/574299fecfe9e1af5eea92c345b10e59e207fd18/public/'+item.motion);
+const manifestUrl=item=>new URL('../public/'+item.motion,import.meta.url);
 const assetUrl=(item,file)=>new URL(file,manifestUrl(item));
 function updateInfo(index){
-  selected=index;showroom?.select(index);const item=catalog.items[index];
+  selected=index;showroom?.select(allProducts.findIndex(p=>p.sku===catalog.items[index].sku));const item=catalog.items[index];
   $('#selected-index').textContent=String(index+1).padStart(2,'0')+' / '+String(states.length).padStart(2,'0');
-  $('#selected-name').textContent=item.name;$('#selected-type').textContent=[item.type,item.color].filter(Boolean).join(' · ');
+  $('#selected-name').textContent=item.name;$('#selected-type').textContent=[typeLabel(item.type),item.color, new Intl.NumberFormat('vi-VN').format(item.basePrice)+'đ'].join(' · ');
   $('#previous').disabled=!ready||index===0;$('#next').disabled=!ready||index===states.length-1;
 }
 function paint(s,frame){
-  if(!s.image)return;
+  if(!s.image){if(s.fallback)s.fallback.src=new URL('../'+(frame>s.manifest.frameCount/2?s.product.front:s.product.profile),import.meta.url).href;return;}
   const {width:w,height:h,columns}=s.manifest;
   s.ctx.clearRect(0,0,w,h);s.ctx.drawImage(s.image,(frame%columns)*w,Math.floor(frame/columns)*h,w,h,0,0,w,h);
   s.button.dataset.frame=String(frame);
@@ -39,11 +43,12 @@ function activate(index){
   if(!ready)return;
   active=index;
   states.forEach((s,i)=>{s.button.classList.toggle('active',i===index);s.controller.setTarget(i===index?1:0,{immediate:reduced.matches});});
-  if(index>=0)updateInfo(index);
+  if(index>=0){updateInfo(index);if(motionIntent)ensureMotion(index);}
   wake();
 }
 function cancelIntent(){clearTimeout(intentTimer);intentTimer=undefined;pending=-1;}
 function intend(index){
+  motionIntent=true;
   if(!ready||pending===index||active===index)return;
   cancelIntent();pending=index;
   if(index<0){activate(-1);return;}
@@ -60,7 +65,7 @@ function tick(time){
   if(mobile.matches&&!drag){
     const next=slideStep(railOffset,railVelocity,0,dt,23);railOffset=next.position;railVelocity=next.velocity;
     moving ||=Math.abs(railOffset)>.03||Math.abs(railVelocity)>.2;
-    if(!moving&&active!==selected)intend(selected);
+    if(!moving&&active!==selected&&!drag)activate(selected);
   }
   for(const s of states)moving=s.controller.step(dt)||moving;
   const positions=targets();
@@ -75,12 +80,12 @@ function wake(){if(!raf&&!document.hidden)raf=requestAnimationFrame(tick);}
 function stop(){cancelAnimationFrame(raf);raf=0;lastTime=0;}
 function layout(){
   if(!states.length)return;
-  const displayWidth=mobile.matches?315:innerWidth>=1400?400:370;
+  const displayWidth=mobile.matches?Math.min(345,innerWidth-20):innerWidth>=1400?440:410;
   states.forEach(s=>{s.displayWidth=displayWidth;s.button.style.setProperty('--garment-width',displayWidth+'px');});
   $('#interaction-hint').textContent=mobile.matches?'Vuốt để khám phá · Chạm để xem áo':'Rê để xoay áo · Bấm để xem chi tiết';
   cancelIntent();drag=null;railOffset=0;railVelocity=0;
   const positions=targets();states.forEach((s,i)=>{s.position=positions[i];s.velocity=0;s.button.style.left=s.position+'px';});
-  activate(mobile.matches?selected:-1);wake();
+  activate(selected);wake();
 }
 function hitAt(x){
   let nearest=-1,best=Infinity;
@@ -98,9 +103,10 @@ rack.addEventListener('pointermove',event=>{
   }
   if(!mobile.matches&&event.pointerType!=='touch')intend(hitAt(event.clientX-rack.getBoundingClientRect().left));
 });
-rack.addEventListener('pointerleave',()=>{if(!mobile.matches&&!drag){cancelIntent();activate(-1);}});
+rack.addEventListener('pointerleave',()=>{if(!mobile.matches&&!drag){cancelIntent();activate(selected);}});
 rack.addEventListener('pointerdown',event=>{
   if(!ready||!mobile.matches||event.button!==0)return;
+  motionIntent=true;$('#interaction-hint').classList.add('used');
   const now=performance.now();drag={id:event.pointerId,startX:event.clientX,startY:event.clientY,lastX:event.clientX,lastTime:now,velocity:0,horizontal:false};
 });
 function endDrag(event){
@@ -124,6 +130,7 @@ rack.addEventListener('click',event=>{
   openProduct(index);
 });
 function browse(index){
+  motionIntent=true;
   if(!ready)return;
   index=Math.max(0,Math.min(states.length-1,index));cancelIntent();
   if(mobile.matches){const p=targets();railOffset=p[index]-rack.clientWidth/2;railVelocity=0;selected=index;activate(-1);if(reduced.matches)railOffset=0;updateInfo(index);wake();}
@@ -132,60 +139,40 @@ function browse(index){
 $('#previous').addEventListener('click',()=>browse(selected-1));$('#next').addEventListener('click',()=>browse(selected+1));
 $('#inspect').addEventListener('click',()=>openProduct(selected));
 function detailSide(back){
-  const item=catalog.items[selected],s=states[selected];
-  $('#detail-image').src=back?new URL('https://raw.githubusercontent.com/amirmushichge/interactive-garment-starter/574299fecfe9e1af5eea92c345b10e59e207fd18/public/'+item.back).href:assetUrl(item,s.manifest.front).href;
-  $('#detail-image').alt=item.name+' — '+(back?'back':'front');
-  $('#view-front').setAttribute('aria-pressed',String(!back));$('#view-back').setAttribute('aria-pressed',String(back));
+ if(!currentDetail)return;const face=back?'back':'front';const p=currentDetail;$('#detail-image').src=p.photoBase?new URL('../'+p[face],import.meta.url).href:studio.mockup(presetDesign(p),face);$('#detail-image').alt=p.name+' — '+(back?'mặt sau':'mặt trước');$('#view-front').setAttribute('aria-pressed',String(!back));$('#view-back').setAttribute('aria-pressed',String(back));
 }
-function openProduct(index){
-  if(!ready)return;
-  cancelIntent();activate(index);const item=catalog.items[index];
-  $('#product-title').textContent=item.name;$('#product-type').textContent=item.type||'';$('#product-description').textContent=item.description||'';$('#product-color').textContent=item.color||'—';
-  $('#product-preview').textContent=item.previewLabel||(states[index].manifest.source?.kind==='original-procedural-illustration'?'Original illustration':'Prepared product frames');
-  $('#view-back').hidden=!item.back;$('#view-back').disabled=!item.back;
-  const link=$('#product-link');link.hidden=!item.productUrl;if(item.productUrl)link.href=item.productUrl;
-  detailSide(false);$('#product-dialog').showModal();
+function showDetail(item){
+ currentDetail=item;showroom?.select(allProducts.findIndex(p=>p.sku===item.sku));$('#product-dialog').dataset.productId=item.sku;$('#product-title').textContent=item.name;$('#product-type').textContent=typeLabel(item.type)+' · '+item.sku;$('#product-description').textContent=item.description||'Thêm tên, ngày sinh hoặc hình riêng để tạo chiếc áo của bạn.';$('#product-color').textContent=item.colorName||'Nhiều màu';$('#product-preview').textContent=item.photoBase?'Hình in tuyển chọn có sẵn':'Có thể chỉnh nội dung';$('#view-back').hidden=false;$('#view-back').disabled=false;$('#product-link').hidden=true;detailSide(false);$('#product-dialog').showModal();
 }
+function openProduct(index){if(!ready)return;motionIntent=true;cancelIntent();activate(index);showDetail(catalog.items[index])}
 $('#view-front').addEventListener('click',()=>detailSide(false));$('#view-back').addEventListener('click',()=>detailSide(true));
 document.querySelectorAll('[data-close]').forEach(button=>button.addEventListener('click',()=>document.getElementById(button.dataset.close).close()));
 $('#about-open').addEventListener('click',()=>{cancelIntent();$('#about-dialog').showModal();});
 document.querySelectorAll('dialog').forEach(dialog=>{
-  dialog.addEventListener('close',()=>{if(!mobile.matches)activate(-1);});
+  dialog.addEventListener('close',()=>{if(!mobile.matches)activate(selected);});
   dialog.addEventListener('click',event=>{const rect=dialog.getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)dialog.close();});
 });
 addEventListener('resize',layout);mobile.addEventListener('change',layout);reduced.addEventListener('change',()=>activate(active));
 document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelIntent();stop();}else wake();});
-const manifestCache=new Map(),atlasCache=new Map();
+async function ensureMotion(index){
+ const s=states[index];if(!s||s.motionPromise||s.unavailable)return; s.motionPromise=(async()=>{try{const image=new Image();image.src=assetUrl(s.product,s.manifest.atlas).href;await image.decode();if(image.naturalWidth!==s.manifest.width*s.manifest.columns)throw Error('Motion size');s.image=image;s.button.classList.add('ready');if(active===index&&!reduced.matches){s.controller.setTarget(0,{immediate:true});s.controller.setTarget(1)}paint(s,s.controller.frame);wake()}catch{s.unavailable=true;s.button.dataset.motion='static';s.fallback.src=new URL('../'+s.product.front,import.meta.url).href;$('#rail-status').textContent='Một mẫu đang hiển thị ảnh tĩnh. Bạn vẫn có thể xem và cá nhân hóa áo.'}})();
+ return s.motionPromise;
+}
 async function boot(){
-  try{
-    const response=await fetch(new URL('../config/catalog.json',import.meta.url));if(!response.ok)throw new Error('Catalog not found.');
-    catalog=validateCatalog(await response.json());$('#site-title').firstChild.textContent=catalog.title||'Garment Showcase';
-    for(const [i,item] of catalog.items.entries()){
-      if(!manifestCache.has(item.motion))manifestCache.set(item.motion,fetch(manifestUrl(item)).then(r=>{if(!r.ok)throw Error('Motion unavailable');return r.json()}).then(validateManifest));
-      const manifest=await manifestCache.get(item.motion);
-      const button=document.createElement('button');button.className='garment';button.dataset.index=String(i);button.setAttribute('aria-label','Xem '+item.name);button.disabled=true;
-      const wire=document.createElement('span');wire.className='wire';wire.setAttribute('aria-hidden','true');
-      const fallback=document.createElement('img');fallback.src=assetUrl(item,manifest.profile).href;fallback.alt='';fallback.width=manifest.width;fallback.height=manifest.height;
-      const canvas=document.createElement('canvas');canvas.width=manifest.width;canvas.height=manifest.height;canvas.setAttribute('aria-hidden','true');
-      button.append(wire,fallback,canvas);holder.append(button);
-      const state={button,manifest,canvas,ctx:canvas.getContext('2d'),image:null,position:0,velocity:0,displayWidth:370};
-      state.controller=new GarmentController({frameCount:manifest.frameCount,durationMs:catalog.timing.turnMs,returnDurationMs:catalog.timing.returnMs,endpointWindow:catalog.timing.endpointWindow,onFrame:frame=>paint(state,frame)});
-      button.addEventListener('focus',()=>{if(button.matches(':focus-visible'))browse(i);});
-      button.addEventListener('keydown',event=>{if(event.key==='ArrowRight'||event.key==='ArrowLeft'){event.preventDefault();const next=Math.max(0,Math.min(states.length-1,i+(event.key==='ArrowRight'?1:-1)));states[next].button.focus();browse(next);}});
-      states.push(state);
-    }
-    layout();let loaded=0;$('#load-counter').textContent=`0 / ${states.length}`;
-    await Promise.all(states.map(async(s,i)=>{
-      const url=assetUrl(catalog.items[i],s.manifest.atlas).href;if(!atlasCache.has(url)){const image=new Image();image.src=url;atlasCache.set(url,image.decode().then(()=>image))}const image=await atlasCache.get(url);
-      const {width,height,columns,frameCount}=s.manifest;
-      if(image.naturalWidth!==width*columns||image.naturalHeight!==height*Math.ceil(frameCount/columns))throw new Error('Atlas dimensions do not match manifest: '+catalog.items[i].id);
-      s.image=image;paint(s,0);s.button.classList.add('ready');$('#load-counter').textContent=`${++loaded} / ${states.length}`;
-    }));
-    if(mobile.matches)states[selected].controller.setTarget(1,{immediate:true});
-    ready=true;states.forEach(s=>s.button.disabled=false);rack.setAttribute('aria-busy','false');$('#load-state').hidden=true;$('#inspect').disabled=false;updateInfo(selected);layout();
-    showroom=mountShowroom({items:catalog.items,frontUrl:i=>assetUrl(catalog.items[i],states[i].manifest.front).href,onSelect:(i,inspect)=>{browse(i);if(inspect)openProduct(i)}});document.documentElement.dataset.ready='true';
-  }catch(error){$('#load-text').textContent='Could not load previews';$('#load-counter').textContent='Check asset paths';rack.setAttribute('aria-busy','false');console.error(error.message);}
+ try{
+ const response=await fetch(new URL('../config/catalog.json',import.meta.url));if(!response.ok)throw Error('config');const config=validateCatalog(await response.json());allProducts=await getProducts();catalog={...config,items:resolveRail(config,allProducts)};
+ for(const [i,item]of catalog.items.entries()){
+ let manifest;try{const r=await fetch(manifestUrl(item));if(!r.ok)throw Error('missing');manifest=validateManifest(await r.json())}catch{manifest={width:384,height:448,columns:6,frameCount:30,atlas:'atlas.webp',front:'front.webp',profile:'profile.webp',unavailable:true}}
+ const button=document.createElement('button');button.className='garment';button.dataset.index=String(i);button.dataset.productId=item.sku;button.setAttribute('aria-label','Xem '+item.name);
+ const wire=document.createElement('span');wire.className='wire';wire.setAttribute('aria-hidden','true');const fallback=new Image();fallback.src=new URL('../'+(i===0?item.front:item.profile),import.meta.url).href;fallback.alt='';fallback.width=manifest.width;fallback.height=manifest.height;fallback.onerror=()=>{if(!fallback.dataset.retried){fallback.dataset.retried='true';fallback.src=new URL('../'+item.front,import.meta.url).href}};
+ const canvas=document.createElement('canvas');canvas.width=manifest.width;canvas.height=manifest.height;canvas.setAttribute('aria-hidden','true');button.append(wire,fallback,canvas);holder.append(button);
+ const state={button,manifest,canvas,fallback,product:item,ctx:canvas.getContext('2d'),image:null,position:0,velocity:0,displayWidth:370,unavailable:!!manifest.unavailable};state.controller=new GarmentController({frameCount:manifest.frameCount,durationMs:catalog.timing.turnMs,returnDurationMs:catalog.timing.returnMs,endpointWindow:catalog.timing.endpointWindow,onFrame:frame=>paint(state,frame)});
+ button.addEventListener('focus',()=>{if(button.matches(':focus-visible'))browse(i)});button.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();const n=Math.max(0,Math.min(states.length-1,i+(e.key==='ArrowRight'?1:-1)));states[n].button.focus();browse(n)}});states.push(state);
+ }
+ states[0].controller.setTarget(1,{immediate:true});ready=true;rack.setAttribute('aria-busy','false');$('#load-state').hidden=true;$('#inspect').disabled=false;updateInfo(0);layout();
+ const circularOption=$('#circular-option');function openCircle(){if(!circularOption.open||showroom)return;showroom=mountShowroom({items:allProducts,frontUrl:i=>allProducts[i].photoBase?new URL('../'+allProducts[i].front,import.meta.url).href:studio.mockup(presetDesign(allProducts[i])),onSelect:(i,inspect)=>{const p=allProducts[i],railIndex=catalog.items.findIndex(r=>r.sku===p.sku);if(railIndex>=0)browse(railIndex);if(inspect)showDetail(p)}});showroom.select(allProducts.findIndex(p=>p.sku===catalog.items[selected].sku));}circularOption.addEventListener('toggle',openCircle);openCircle();document.documentElement.dataset.ready='true';
+ }catch{$('#load-text').textContent='Tủ áo chưa tải xong. Bạn vẫn có thể tự thiết kế ở phía dưới.';$('#load-counter').textContent='';rack.setAttribute('aria-busy','false');}
 }
 boot();
-
-document.querySelector('#open-studio').onclick=()=>{document.querySelector('#product-dialog').close();studio.open(catalog.items[selected].id,catalog.items[selected].name)};
+document.querySelector('#open-studio').onclick=async()=>{if(!currentDetail)return;const id=currentDetail.sku;document.querySelector('#product-dialog').close();await studio.open(id)};
+document.querySelector('#hero-design').onclick=()=>studio.focus();
