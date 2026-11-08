@@ -1,6 +1,6 @@
 # Acceptance checklist — scoped evidence
 
-11 items have functional evidence; 7 remain partial. This is not full master-prompt completion.
+12 items have functional evidence; 6 remain partial. This is not full master-prompt completion.
 
 | # | Criterion | Status | Evidence / remaining |
 |---|---|---|---|
@@ -8,7 +8,7 @@
 |2|Horizontal garment interaction|Partial|Buttons and quarter-turn work; physical touch swipe unverified|
 |3|Selected garment turns to front|Pass|Prepared authorized atlas/controller tests|
 |4|Circular rail rotates|Pass|CSS 3D, buttons, shared selection; pointer QA still desirable|
-|5|Try clothing on model|Partial|Tap and original 2D model passed; pointer drop/physical touch pending|
+|5|Try clothing on model|Pass|Tap, original 2D model and valid/invalid pointer drops passed in CI; not AR/fit measurement|
 |6|Studio edits real image/text|Pass|Five-width text/image/undo tests|
 |7|Design appears on 3D shirt|Partial|Procedural extrusion initializes; production shape/texture fidelity not signed off|
 |8|Separate front/back|Pass|Draft restore, cart snapshots, detail tests|
@@ -24,3 +24,5 @@
 |18|QA/checkpoint documentation|Pass|Tracked in docs|
 
 Additional requested architecture gaps: vanilla modules preserved, React/TypeScript migration incomplete; pinned external media/library remain online dependencies; original reference demos not all interactively run. Production export, seller DPI configuration, JSON reimport, catalog linkage to all animated rail media, distinct owned media and performance measurement remain unfinished.
+
+QA extension: run42490519486 confirms mobile rail touch and circle touch via CDP, keyboard and fitting pointer interactions. Axe scans return zero violations at390/1440. Performance92/Accessibility96, CLS0.0198; LCP3.188s abovegoal. Physical-device/field data remains unavailable. See PERFORMANCE.md.
