@@ -3,6 +3,7 @@ export function localAsset(value) {
   return value;
 }
 export function validateCatalog(data) {
+  if(data?.productIds){if(!Array.isArray(data.productIds)||!data.productIds.length||new Set(data.productIds).size!==data.productIds.length||data.productIds.some(x=>!/^AIS-[A-Z0-9]+$/.test(x)))throw Error('Invalid rail product references');return {...validateCatalog({...data,productIds:undefined,items:data.productIds.map((id,i)=>({id:'reference-'+i,name:id,motion:'fixtures/reference/manifest.json'}))}),productIds:data.productIds,items:undefined}}
   if (!data || !Array.isArray(data.items) || data.items.length < 1 || data.items.length > 12) throw new Error('Catalog must have 1–12 items.');
   const ids = new Set();
   for (const item of data.items) {

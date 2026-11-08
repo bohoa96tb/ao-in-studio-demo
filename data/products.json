@@ -1,5 +1,85 @@
 [
   {
+    "sku": "AIS-M01",
+    "name": "Hồ núi",
+    "category": "Mẫu tuyển chọn",
+    "type": "oversize",
+    "gender": "unisex",
+    "basePrice": 219000,
+    "colors": [
+      "#f8f6ee"
+    ],
+    "defaultColor": "#f8f6ee",
+    "colorName": "Trắng",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "printZones": [
+      "front",
+      "back"
+    ],
+    "imageSurcharge": 30000,
+    "stock": "simulated-in-stock",
+    "mediaStatus": "licensed-original-motion",
+    "personalization": "none",
+    "motion": "fixtures/lake-white-v3/manifest.json",
+    "front": "public/fixtures/lake-white-v3/front.webp",
+    "back": "public/fixtures/lake-white-v3/back.webp",
+    "profile": "public/fixtures/lake-white-v3/profile.webp",
+    "photoBase": true,
+    "print": {
+      "text": "",
+      "width": 120,
+      "color": "#86523a",
+      "font": "Arial"
+    },
+    "description": "Dáng rộng thoải mái, hình in tuyển chọn. Bạn có thể thêm lời nhắn hoặc ảnh riêng lên mẫu gốc."
+  },
+  {
+    "sku": "AIS-M02",
+    "name": "Lá bài",
+    "category": "Mẫu tuyển chọn",
+    "type": "oversize",
+    "gender": "unisex",
+    "basePrice": 219000,
+    "colors": [
+      "#e8b8ca"
+    ],
+    "defaultColor": "#e8b8ca",
+    "colorName": "Hồng phấn",
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "printZones": [
+      "front",
+      "back"
+    ],
+    "imageSurcharge": 30000,
+    "stock": "simulated-in-stock",
+    "mediaStatus": "licensed-original-motion",
+    "personalization": "none",
+    "motion": "fixtures/cards-pink-v3/manifest.json",
+    "front": "public/fixtures/cards-pink-v3/front.webp",
+    "back": "public/fixtures/cards-pink-v3/back.webp",
+    "profile": "public/fixtures/cards-pink-v3/profile.webp",
+    "photoBase": true,
+    "print": {
+      "text": "",
+      "width": 120,
+      "color": "#86523a",
+      "font": "Arial"
+    },
+    "description": "Dáng rộng thoải mái, hình in tuyển chọn. Bạn có thể thêm lời nhắn hoặc ảnh riêng lên mẫu gốc."
+  },
+  {
     "sku": "AIS-001",
     "name": "Cùng một nhịp",
     "category": "Áo đôi",

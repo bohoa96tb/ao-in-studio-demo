@@ -6,3 +6,13 @@ Code 9cb09dd3f690cf284ca8427763caf9834ffdf0a1; CI 42490519486 green. Preview htt
 Performance: scripts/performance.mjs runs Lighthouse mobile and stores qa-results artifact. Performance66→92, Accessibility96→96, CLS0.2587→0.0198,TBT564→126ms. LCP3188ms remains above2.5s; INP/FPS/physical-phone unmeasured. See PERFORMANCE.md. Stabilized initial rail via sized/preloaded poster and hidden runtime initialization, immediate mobile front state, cached manifest/atlas promises; catalog lazy mounts near viewport; tests explicitly reveal lazy section.
 
 Next: LCP/hosting and physical-device QA, forced WebGL context loss and mockup/artwork export checks; JSON import and remaining architecture/media consistency. Still vanilla modules, not requested full React/TypeScript architecture. Rail repeats two licensed samples and catalog has12 separate original typographic presets; not unified motion assets. Models remain schematic; no production artwork or fit certification. Do not claim full master prompt complete.
+
+
+## Active P0 review — 2026-11-08
+Branch redesign/p0-product-identity from main 4eaed7d. See docs/P0_REVIEW.md.
+Two genuine motion products share canonical SKUs with circle/catalogue/Studio; previous
+draft cannot silently replace explicit product selection. Local media, interaction-only
+atlas decoding and redesigned Hero. Local lint/build and 16 unit tests pass.
+Browser regression, new product-identity/failure-injection tests and Lighthouse pending
+GitHub Actions; do not claim CI or performance passed before observing results.
+Do not merge this review branch or alter production until the user reviews the PR.

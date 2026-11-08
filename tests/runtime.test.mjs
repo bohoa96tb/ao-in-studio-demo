@@ -45,7 +45,7 @@ test('mobile reserves space around a front silhouette and settles a deliberate f
 test('catalog and atlas contracts reject unsafe paths, oversized data and missing fields',async()=>{
   const catalog=JSON.parse(await readFile(new URL('../config/catalog.json',import.meta.url),'utf8'));validateCatalog(catalog);
   const manifest=JSON.parse(await readFile(new URL('../public/fixtures/tee/manifest.json',import.meta.url),'utf8'));validateManifest(manifest);
-  assert.throws(()=>validateCatalog({...catalog,items:[{id:'x',name:'x',motion:'../private.json'}]}));
-  assert.throws(()=>validateCatalog({...catalog,items:[{...catalog.items[0],productUrl:'javascript:alert(1)'}]}));
+  assert.throws(()=>validateCatalog({...catalog,productIds:undefined,items:[{id:'x',name:'x',motion:'../private.json'}]}));
+  assert.throws(()=>validateCatalog({...catalog,productIds:undefined,items:[{id:'x',name:'x',motion:'fixtures/tee/manifest.json',productUrl:'javascript:alert(1)'}]}));
   assert.throws(()=>validateManifest({...manifest,width:1024,height:1024,frameCount:120}));
 });

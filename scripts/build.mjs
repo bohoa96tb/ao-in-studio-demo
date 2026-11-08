@@ -1,1 +1,1 @@
-import {mkdir,cp,rm} from 'node:fs/promises';await rm('dist',{recursive:true,force:true});await mkdir('dist');for(const p of ['index.html','src','config','data','README.md','docs','LICENSE','LICENSE-ASSETS.md'])await cp(p,'dist/'+p,{recursive:true});console.log('Built dist');
+import {mkdir,cp,rm} from 'node:fs/promises';await rm('dist',{recursive:true,force:true});await mkdir('dist');for(const p of ['index.html','src','config','public','data','README.md','docs','LICENSE','LICENSE-ASSETS.md'])await cp(p,'dist/'+p,{recursive:true});console.log('Built dist');
