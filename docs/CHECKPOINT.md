@@ -1,2 +1,8 @@
-# CHECKPOINT
-Phase 4/5 implementation: original illustrated styling models A/B; current draft front/back derived from Studio; pointer drag/drop plus tap; invalid drop returns ghost. Heat press original 2.5D timed stages, skip/reduced motion, stops when hidden/offscreen, resets on design change. Both call shared Studio/cart actions. Local build + 12 tests pass; browser QA pending. Existing model/assets/performance limitations remain.
+# Checkpoint — effects milestone
+Code 8d72987513dbe05629cb99b88cc507f08bef4184; CI 42488904187 green on 5 widths. Preview https://bohoa96tb.github.io/ao-in-studio-demo/?v=effects6#styling .
+
+Added src/styling.js and src/heat-press.js with original SVG/CSS assets. Studio exposes read-only snapshot, preview(face,plain), focus, show3d and addToCart; emits studio-change. Current draft is single source of design truth; fitting and press consume same generated preview pixels. Fitting has two proportional illustrated bodies, front/back tiles, tap and pointer drag/drop with rejected-drop return. Heat press has 5 timed stages, current side plain/result previews, skip/reduced motion, cancel/reset on edits/tab hidden/offscreen, and actions back to 3D/fitting/cart. Existing functionality regression suite passes. Upload validation now has independent status.
+
+Limits: fitting is 2D illustration, not AR or size estimation; two body variants do not predict fit. Heat press is mechanical illustration, not process specification. Pointer drag/drop and real touch still require targeted QA. Stock/product media remain limited to two MIT motion examples repeated six positions. Catalog data-only entries need real unique assets/filter UI. Studio model is procedural extrusion; production-quality garments, React/TypeScript migration, asset vendoring, seller print configuration, JSON import and export/performance/accessibility audit remain pending.
+
+Next milestone: catalog/filtering and remaining phase 6 QA, pointer touch tests, visual polish and honest full acceptance checklist. Do not claim master prompt fully completed.
