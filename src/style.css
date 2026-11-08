@@ -94,3 +94,8 @@ main{max-width:1120px;padding-top:30px}.intro{align-items:center;justify-content
 }
 
 #detail-stage:focus-visible{outline:3px solid #526b46;outline-offset:3px}
+/* Preserve the full garment: override inherited P0 mobile image heights and generic buttons. */
+#detail-stage{height:auto;max-height:none}
+#detail-stage img{max-height:none}
+.catalog-card button.catalog-image-button{padding:0;border:0;margin:0 0 16px;background:#eae5da}
+#product-dialog .view-tabs button{min-width:0}

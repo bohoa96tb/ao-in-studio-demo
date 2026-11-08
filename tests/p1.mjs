@@ -11,7 +11,7 @@ for(const width of [360,390,430,768,1440]){
  for(const sku of checks){
   const card=p.locator('[data-sku="'+sku+'"]');await card.locator('.catalog-design').click();await p.waitForSelector('#product-dialog[data-preview-ready=true]');
   if(await p.locator('#product-dialog').getAttribute('data-product-id')!==sku)throw Error('Wrong detail');
-  const front=await p.locator('#detail-image').getAttribute('src');if(!front.startsWith('data:image/webp'))throw Error('Expected WebP mockup');artworkHashes.add(front);
+  const stage=await p.locator('#detail-stage').boundingBox();if(stage.height<stage.width*7/6-2)throw Error('Product gallery crops the garment at '+width);const front=await p.locator('#detail-image').getAttribute('src');if(!front.startsWith('data:image/webp'))throw Error('Expected WebP mockup');artworkHashes.add(front);
   const fields={ 'AIS-001':[['name','Hà'],['secondName','Minh'],['partner','moon']], 'AIS-002':[['members','4'],['role','Con 2'],['name','Bé An']], 'AIS-003':[['group','LỚP 12A'],['yearText','2024–2027']], 'AIS-004':[['name','Nguyễn Hà'],['layout','initial']], 'AIS-005':[['date','2000-02-29'],['layout','vintage']], 'AIS-006':[['year','2023']], 'AIS-007':[['zodiac','11']], 'AIS-008':[['number','8'],['name','An']], 'AIS-009':[['slogan','shine']], 'AIS-011':[['age','25'],['name','Lan'],['wish','BÌNH AN & RỰC RỠ']] }[sku]||[];
   for(const [key,value]of fields){const el=p.locator('#personal-'+key);if(await el.evaluate(el=>el.tagName)==='SELECT')await el.selectOption(value);else await el.fill(value)}
   await p.waitForSelector('#product-dialog[data-preview-ready=true]');
