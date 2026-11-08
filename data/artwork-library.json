@@ -1,0 +1,1600 @@
+{
+ "version": 1,
+ "updated": "2026-11-09",
+ "note": "Thư viện hình in Áo In Studio. Sinh bởi scripts/mockup/build-artwork-library.mjs từ public/artwork/*.svg — sửa file SVG rồi chạy lại script, không sửa tay JSON này. Chỉ thiết kế status=APPROVED mới được phát hành.",
+ "count": 61,
+ "designs": [
+  {
+   "designId": "animal-cat",
+   "name": "Con giáp Mão · Mèo",
+   "theme": "animal",
+   "tags": [
+    "animal",
+    "animal-cat"
+   ],
+   "file": "public/artwork/animal-cat.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "ab0abc9e",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "animal-dog",
+   "name": "Con giáp Tuất · Chó",
+   "theme": "animal",
+   "tags": [
+    "animal",
+    "animal-dog"
+   ],
+   "file": "public/artwork/animal-dog.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "9fa3cd01",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "animal-dragon",
+   "name": "Con giáp Thìn · Rồng",
+   "theme": "animal",
+   "tags": [
+    "animal",
+    "animal-dragon"
+   ],
+   "file": "public/artwork/animal-dragon.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "81c8c3f6",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "animal-goat",
+   "name": "Con giáp Mùi · Dê",
+   "theme": "animal",
+   "tags": [
+    "animal",
+    "animal-goat"
+   ],
+   "file": "public/artwork/animal-goat.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "919d43ab",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "animal-horse",
+   "name": "Con giáp Ngọ · Ngựa",
+   "theme": "animal",
+   "tags": [
+    "animal",
+    "animal-horse"
+   ],
+   "file": "public/artwork/animal-horse.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "9fdeaef2",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "animal-monkey",
+   "name": "Con giáp Thân · Khỉ",
+   "theme": "animal",
+   "tags": [
+    "animal",
+    "animal-monkey"
+   ],
+   "file": "public/artwork/animal-monkey.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "604f09fb",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "animal-ox",
+   "name": "Con giáp Sửu · Trâu",
+   "theme": "animal",
+   "tags": [
+    "animal",
+    "animal-ox"
+   ],
+   "file": "public/artwork/animal-ox.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "d04e5287",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "animal-pig",
+   "name": "Con giáp Hợi · Lợn",
+   "theme": "animal",
+   "tags": [
+    "animal",
+    "animal-pig"
+   ],
+   "file": "public/artwork/animal-pig.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "009e7b46",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "animal-rat",
+   "name": "Con giáp Tý · Chuột",
+   "theme": "animal",
+   "tags": [
+    "animal",
+    "animal-rat"
+   ],
+   "file": "public/artwork/animal-rat.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "8986b65e",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "animal-rooster",
+   "name": "Con giáp Dậu · Gà",
+   "theme": "animal",
+   "tags": [
+    "animal",
+    "animal-rooster"
+   ],
+   "file": "public/artwork/animal-rooster.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "231c25dd",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "animal-snake",
+   "name": "Con giáp Tỵ · Rắn",
+   "theme": "animal",
+   "tags": [
+    "animal",
+    "animal-snake"
+   ],
+   "file": "public/artwork/animal-snake.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "eed1080a",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "animal-tiger",
+   "name": "Con giáp Dần · Hổ",
+   "theme": "animal",
+   "tags": [
+    "animal",
+    "animal-tiger"
+   ],
+   "file": "public/artwork/animal-tiger.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "6a32d63d",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "birthday",
+   "name": "Bánh sinh nhật",
+   "theme": "birthday",
+   "tags": [
+    "birthday",
+    "birthday"
+   ],
+   "file": "public/artwork/birthday.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "ac09bbf7",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "calendar",
+   "name": "Tờ lịch kỷ niệm",
+   "theme": "date",
+   "tags": [
+    "date",
+    "calendar"
+   ],
+   "file": "public/artwork/calendar.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "5153417c",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "coffee",
+   "name": "Cà phê rồi tính",
+   "theme": "slogan",
+   "tags": [
+    "slogan",
+    "coffee"
+   ],
+   "file": "public/artwork/coffee.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "643a4209",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "couple-moon",
+   "name": "Mặt trăng · áo đôi",
+   "theme": "couple",
+   "tags": [
+    "couple",
+    "couple-moon"
+   ],
+   "file": "public/artwork/couple-moon.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "667b66e9",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "couple-sun",
+   "name": "Mặt trời · áo đôi",
+   "theme": "couple",
+   "tags": [
+    "couple",
+    "couple-sun"
+   ],
+   "file": "public/artwork/couple-sun.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "ffbdc079",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "family-2-0",
+   "name": "Gia đình 2 thành viên · Bố",
+   "theme": "family",
+   "tags": [
+    "family",
+    "family-2-0"
+   ],
+   "file": "public/artwork/family-2-0.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "06ac3776",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "family-2-1",
+   "name": "Gia đình 2 thành viên · Mẹ",
+   "theme": "family",
+   "tags": [
+    "family",
+    "family-2-1"
+   ],
+   "file": "public/artwork/family-2-1.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "cdbba32c",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "family-3-0",
+   "name": "Gia đình 3 thành viên · Bố",
+   "theme": "family",
+   "tags": [
+    "family",
+    "family-3-0"
+   ],
+   "file": "public/artwork/family-3-0.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "e1878071",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "family-3-1",
+   "name": "Gia đình 3 thành viên · Mẹ",
+   "theme": "family",
+   "tags": [
+    "family",
+    "family-3-1"
+   ],
+   "file": "public/artwork/family-3-1.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "31d89ded",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "family-3-2",
+   "name": "Gia đình 3 thành viên · Con 1",
+   "theme": "family",
+   "tags": [
+    "family",
+    "family-3-2"
+   ],
+   "file": "public/artwork/family-3-2.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "75e9238b",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "family-4-0",
+   "name": "Gia đình 4 thành viên · Bố",
+   "theme": "family",
+   "tags": [
+    "family",
+    "family-4-0"
+   ],
+   "file": "public/artwork/family-4-0.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "b96dfe75",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "family-4-1",
+   "name": "Gia đình 4 thành viên · Mẹ",
+   "theme": "family",
+   "tags": [
+    "family",
+    "family-4-1"
+   ],
+   "file": "public/artwork/family-4-1.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "f3e445a9",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "family-4-2",
+   "name": "Gia đình 4 thành viên · Con 1",
+   "theme": "family",
+   "tags": [
+    "family",
+    "family-4-2"
+   ],
+   "file": "public/artwork/family-4-2.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "dde156ef",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "family-4-3",
+   "name": "Gia đình 4 thành viên · Con 2",
+   "theme": "family",
+   "tags": [
+    "family",
+    "family-4-3"
+   ],
+   "file": "public/artwork/family-4-3.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "fdcbda9d",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "family-5-0",
+   "name": "Gia đình 5 thành viên · Bố",
+   "theme": "family",
+   "tags": [
+    "family",
+    "family-5-0"
+   ],
+   "file": "public/artwork/family-5-0.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "32355591",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "family-5-1",
+   "name": "Gia đình 5 thành viên · Mẹ",
+   "theme": "family",
+   "tags": [
+    "family",
+    "family-5-1"
+   ],
+   "file": "public/artwork/family-5-1.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "d0a187dd",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "family-5-2",
+   "name": "Gia đình 5 thành viên · Con 1",
+   "theme": "family",
+   "tags": [
+    "family",
+    "family-5-2"
+   ],
+   "file": "public/artwork/family-5-2.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "6264d067",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "family-5-3",
+   "name": "Gia đình 5 thành viên · Con 2",
+   "theme": "family",
+   "tags": [
+    "family",
+    "family-5-3"
+   ],
+   "file": "public/artwork/family-5-3.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "8d03ae09",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "family-5-4",
+   "name": "Gia đình 5 thành viên · Con 3",
+   "theme": "family",
+   "tags": [
+    "family",
+    "family-5-4"
+   ],
+   "file": "public/artwork/family-5-4.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "47db1ad5",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "family-6-0",
+   "name": "Gia đình 6 thành viên · Bố",
+   "theme": "family",
+   "tags": [
+    "family",
+    "family-6-0"
+   ],
+   "file": "public/artwork/family-6-0.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "08e5449c",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "family-6-1",
+   "name": "Gia đình 6 thành viên · Mẹ",
+   "theme": "family",
+   "tags": [
+    "family",
+    "family-6-1"
+   ],
+   "file": "public/artwork/family-6-1.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "e0c2bd40",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "family-6-2",
+   "name": "Gia đình 6 thành viên · Con 1",
+   "theme": "family",
+   "tags": [
+    "family",
+    "family-6-2"
+   ],
+   "file": "public/artwork/family-6-2.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "b61adb76",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "family-6-3",
+   "name": "Gia đình 6 thành viên · Con 2",
+   "theme": "family",
+   "tags": [
+    "family",
+    "family-6-3"
+   ],
+   "file": "public/artwork/family-6-3.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "23666c84",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "family-6-4",
+   "name": "Gia đình 6 thành viên · Con 3",
+   "theme": "family",
+   "tags": [
+    "family",
+    "family-6-4"
+   ],
+   "file": "public/artwork/family-6-4.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "3308da08",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "family-6-5",
+   "name": "Gia đình 6 thành viên · Con 4",
+   "theme": "family",
+   "tags": [
+    "family",
+    "family-6-5"
+   ],
+   "file": "public/artwork/family-6-5.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "2c587c2e",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "family",
+   "name": "Gia đình · khung chung",
+   "theme": "family",
+   "tags": [
+    "family",
+    "family"
+   ],
+   "file": "public/artwork/family.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "4a86d16a",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "group",
+   "name": "Hội nhóm · cùng một đội",
+   "theme": "group",
+   "tags": [
+    "group",
+    "group"
+   ],
+   "file": "public/artwork/group.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "318a702a",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "landscape",
+   "name": "Nắng trên vai · phong cảnh",
+   "theme": "art",
+   "tags": [
+    "art",
+    "landscape"
+   ],
+   "file": "public/artwork/landscape.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": false,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "0a251bc2",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "name",
+   "name": "Khung tên cá nhân",
+   "theme": "name",
+   "tags": [
+    "name",
+    "name"
+   ],
+   "file": "public/artwork/name.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "30eacd5c",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "number",
+   "name": "Con số yêu thích",
+   "theme": "number",
+   "tags": [
+    "number",
+    "number"
+   ],
+   "file": "public/artwork/number.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "eed84564",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "p3-cafe-phin",
+   "name": "Phin cà phê Việt",
+   "theme": "cafe-viet",
+   "tags": [
+    "cà phê",
+    "phin",
+    "việt nam"
+   ],
+   "file": "public/artwork/p3-cafe-phin.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": false,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio P3",
+   "source": "project-p3",
+   "artworkHash": "e2970343",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "p3-la-nho-nguc",
+   "name": "Lá nhỏ trên ngực",
+   "theme": "minimal",
+   "tags": [
+    "tối giản",
+    "lá",
+    "ngực trái"
+   ],
+   "file": "public/artwork/p3-la-nho-nguc.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": false,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio P3",
+   "source": "project-p3",
+   "artworkHash": "af337aa8",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "p3-meo-tim",
+   "name": "Mèo và trái tim",
+   "theme": "pet",
+   "tags": [
+    "mèo",
+    "thú cưng",
+    "tim"
+   ],
+   "file": "public/artwork/p3-meo-tim.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": false,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio P3",
+   "source": "project-p3",
+   "artworkHash": "5b7617a8",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "p3-retro-sun",
+   "name": "Mặt trời retro",
+   "theme": "retro",
+   "tags": [
+    "retro",
+    "mặt trời",
+    "sọc"
+   ],
+   "file": "public/artwork/p3-retro-sun.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": false,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio P3",
+   "source": "project-p3",
+   "artworkHash": "9ce07595",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "p3-trang-tuan-hoan",
+   "name": "Tuần hoàn mặt trăng",
+   "theme": "astronomy",
+   "tags": [
+    "mặt trăng",
+    "sao",
+    "vũ trụ"
+   ],
+   "file": "public/artwork/p3-trang-tuan-hoan.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": false,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio P3",
+   "source": "project-p3",
+   "artworkHash": "39d1df9d",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "p3-xe-dap-pho",
+   "name": "Xe đạp phố cổ",
+   "theme": "van-hoa",
+   "tags": [
+    "phố cổ",
+    "xe đạp",
+    "việt nam"
+   ],
+   "file": "public/artwork/p3-xe-dap-pho.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": false,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio P3",
+   "source": "project-p3",
+   "artworkHash": "631f182f",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "vintage",
+   "name": "Huy hiệu năm sinh",
+   "theme": "date",
+   "tags": [
+    "date",
+    "vintage"
+   ],
+   "file": "public/artwork/vintage.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "826293bc",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "zodiac-0",
+   "name": "Cung Bạch Dương",
+   "theme": "zodiac",
+   "tags": [
+    "zodiac",
+    "zodiac-0"
+   ],
+   "file": "public/artwork/zodiac-0.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "ad56dd14",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "zodiac-1",
+   "name": "Cung Kim Ngưu",
+   "theme": "zodiac",
+   "tags": [
+    "zodiac",
+    "zodiac-1"
+   ],
+   "file": "public/artwork/zodiac-1.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "5b444623",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "zodiac-10",
+   "name": "Cung Bảo Bình",
+   "theme": "zodiac",
+   "tags": [
+    "zodiac",
+    "zodiac-10"
+   ],
+   "file": "public/artwork/zodiac-10.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "f9c399d2",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "zodiac-11",
+   "name": "Cung Song Ngư",
+   "theme": "zodiac",
+   "tags": [
+    "zodiac",
+    "zodiac-11"
+   ],
+   "file": "public/artwork/zodiac-11.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "993d0e5a",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "zodiac-2",
+   "name": "Cung Song Tử",
+   "theme": "zodiac",
+   "tags": [
+    "zodiac",
+    "zodiac-2"
+   ],
+   "file": "public/artwork/zodiac-2.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "9619cf69",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "zodiac-3",
+   "name": "Cung Cự Giải",
+   "theme": "zodiac",
+   "tags": [
+    "zodiac",
+    "zodiac-3"
+   ],
+   "file": "public/artwork/zodiac-3.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "f61ac479",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "zodiac-4",
+   "name": "Cung Sư Tử",
+   "theme": "zodiac",
+   "tags": [
+    "zodiac",
+    "zodiac-4"
+   ],
+   "file": "public/artwork/zodiac-4.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "691a7259",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "zodiac-5",
+   "name": "Cung Xử Nữ",
+   "theme": "zodiac",
+   "tags": [
+    "zodiac",
+    "zodiac-5"
+   ],
+   "file": "public/artwork/zodiac-5.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "e9b0f6f9",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "zodiac-6",
+   "name": "Cung Thiên Bình",
+   "theme": "zodiac",
+   "tags": [
+    "zodiac",
+    "zodiac-6"
+   ],
+   "file": "public/artwork/zodiac-6.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "c365062c",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "zodiac-7",
+   "name": "Cung Bọ Cạp",
+   "theme": "zodiac",
+   "tags": [
+    "zodiac",
+    "zodiac-7"
+   ],
+   "file": "public/artwork/zodiac-7.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "ebe31425",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "zodiac-8",
+   "name": "Cung Nhân Mã",
+   "theme": "zodiac",
+   "tags": [
+    "zodiac",
+    "zodiac-8"
+   ],
+   "file": "public/artwork/zodiac-8.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "53764d97",
+   "status": "APPROVED"
+  },
+  {
+   "designId": "zodiac-9",
+   "name": "Cung Ma Kết",
+   "theme": "zodiac",
+   "tags": [
+    "zodiac",
+    "zodiac-9"
+   ],
+   "file": "public/artwork/zodiac-9.svg",
+   "format": "svg",
+   "transparent": true,
+   "personalisable": true,
+   "placements": [
+    "front",
+    "back"
+   ],
+   "garmentTypes": [
+    "crew",
+    "oversize",
+    "polo"
+   ],
+   "license": "Original project artwork (MIT) — drawn for Áo In Studio",
+   "source": "project-p1",
+   "artworkHash": "9ee53555",
+   "status": "APPROVED"
+  }
+ ]
+}

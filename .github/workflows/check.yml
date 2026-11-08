@@ -18,6 +18,7 @@ jobs:
           TEST_URL=http://127.0.0.1:5264 node tests/interaction.mjs
           TEST_URL=http://127.0.0.1:5264 node tests/p0.mjs
           TEST_URL=http://127.0.0.1:5264 node tests/p1.mjs
+          TEST_URL=http://127.0.0.1:5264 node tests/p3.mjs
           TEST_URL=http://127.0.0.1:5264 node scripts/performance.mjs
           git fetch origin 434ce99dd76b210b77738d308b255caf4876d177
           git worktree add --detach /tmp/ao-in-p0-baseline 434ce99dd76b210b77738d308b255caf4876d177

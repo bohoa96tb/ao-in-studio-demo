@@ -1,0 +1,23 @@
+name: P3 Discovery (report only)
+
+# Flow A of docs/P3_AUTOMATION.md: weekly + manual gap/candidate report.
+# This workflow never downloads images and never approves assets; it only
+# summarises data/garments.json and data/candidates.json into an artifact
+# for human review.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * 1'
+jobs:
+  discovery:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/discovery/scan.mjs --write
+      - uses: actions/upload-artifact@v4
+        with:
+          name: p3-discovery-report
+          path: qa-results/p3-discovery-report.md

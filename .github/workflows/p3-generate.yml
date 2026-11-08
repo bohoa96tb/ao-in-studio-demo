@@ -1,0 +1,26 @@
+name: P3 Generate mockups (artifact only)
+
+# Flow B of docs/P3_AUTOMATION.md: manual regeneration of pre-baked mockups
+# for APPROVED garment bases x APPROVED artwork. The result is an artifact
+# for human review — this workflow does NOT commit, open PRs, or merge.
+# Release stays: maintainer reviews the artifact, then a normal PR.
+on:
+  workflow_dispatch:
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/mockup/generate.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: p3-mockups
+          path: |
+            public/mockups
+            data/mockup-manifest.json
+            data/artwork-library.json
