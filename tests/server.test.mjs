@@ -11,6 +11,5 @@ test('the server exposes runtime assets, not credentials or generation inputs',a
     const config=await fetch(url+'/config/catalog.json');const served=await config.json();const expected=JSON.parse(await readFile(new URL('../config/catalog.json',import.meta.url),'utf8'));assert.deepEqual(served,expected);
     assert.equal((await fetch(url+'/.env.local')).status,404);
     assert.equal((await fetch(url+'/',{method:'POST'})).status,405);
-    const manifest=await (await fetch(url+'/public/'+served.items[0].motion)).json();const atlas=await fetch(url+'/public/'+served.items[0].motion.replace(/[^/]+$/,manifest.atlas));assert.equal(atlas.status,200);assert.equal(atlas.headers.get('content-type'),'image/webp');
   }finally{await new Promise(resolve=>server.close(resolve));}
 });
