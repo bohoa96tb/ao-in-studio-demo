@@ -1,0 +1,2 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {unitPrice,totalPrice,quantity} from '../src/cart-price.js';
+test('price charges printed faces separately and preserves separate designs',()=>{const a={faces:{front:[{}],back:[]},quantity:2},b={faces:{front:[{}],back:[{}]},quantity:3};assert.equal(unitPrice(a),229000);assert.equal(unitPrice(b),259000);assert.equal(totalPrice([{design:a},{design:b}]),1235000);assert.equal(quantity(-5),1);assert.equal(quantity(120),99);assert.equal(quantity('abc'),1)});

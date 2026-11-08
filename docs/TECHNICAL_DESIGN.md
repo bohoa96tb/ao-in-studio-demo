@@ -1,2 +1,4 @@
 # TECHNICAL_DESIGN
 Studio module uses one local state snapshot, faces front/back, layers with image/text geometry. Draft snapshot including uploaded raster data lives in IndexedDB, history memory capped at 30. No localStorage images or upload API. canvas front/back passed into CanvasTexture, original procedural extrusion and side materials; one WebGL canvas on demand, render only on events. Separate design from prepared motion footage.
+
+Cart module owns independent immutable design snapshots and preview PNGs in IndexedDB (cart key). Editing passes a cloned snapshot to Studio; only explicit edit row identity replaces existing line. unitPrice charges 199000 + 30000 per nonempty face. New adds always create unique row UUIDs. No payment data or server request. Cart and draft saves report completion only after transaction completes.
