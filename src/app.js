@@ -1,4 +1,4 @@
-import {mountProductDetail} from './product-detail.js?v=p2real1';
+import {mountProductDetail} from './product-detail.js?v=p3mock1';
 import {getProducts,resolveRail,typeLabel} from './product-store.js?v=p2real1';
 import {presetDesign} from './catalog-filter.js?v=p2real1';
 import {mountCatalog} from './product-catalog.js?v=p2real1';

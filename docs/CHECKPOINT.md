@@ -1,7 +1,23 @@
-# ÁO IN STUDIO — checkpoint P2 (mới nhất)
+# ÁO IN STUDIO — checkpoint P3 (mới nhất)
+
+Ngày: 2026-11-09 (Asia/Tokyo). Nhánh: `feature/p3-automated-mockup-library`, base main `ad81b8d` (P2 đã merge qua PR #3, bản live là P2).
+**P3 chờ PR**: không tự merge — cần CI xanh + chủ repo duyệt như P2.
+
+## P3 đã làm (pilot P3.0–P3.2 + tích hợp, chi tiết: docs/P3_QA_REPORT.md)
+- Thư viện áo nền có cấu trúc: `data/garments.json` — 6 bản ghi (1 base ghép được: crew trắng mặt trước trên móc; 3 worn crew; 1 detail; 1 worn polo trắng — ảnh polo thật đầu tiên, chỉ lifestyle). Base mặt sau, base polo, oversize vẫn MISSING, ghi rõ trong file. Hàng chờ ứng viên: `data/candidates.json` (15 mục có trạng thái + lý do).
+- Engine ghép mockup `src/mockup-engine/` (quad phối cảnh dạng mesh tam giác, shading luminance per-pixel theo chính ảnh áo, mask silhouettte) + generator hàng loạt `scripts/mockup/generate.mjs` (idempotent theo cache key + sha256, kiểm tra fidelity ≤0,15). 8 mockup dựng sẵn trong `public/mockups/` + `data/mockup-manifest.json`.
+- Thư viện hình in: `data/artwork-library.json` sinh tự động — 61 thiết kế (55 P1 + 6 vẽ mới pilot). Mục tiêu 40–60 thiết kế mới của P3.3 mới đạt 6.
+- Giao diện: tab "Trên áo thật" ở chi tiết mẫu (chỉ hiện khi có mockup dựng sẵn cho đúng thiết kế mặc định + màu; cá nhân hóa thì ẩn, quay về renderer P2) + 2 ảnh lifestyle mới trong mục "Phom áo ngoài đời".
+- Tự động hóa: `scripts/discovery/scan.mjs` + workflow discovery hằng tuần (chỉ báo cáo) và workflow generate thủ công (chỉ artifact) — không luồng nào tự duyệt/tự merge.
+- QA local: unit 32/32, browser + interaction + P0 + P1 + P3 PASS ở 5 viewport; Lighthouse Perf 88/A11y 96, **LCP 2927 ms — mục tiêu ≤2,5s vẫn CHƯA ĐẠT** như P1/P2.
+- Ba agent nghiên cứu đã chạy thật: Agent 1 (nguồn ảnh), Agent 3 (3 repo engine — không chép code), Agent 4 (Openclipart CC0 có điều kiện + taxonomy 16 theme). Tổng hợp: docs/P3_SOURCE_AUDIT.md.
+
+---
+
+# ÁO IN STUDIO — checkpoint P2
 
 Ngày: 2026-11-09 (Asia/Tokyo). Nhánh: `feature/p2-real-product-visuals`, base main `b15dedc`.
-**P2 chưa merge.** PR chờ CI xanh + chủ repo duyệt; bản live vẫn là P1 (`?v=p1content1`).
+(P2 đã merge vào main ngày 2026-11-09 qua PR #3, commit `ad81b8d`; bản live là P2.)
 
 ## P2 đã làm
 - Media manifest: `data/media-manifest.json` (canonical) + `src/media-manifest.js` (mirror, test khóa).

@@ -1,0 +1,173 @@
+{
+ "candidates": [
+  {
+   "author": "MART PRODUCTION",
+   "checkedAt": "2026-11-09",
+   "garmentType": "crew",
+   "id": "pexels-9558713",
+   "note": "Trang nguồn gắn thẻ teen/teenage; tuổi người mẫu không xác minh được. Cấm dùng cho mọi mục đích thương mại của dự án.",
+   "platform": "Pexels",
+   "reason": "model-age-unverifiable",
+   "sourceUrl": "https://www.pexels.com/photo/9558713/",
+   "status": "REJECTED",
+   "view": "front-worn"
+  },
+  {
+   "id": "pexels-17515211",
+   "platform": "Pexels",
+   "sourceUrl": "https://www.pexels.com/photo/back-view-of-man-in-t-shirt-and-hat-17515211/",
+   "author": "NJH STUDIO",
+   "garmentType": "crew",
+   "view": "back-worn",
+   "status": "APPROVED",
+   "checkedAt": "2026-11-09",
+   "note": "Đã chuyển vào data/garments.json (GAR-CREW-WHT-BACKWORN-01) sau kiểm tra PM: người lớn, lưng áo trống, EXIF Sony ILCE-6000."
+  },
+  {
+   "id": "pexels-2096476",
+   "platform": "Pexels",
+   "sourceUrl": "https://www.pexels.com/photo/man-wearing-white-polo-shirt-2096476/",
+   "author": "Mwabonje Ringa",
+   "garmentType": "polo",
+   "view": "front-worn",
+   "status": "APPROVED",
+   "checkedAt": "2026-11-09",
+   "note": "Đã chuyển vào data/garments.json (GAR-POLO-WHT-WORN-01) sau kiểm tra PM: không logo ngực. Chỉ lifestyle."
+  },
+  {
+   "id": "pexels-6843269",
+   "platform": "Pexels",
+   "sourceUrl": "https://www.pexels.com/photo/closeup-of-white-fabric-texture-6843269/",
+   "author": "Antoni Shkraba",
+   "garmentType": "any",
+   "view": "fabric-detail",
+   "status": "REJECTED",
+   "checkedAt": "2026-11-09",
+   "note": "PM kiểm tra bằng mắt: len đan chunky kiểu áo len/ chăn, không phải jersey áo thun — dùng sẽ mô tả sai chất vải."
+  },
+  {
+   "id": "pexels-8606514",
+   "platform": "Pexels",
+   "sourceUrl": "https://www.pexels.com/photo/a-pretty-girl-in-loose-white-crew-neck-t-shirt-and-black-skirt-8606514/",
+   "author": "Philip Alves",
+   "garmentType": "oversize",
+   "view": "front-worn",
+   "status": "REJECTED",
+   "checkedAt": "2026-11-09",
+   "note": "Tuổi người mẫu không xác minh được (trang gắn thẻ girl/teen) và phom 'loose' chưa chứng minh là oversize vai trễ."
+  },
+  {
+   "id": "pexels-5379277",
+   "platform": "Pexels",
+   "sourceUrl": "https://www.pexels.com/photo/back-view-of-woman-in-black-t-shirt-standing-near-sea-5379277/",
+   "author": "seyfi durmaz",
+   "garmentType": "crew",
+   "view": "back-worn",
+   "status": "NEEDS_REVIEW",
+   "checkedAt": "2026-11-09",
+   "note": "Không EXIF trên trang; tóc che phần lớn lưng áo."
+  },
+  {
+   "id": "pexels-12025472",
+   "platform": "Pexels",
+   "sourceUrl": "https://www.pexels.com/photo/a-blank-white-shirt-12025472/",
+   "author": "Mr. Mockup",
+   "garmentType": "crew",
+   "view": "front",
+   "status": "NEEDS_REVIEW",
+   "checkedAt": "2026-11-09",
+   "note": "Tác giả là đơn vị bán template mockup; metadata chỉ có Photoshop, không có EXIF máy ảnh — chưa chứng minh được là ảnh chụp thật."
+  },
+  {
+   "id": "pexels-6276008",
+   "platform": "Pexels",
+   "sourceUrl": "https://www.pexels.com/photo/white-polo-shirt-with-pocket-6276008/",
+   "author": "Kaboompics",
+   "garmentType": "polo",
+   "view": "detail",
+   "status": "NEEDS_REVIEW",
+   "checkedAt": "2026-11-09",
+   "note": "Trang mô tả mơ hồ polo/áo cotton; ảnh là cận túi có nút, không phải cổ/placket polo."
+  },
+  {
+   "id": "pexels-6276012",
+   "platform": "Pexels",
+   "sourceUrl": "https://www.pexels.com/photo/close-up-photo-of-a-white-shirt-with-silver-buttons-6276012/",
+   "author": "Kaboompics",
+   "garmentType": "polo",
+   "view": "detail",
+   "status": "NEEDS_REVIEW",
+   "checkedAt": "2026-11-09",
+   "note": "Bằng chứng nghiêng về áo sơ mi (nút kim loại, poplin) hơn polo dệt kim."
+  },
+  {
+   "id": "pexels-7641303",
+   "platform": "Pexels",
+   "sourceUrl": "https://www.pexels.com/photo/white-cloth-in-close-up-photography-7641303/",
+   "author": "Eva Bronzini",
+   "garmentType": "any",
+   "view": "fabric-detail",
+   "status": "NEEDS_REVIEW",
+   "checkedAt": "2026-11-09",
+   "note": "Thẻ Silk/Satin — có thể không phải cotton jersey; cần kiểm tra bằng mắt."
+  },
+  {
+   "id": "pexels-15416758",
+   "platform": "Pexels",
+   "sourceUrl": "https://www.pexels.com/photo/15416758/",
+   "author": "Thiago Andrade",
+   "garmentType": "crew",
+   "view": "back-worn",
+   "status": "REJECTED",
+   "checkedAt": "2026-11-09",
+   "note": "Áo có in/thương hiệu Vans."
+  },
+  {
+   "id": "pexels-36927345",
+   "platform": "Pexels",
+   "sourceUrl": "https://www.pexels.com/photo/36927345/",
+   "author": "BANDAR BAANT",
+   "garmentType": "oversize",
+   "view": "front-worn",
+   "status": "REJECTED",
+   "checkedAt": "2026-11-09",
+   "note": "Áo oversize thật nhưng có in chữ/hình (Womb Wisdom)."
+  },
+  {
+   "id": "pexels-36908564",
+   "platform": "Pexels",
+   "sourceUrl": "https://www.pexels.com/photo/36908564/",
+   "author": "BANDAR BAANT",
+   "garmentType": "oversize",
+   "view": "front-worn",
+   "status": "REJECTED",
+   "checkedAt": "2026-11-09",
+   "note": "Áo oversize thật nhưng có in chữ/hình (The Art of Motherhood)."
+  },
+  {
+   "id": "pexels-18256097",
+   "platform": "Pexels",
+   "sourceUrl": "https://www.pexels.com/photo/18256097/",
+   "author": "Deybson Mallony",
+   "garmentType": "crew",
+   "view": "front",
+   "status": "REJECTED",
+   "checkedAt": "2026-11-09",
+   "note": "Áo thi đấu Nike theo mô tả/thẻ của trang."
+  },
+  {
+   "id": "pexels-32963962",
+   "platform": "Pexels",
+   "sourceUrl": "https://www.pexels.com/photo/32963962/",
+   "author": "Mohammed Hassan",
+   "garmentType": "crew",
+   "view": "front",
+   "status": "REJECTED",
+   "checkedAt": "2026-11-09",
+   "note": "Áo có in thương hiệu 'Third Wave Specialty Coffee'."
+  }
+ ],
+ "note": "Hàng chờ ứng viên ảnh áo nền P3. Quy trình: Agent 1 thêm ứng viên ở trạng thái CANDIDATE kèm bằng chứng giấy phép; con người duyệt mới chuyển APPROVED và chuyển vào data/garments.json. Không có bước tự động tải ảnh hay tự duyệt trong repo này.",
+ "updated": "2026-11-09",
+ "version": 1
+}

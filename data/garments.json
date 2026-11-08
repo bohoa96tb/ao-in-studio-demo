@@ -1,0 +1,322 @@
+{
+ "garments": [
+  {
+   "actualPhotoBack": null,
+   "actualPhotoFront": "public/fixtures/real-tee/crew-white-hanger.webp",
+   "brandingNotes": "Áo thật trong ảnh có viền cổ trong màu cam, tem cổ nhỏ và tem gấu áo — đều nằm ngoài vùng in ngực; không che, không xoá khi trình bày ảnh gốc.",
+   "calibration": {
+    "calibratedAt": "2026-11-09",
+    "maskPolygon": [
+     [
+      0.28,
+      0.25
+     ],
+     [
+      0.53,
+      0.25
+     ],
+     [
+      0.72,
+      0.33
+     ],
+     [
+      0.75,
+      0.55
+     ],
+     [
+      0.68,
+      0.56
+     ],
+     [
+      0.7,
+      0.9
+     ],
+     [
+      0.16,
+      0.905
+     ],
+     [
+      0.13,
+      0.62
+     ],
+     [
+      0.075,
+      0.52
+     ],
+     [
+      0.115,
+      0.315
+     ]
+    ],
+    "method": "manual-visual",
+    "shadingStrength": 0.35
+   },
+   "color": "#f8f6ee",
+   "colorName": "Trắng",
+   "compositing": {
+    "allowed": true,
+    "views": [
+     "front"
+    ]
+   },
+   "fabricDetail": null,
+   "garmentId": "GAR-CREW-WHT-HANGER-01",
+   "imageSize": {
+    "height": 1200,
+    "width": 800
+   },
+   "missing": [
+    "back",
+    "fabricDetail",
+    "wornPhoto"
+   ],
+   "printableZones": {
+    "back": null,
+    "front": {
+     "maxWidthCm": 28,
+     "quad": [
+      [
+       0.315,
+       0.375
+      ],
+      [
+       0.515,
+       0.375
+      ],
+      [
+       0.52,
+       0.585
+      ],
+      [
+       0.31,
+       0.585
+      ]
+     ]
+    }
+   },
+   "source": {
+    "author": "Dmitriy Steinke",
+    "checkedAt": "2026-11-09",
+    "photoId": "20669538",
+    "platform": "Pexels",
+    "sourceUrl": "https://www.pexels.com/photo/hand-holds-hanger-with-t-shirt-20669538/"
+   },
+   "sourceStatus": "APPROVED",
+   "status": "APPROVED",
+   "supplier": "Pexels contributor photo (not a garment supplier)",
+   "type": "crew",
+   "verifiedLicense": "Pexels License — free commercial use, attribution not required (given anyway). See docs/P2_ASSET_LICENSES.md.",
+   "wornPhoto": null
+  },
+  {
+   "actualPhotoBack": null,
+   "actualPhotoFront": null,
+   "brandingNotes": "Người mẫu kéo áo khi mặc — vùng in biến dạng.",
+   "calibration": null,
+   "color": "#242424",
+   "colorName": "Đen",
+   "compositing": {
+    "allowed": false,
+    "reason": "worn photo — compositing forbidden by AGENTS.md; lifestyle only",
+    "views": []
+   },
+   "fabricDetail": null,
+   "garmentId": "GAR-CREW-BLK-WORN-01",
+   "missing": [
+    "front",
+    "back",
+    "fabricDetail"
+   ],
+   "printableZones": {
+    "back": null,
+    "front": null
+   },
+   "source": {
+    "author": "MART PRODUCTION",
+    "checkedAt": "2026-11-09",
+    "photoId": "9558583",
+    "platform": "Pexels",
+    "sourceUrl": "https://www.pexels.com/photo/woman-in-black-crew-neck-t-shirt-9558583/"
+   },
+   "sourceStatus": "APPROVED",
+   "status": "APPROVED",
+   "supplier": "Pexels contributor photo (not a garment supplier)",
+   "type": "crew",
+   "verifiedLicense": "Pexels License — see docs/P2_ASSET_LICENSES.md (manual EXIF check done in P2).",
+   "wornPhoto": "public/fixtures/real-tee/crew-black-woman.webp"
+  },
+  {
+   "actualPhotoBack": null,
+   "actualPhotoFront": null,
+   "brandingNotes": "Ảnh đôi người mặc ngoài trời; chỉ dùng cho AIS-001.",
+   "calibration": null,
+   "color": "#f8f6ee",
+   "colorName": "Trắng",
+   "compositing": {
+    "allowed": false,
+    "reason": "worn photo — compositing forbidden by AGENTS.md; lifestyle only",
+    "views": []
+   },
+   "fabricDetail": null,
+   "garmentId": "GAR-CREW-WHT-WORNCOUPLE-01",
+   "missing": [
+    "front",
+    "back",
+    "fabricDetail"
+   ],
+   "printableZones": {
+    "back": null,
+    "front": null
+   },
+   "source": {
+    "author": "Israel Torres",
+    "checkedAt": "2026-11-09",
+    "photoId": "25462458",
+    "platform": "Pexels",
+    "sourceUrl": "https://www.pexels.com/photo/woman-and-man-in-white-t-shirts-25462458/"
+   },
+   "sourceStatus": "APPROVED",
+   "status": "APPROVED",
+   "supplier": "Pexels contributor photo (not a garment supplier)",
+   "type": "crew",
+   "verifiedLicense": "Pexels License — see docs/P2_ASSET_LICENSES.md.",
+   "wornPhoto": "public/fixtures/real-tee/couple-white-outdoor.webp"
+  },
+  {
+   "actualPhotoBack": null,
+   "actualPhotoFront": null,
+   "brandingNotes": "P3 kiểm tra lại: đây là ảnh cận cổ/vai áo kem, nếp gấp mạnh, có tem cổ 'SEVEN TITANS / XL' — vai trò đúng là ảnh chi tiết cổ/vải, không phải flat-lay toàn áo (sửa ghi chú so với P2).",
+   "calibration": null,
+   "color": "#dfd0b4",
+   "colorName": "Kem",
+   "compositing": {
+    "allowed": false,
+    "reason": "detail close-up only — no flat printable chest area",
+    "views": []
+   },
+   "fabricDetail": "public/fixtures/real-tee/crew-white-flatlay.webp",
+   "garmentId": "GAR-CREW-CRM-DETAIL-01",
+   "missing": [
+    "front",
+    "back",
+    "wornPhoto"
+   ],
+   "printableZones": {
+    "back": null,
+    "front": null
+   },
+   "source": {
+    "author": "Daniel & Hannah Snipes",
+    "checkedAt": "2026-11-09",
+    "photoId": "37704838",
+    "platform": "Pexels",
+    "sourceUrl": "https://www.pexels.com/photo/minimalist-fashion-flat-lay-of-white-t-shirt-37704838/"
+   },
+   "sourceStatus": "APPROVED",
+   "status": "APPROVED",
+   "supplier": "Pexels contributor photo (not a garment supplier)",
+   "type": "crew",
+   "verifiedLicense": "Pexels License — see docs/P2_ASSET_LICENSES.md.",
+   "wornPhoto": null
+  },
+  {
+   "garmentId": "GAR-CREW-WHT-BACKWORN-01",
+   "type": "crew",
+   "color": "#f8f6ee",
+   "colorName": "Trắng",
+   "supplier": "Pexels contributor photo (not a garment supplier)",
+   "status": "APPROVED",
+   "sourceStatus": "APPROVED",
+   "verifiedLicense": "Pexels License — free commercial use, attribution not required (given anyway). Agent 1 verified 2026-11-09; PM visual check 2026-11-09: adult man, blank back, no print/logo/watermark.",
+   "source": {
+    "platform": "Pexels",
+    "photoId": "17515211",
+    "author": "NJH STUDIO",
+    "sourceUrl": "https://www.pexels.com/photo/back-view-of-man-in-t-shirt-and-hat-17515211/",
+    "checkedAt": "2026-11-09"
+   },
+   "actualPhotoFront": null,
+   "actualPhotoBack": null,
+   "fabricDetail": null,
+   "wornPhoto": "public/fixtures/real-tee/crew-white-back-worn.webp",
+   "printableZones": {
+    "front": null,
+    "back": null
+   },
+   "calibration": null,
+   "compositing": {
+    "allowed": false,
+    "reason": "worn photo — compositing forbidden by AGENTS.md; lifestyle only (back view)",
+    "views": []
+   },
+   "brandingNotes": "Người mẫu đội mũ bucket và đeo kính — ảnh lifestyle mặt sau; áo trống hoàn toàn, không logo/in.",
+   "missing": [
+    "front",
+    "back",
+    "fabricDetail"
+   ]
+  },
+  {
+   "garmentId": "GAR-POLO-WHT-WORN-01",
+   "type": "polo",
+   "color": "#f8f6ee",
+   "colorName": "Trắng",
+   "supplier": "Pexels contributor photo (not a garment supplier)",
+   "status": "APPROVED",
+   "sourceStatus": "APPROVED",
+   "verifiedLicense": "Pexels License — free commercial use, attribution not required (given anyway). Agent 1 verified EXIF (Nikon D3000, 2019); PM visual check 2026-11-09: adult man, white polo, NO chest logo visible, placket with white buttons.",
+   "source": {
+    "platform": "Pexels",
+    "photoId": "2096476",
+    "author": "Mwabonje Ringa",
+    "sourceUrl": "https://www.pexels.com/photo/man-wearing-white-polo-shirt-2096476/",
+    "checkedAt": "2026-11-09"
+   },
+   "actualPhotoFront": null,
+   "actualPhotoBack": null,
+   "fabricDetail": null,
+   "wornPhoto": "public/fixtures/real-tee/polo-white-worn.webp",
+   "printableZones": {
+    "front": null,
+    "back": null
+   },
+   "calibration": null,
+   "compositing": {
+    "allowed": false,
+    "reason": "worn photo — compositing forbidden by AGENTS.md; lifestyle only. Polo still has NO compositing base.",
+    "views": []
+   },
+   "brandingNotes": "Ảnh polo thật đầu tiên của thư viện (chỉ lifestyle). Người mẫu khoanh tay; độ phân giải gốc 2263x2829.",
+   "missing": [
+    "front",
+    "back",
+    "fabricDetail"
+   ]
+  }
+ ],
+ "missingSets": [
+  {
+   "need": "flat/hanger BACK compositing base still missing (back view exists only as worn lifestyle GAR-CREW-WHT-BACKWORN-01)",
+   "status": "MISSING",
+   "type": "crew"
+  },
+  {
+   "need": "front + back + worn, white/black/cream, verified loose fit",
+   "status": "MISSING",
+   "type": "oversize"
+  },
+  {
+   "need": "front BACK + collar detail + compositing base missing; worn front lifestyle exists (GAR-POLO-WHT-WORN-01, white only)",
+   "status": "MISSING",
+   "type": "polo"
+  },
+  {
+   "need": "dedicated fabric close-up texture — candidate 6843269 REJECTED by PM visual check (chunky sweater knit, not T-shirt jersey)",
+   "status": "MISSING",
+   "type": "any"
+  }
+ ],
+ "note": "Thư viện áo nền P3. Chỉ bản ghi status=APPROVED và compositing.allowed=true mới được ghép artwork. Ảnh người mặc (worn) không bao giờ là base ghép (AGENTS.md). Ảnh của các nhà cung cấp khác nhau không được coi là cùng một chiếc áo.",
+ "updated": "2026-11-09",
+ "version": 1
+}

@@ -1,0 +1,177 @@
+{
+ "version": 1,
+ "rendererVersion": "p3-engine-1",
+ "updated": "2026-11-08T23:16:48.594Z",
+ "note": "Mockup dựng sẵn bởi scripts/mockup/generate.mjs. Chỉ tổ hợp áo APPROVED + artwork APPROVED. Ảnh là ẢNH MÔ PHỎNG trên ảnh áo trống thật — luôn gắn nhãn khi hiển thị.",
+ "count": 8,
+ "entries": [
+  {
+   "id": "GAR-CREW-WHT-HANGER-01/landscape/front/std",
+   "cacheKey": "p3-engine-1:GAR-CREW-WHT-HANGER-01:front:std:0a251bc2",
+   "garmentId": "GAR-CREW-WHT-HANGER-01",
+   "artworkId": "landscape",
+   "view": "front",
+   "variant": "std",
+   "file": "public/mockups/gar-crew-wht-hanger-01__landscape__front.webp",
+   "width": 800,
+   "height": 1200,
+   "bytes": 19386,
+   "sha256": "babcbad7ab5096623007ab83b547836309655487bf8515e1a00d580cd4166a54",
+   "rendererVersion": "p3-engine-1",
+   "fidelity": {
+    "coverageRef": 0.648,
+    "coverageMock": 0.634,
+    "coverageDelta": 0.014
+   },
+   "note": "nhiều màu",
+   "generatedAt": "2026-11-08T23:16:17.222Z"
+  },
+  {
+   "id": "GAR-CREW-WHT-HANGER-01/animal-dragon/front/std",
+   "cacheKey": "p3-engine-1:GAR-CREW-WHT-HANGER-01:front:std:81c8c3f6",
+   "garmentId": "GAR-CREW-WHT-HANGER-01",
+   "artworkId": "animal-dragon",
+   "view": "front",
+   "variant": "std",
+   "file": "public/mockups/gar-crew-wht-hanger-01__animal-dragon__front.webp",
+   "width": 800,
+   "height": 1200,
+   "bytes": 18324,
+   "sha256": "0f4067e10fe71ba8c022b188b46710aaeaffa77c92131e7d91e1f1dd94bc5924",
+   "rendererVersion": "p3-engine-1",
+   "fidelity": {
+    "coverageRef": 0.386,
+    "coverageMock": 0.377,
+    "coverageDelta": 0.009
+   },
+   "note": "line art đơn sắc",
+   "generatedAt": "2026-11-08T23:16:17.368Z"
+  },
+  {
+   "id": "GAR-CREW-WHT-HANGER-01/couple-sun/front/std",
+   "cacheKey": "p3-engine-1:GAR-CREW-WHT-HANGER-01:front:std:ffbdc079",
+   "garmentId": "GAR-CREW-WHT-HANGER-01",
+   "artworkId": "couple-sun",
+   "view": "front",
+   "variant": "std",
+   "file": "public/mockups/gar-crew-wht-hanger-01__couple-sun__front.webp",
+   "width": 800,
+   "height": 1200,
+   "bytes": 17780,
+   "sha256": "e7c8f3c7c9ca36677bf416edd216570fb6401cd2ed3bdf442ea12bf356d4b30a",
+   "rendererVersion": "p3-engine-1",
+   "fidelity": {
+    "coverageRef": 0.219,
+    "coverageMock": 0.215,
+    "coverageDelta": 0.005
+   },
+   "note": "đồ họa hai tông",
+   "generatedAt": "2026-11-08T23:16:17.491Z"
+  },
+  {
+   "id": "GAR-CREW-WHT-HANGER-01/zodiac-3/front/std",
+   "cacheKey": "p3-engine-1:GAR-CREW-WHT-HANGER-01:front:std:f61ac479",
+   "garmentId": "GAR-CREW-WHT-HANGER-01",
+   "artworkId": "zodiac-3",
+   "view": "front",
+   "variant": "std",
+   "file": "public/mockups/gar-crew-wht-hanger-01__zodiac-3__front.webp",
+   "width": 800,
+   "height": 1200,
+   "bytes": 18898,
+   "sha256": "e014d07f216f16b219667f502e3661c6f9d4ca30f5dc13e6085044c451ba2275",
+   "rendererVersion": "p3-engine-1",
+   "fidelity": {
+    "coverageRef": 0.697,
+    "coverageMock": 0.681,
+    "coverageDelta": 0.017
+   },
+   "note": "họa tiết tròn",
+   "generatedAt": "2026-11-08T23:16:17.619Z"
+  },
+  {
+   "id": "GAR-CREW-WHT-HANGER-01/birthday/front/std",
+   "cacheKey": "p3-engine-1:GAR-CREW-WHT-HANGER-01:front:std:ac09bbf7",
+   "garmentId": "GAR-CREW-WHT-HANGER-01",
+   "artworkId": "birthday",
+   "view": "front",
+   "variant": "std",
+   "file": "public/mockups/gar-crew-wht-hanger-01__birthday__front.webp",
+   "width": 800,
+   "height": 1200,
+   "bytes": 17782,
+   "sha256": "63089caad80b9a4b0170482ec7a95273c6be82a0e701b42c7ce5566bb7d37978",
+   "rendererVersion": "p3-engine-1",
+   "fidelity": {
+    "coverageRef": 0.293,
+    "coverageMock": 0.29,
+    "coverageDelta": 0.003
+   },
+   "note": "đồ họa tiệc",
+   "generatedAt": "2026-11-08T23:16:17.740Z"
+  },
+  {
+   "id": "GAR-CREW-WHT-HANGER-01/landscape/front/large",
+   "cacheKey": "p3-engine-1:GAR-CREW-WHT-HANGER-01:front:large:0a251bc2",
+   "garmentId": "GAR-CREW-WHT-HANGER-01",
+   "artworkId": "landscape",
+   "view": "front",
+   "variant": "large",
+   "file": "public/mockups/gar-crew-wht-hanger-01__landscape__front--large.webp",
+   "width": 800,
+   "height": 1200,
+   "bytes": 20988,
+   "sha256": "168ed07e2e664441842afde9445d135e337ea3536547aace3252432e58dc6928",
+   "rendererVersion": "p3-engine-1",
+   "fidelity": {
+    "coverageRef": 0.649,
+    "coverageMock": 0.633,
+    "coverageDelta": 0.016
+   },
+   "note": "bản in lớn",
+   "generatedAt": "2026-11-08T23:16:17.888Z"
+  },
+  {
+   "id": "GAR-CREW-WHT-HANGER-01/name/front/std",
+   "cacheKey": "p3-engine-1:GAR-CREW-WHT-HANGER-01:front:std:30eacd5c",
+   "garmentId": "GAR-CREW-WHT-HANGER-01",
+   "artworkId": "name",
+   "view": "front",
+   "variant": "std",
+   "file": "public/mockups/gar-crew-wht-hanger-01__name__front.webp",
+   "width": 800,
+   "height": 1200,
+   "bytes": 19480,
+   "sha256": "86628f5ac82654d2fc47c488f267f5582e6a2c08b48d1ec69b91d8bbda8c26fe",
+   "rendererVersion": "p3-engine-1",
+   "fidelity": {
+    "coverageRef": 0.481,
+    "coverageMock": 0.47,
+    "coverageDelta": 0.011
+   },
+   "note": "khung tên mặc định của AIS-004",
+   "generatedAt": "2026-11-08T23:16:48.288Z"
+  },
+  {
+   "id": "GAR-CREW-WHT-HANGER-01/zodiac-0/front/std",
+   "cacheKey": "p3-engine-1:GAR-CREW-WHT-HANGER-01:front:std:ad56dd14",
+   "garmentId": "GAR-CREW-WHT-HANGER-01",
+   "artworkId": "zodiac-0",
+   "view": "front",
+   "variant": "std",
+   "file": "public/mockups/gar-crew-wht-hanger-01__zodiac-0__front.webp",
+   "width": 800,
+   "height": 1200,
+   "bytes": 18868,
+   "sha256": "613df85835cff29e6811e26228e7e6bbfca16ada968d1ca2ee2f90afafce7a25",
+   "rendererVersion": "p3-engine-1",
+   "fidelity": {
+    "coverageRef": 0.698,
+    "coverageMock": 0.681,
+    "coverageDelta": 0.017
+   },
+   "note": "cung mặc định (Bạch Dương) của AIS-007",
+   "generatedAt": "2026-11-08T23:16:48.425Z"
+  }
+ ]
+}

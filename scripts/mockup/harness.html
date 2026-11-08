@@ -1,0 +1,64 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>P3 mockup harness (tool page, not part of the shop)</title>
+<body>
+<script type="module">
+import { compositeMockup, loadImage, alphaCoverage, artworkReference } from '/src/mockup-engine/composite.js';
+import { scaleQuad, quadBoundsPx } from '/src/mockup-engine/engine.js';
+
+async function rasterise(doc, img, size = 1000) {
+  const c = doc.createElement('canvas');
+  c.width = size; c.height = size;
+  c.getContext('2d').drawImage(img, 0, 0, size, size);
+  return c;
+}
+
+function textArtwork(doc, lines) {
+  const c = doc.createElement('canvas');
+  c.width = 1000; c.height = 1000;
+  const x = c.getContext('2d');
+  x.fillStyle = '#293e35';
+  x.textAlign = 'center';
+  x.font = '700 150px Georgia, serif';
+  lines.forEach((line, i) => x.fillText(line, 500, 420 + i * 190));
+  x.font = '400 54px Arial, sans-serif';
+  x.fillText('· EST · 2026 ·', 500, 420 + lines.length * 190);
+  return c;
+}
+
+window.__renderCombo = async (spec) => {
+  const doc = document;
+  const garmentImg = await loadImage(doc, '/' + spec.garmentFile);
+  let artSource;
+  if (spec.textLines) {
+    artSource = textArtwork(doc, spec.textLines);
+  } else {
+    const raw = await loadImage(doc, '/' + spec.artworkFile);
+    artSource = await rasterise(doc, raw);
+  }
+  const zone = { quad: spec.scaleFactor && spec.scaleFactor !== 1 ? scaleQuad(spec.zoneQuad, spec.scaleFactor) : spec.zoneQuad };
+  const { canvas, artLayer } = compositeMockup(doc, {
+    garmentImg, artworkImg: artSource, zone,
+    maskPolygon: spec.maskPolygon, shadingStrength: spec.shadingStrength ?? 0.35,
+  });
+  const ref = artworkReference(doc, artSource, zone, garmentImg.naturalWidth, garmentImg.naturalHeight);
+  const b = quadBoundsPx(zone.quad, garmentImg.naturalWidth, garmentImg.naturalHeight);
+  // Coverage of the artwork layer inside the zone bbox, vs the reference.
+  const crop = doc.createElement('canvas');
+  crop.width = Math.round(b.width); crop.height = Math.round(b.height);
+  crop.getContext('2d').drawImage(artLayer, -Math.round(b.x), -Math.round(b.y));
+  const coverageRef = alphaCoverage(ref);
+  const coverageMock = alphaCoverage(crop);
+  const blob = await new Promise(r => canvas.toBlob(r, 'image/webp', 0.85));
+  const buf = new Uint8Array(await blob.arrayBuffer());
+  let bin = '';
+  for (let i = 0; i < buf.length; i += 8192) bin += String.fromCharCode(...buf.subarray(i, i + 8192));
+  return {
+    webpBase64: btoa(bin), bytes: buf.length,
+    width: canvas.width, height: canvas.height,
+    coverageRef, coverageMock, coverageDelta: Math.abs(coverageRef - coverageMock),
+  };
+};
+window.__p3ready = true;
+</script>
+</body>

@@ -29,7 +29,12 @@ test('every lifestyle photo in code mirrors the JSON manifest, is licensed and e
 });
 
 test('lifestyle matching never shows a polo customer a crew photo as its garment',()=>{
- for(const p of products.filter(p=>p.type==='polo'))assert.deepEqual(lifestyleFor(p,p.defaultColor),[]);
+ // P3 update: a verified POLO worn photo now exists (polo-white-worn), so polo
+ // products may match polo photos — but never a crew/oversize photo.
+ for(const p of products.filter(p=>p.type==='polo'))
+  for(const photo of lifestyleFor(p,p.defaultColor))assert.equal(photo.garmentType,'polo');
+ const whitePolo=products.find(p=>p.sku==='AIS-009');
+ assert.ok(lifestyleFor(whitePolo,'#f8f6ee').some(x=>x.id==='polo-white-worn'));
  const couple=products.find(p=>p.sku==='AIS-001');
  assert.ok(lifestyleFor(couple,'#f8f6ee').some(x=>x.id==='couple-white-outdoor'));
  const black=products.find(p=>p.sku==='AIS-007');

@@ -43,3 +43,11 @@ of this shop's manufactured products. Pexels photo 9558713 was evaluated and
 REJECTED (source page teen tagging; model age unverifiable) and is not used.
 No Sketchfab GLB, PSD mockup pack or Unsplash image was downloaded or used in P2;
 see docs/P2_ASSET_LICENSES.md for the full audit trail.
+
+## P3 garment library additions — 2026-11-09 (Asia/Tokyo)
+
+- Pexels 17515211 — NJH STUDIO — man wearing blank white crew tee, BACK view, EXIF Sony ILCE-6000 on page; page description states "adult". File `public/fixtures/real-tee/crew-white-back-worn.webp`. Lifestyle only; never composited. PM visually verified 2026-11-09: blank back, no logo/print/watermark.
+- Pexels 2096476 — Mwabonje Ringa — man wearing blank white polo, EXIF Nikon D3000 on page. File `public/fixtures/real-tee/polo-white-worn.webp`. Lifestyle only; never composited. PM visually verified 2026-11-09: no chest logo; collar/placket visible. First verified polo photograph in the library (still no polo compositing base).
+- Licence for both: Pexels License — free use including commercial/e-commerce, attribution not required (given voluntarily), no sale of unaltered copies as stock, no implied endorsement by depicted people. Re-verified by Agent 1 on 2026-11-09.
+- Rejected after PM visual check: Pexels 6843269 (chunky sweater knit, not T-shirt jersey — would misdescribe the fabric) and 8606514 (model age unverifiable). Full candidate queue with reasons: `data/candidates.json`. Pexels 9558713 remains banned.
+- The 8 pre-rendered mockups in `public/mockups/` are computer composites of the project's own MIT artwork over Pexels 20669538 (Dmitriy Steinke, Pexels License) and are labelled "Ảnh mô phỏng" wherever shown.
