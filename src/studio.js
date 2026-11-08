@@ -1,7 +1,7 @@
 import {getProduct} from './product-store.js?v=p1content1';
 import {presetDesign} from './catalog-filter.js?v=p1content1';
 import {contrast} from './color-contrast.js?v=p1content1';
-import {unitPrice,quantity,priceSummary} from './cart-price.js?v=p1content1';
+import {unitPrice,quantity,priceSummary,basePriceForType} from './cart-price.js?v=p1content1';
 const $=s=>document.querySelector(s),copy=x=>structuredClone(x);
 const blank=()=>({version:1,productId:null,color:'#f8f6ee',type:'crew',size:'M',quantity:1,productName:'Áo tự thiết kế',side:'front',faces:{front:[],back:[]}});
 const zones={crew:{x:210,y:200,w:180,h:280,cm:28},oversize:{x:195,y:195,w:210,h:300,cm:32},polo:{x:215,y:250,w:170,h:230,cm:24}};
@@ -26,7 +26,7 @@ function change(fn){checkpoint();fn();sync();persist()}
 function add(l){change(()=>{layers().push({x:300,y:320,width:120,height:70,angle:0,color:'#86523a',font:'Arial',...l});selected=layers().length-1})}
 $('#add-text').onclick=()=>{const text=$('#text-value').value.trim();if(text)add({kind:'text',text})};$('#add-symbol').onclick=()=>add({kind:'text',text:'♡',width:180});
 for(const face of ['front','back'])$('#face-'+face).onclick=()=>{state.side=face;selected=layers().length-1;sync();persist()};
-for(const [id,key] of [['shirt-type','type'],['shirt-color','color'],['shirt-size','size'],['shirt-quantity','quantity']])$('#'+id).onchange=e=>change(()=>state[key]=key==='quantity'?Math.max(1,Math.min(99,Number(e.target.value)||1)):e.target.value);
+for(const [id,key] of [['shirt-type','type'],['shirt-color','color'],['shirt-size','size'],['shirt-quantity','quantity']])$('#'+id).onchange=e=>change(()=>{state[key]=key==='quantity'?Math.max(1,Math.min(99,Number(e.target.value)||1)):e.target.value;if(key==='type'&&state.pricing?.version===2)state.basePrice=basePriceForType(state.type)});
 $('#layer-select').onchange=e=>{selected=Number(e.target.value);sync()};
 for(const [id,key] of [['layer-angle','angle'],['layer-x','x'],['layer-y','y'],['ink-color','color'],['text-font','font']])$('#'+id).onchange=e=>{if(layer())change(()=>layer()[key]=['angle','x','y'].includes(key)?+e.target.value:e.target.value)};
 $('#layer-scale').onchange=e=>{if(layer())change(()=>{const l=layer(),w=+e.target.value;l.height*=w/l.width;if(l.fontSize)l.fontSize*=w/l.width;l.width=w})};$('#text-value').onchange=e=>{if(layer()?.kind==='text')change(()=>layer().text=e.target.value)};

@@ -1,3 +1,4 @@
+export const basePriceForType=type=>({crew:199000,oversize:219000,polo:239000}[type]||199000);
 /** One pricing source. Unversioned saved designs keep their original P0 tariff. */
 export function priceBreakdown(design){
  const base=[199000,219000,239000].includes(design.basePrice)?design.basePrice:199000;
