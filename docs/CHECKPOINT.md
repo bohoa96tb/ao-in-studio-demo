@@ -1,57 +1,60 @@
-# Checkpoint — QA and performance milestone
-Code 9cb09dd3f690cf284ca8427763caf9834ffdf0a1; CI 42490519486 green. Preview https://bohoa96tb.github.io/ao-in-studio-demo/?v=perf9 .
+# ÁO IN STUDIO — checkpoint phát hành P0 + P1
 
-15 tests + five-width application browser suite pass. tests/interaction.mjs adds CDP touch rail(390)/circle(390,1440), keyboard arrows/Escape, valid and rejected fitting drops and Axe scans. No violations in scanned states. color-contrast.js ensures template ink ≥4.5 against shirt overrides; custom Studio text color preserved with low-contrast warning. Semantic region names and focus indicators improved.
+Ngày: 2026-11-09 (Asia/Tokyo).
+Người dùng đã phê duyệt đưa lên main trong phiên này; yêu cầu chờ review trước merge
+ở các mục lịch sử đã được thay thế bằng phê duyệt này.
 
-Performance: scripts/performance.mjs runs Lighthouse mobile and stores qa-results artifact. Performance66→92, Accessibility96→96, CLS0.2587→0.0198,TBT564→126ms. LCP3188ms remains above2.5s; INP/FPS/physical-phone unmeasured. See PERFORMANCE.md. Stabilized initial rail via sized/preloaded poster and hidden runtime initialization, immediate mobile front state, cached manifest/atlas promises; catalog lazy mounts near viewport; tests explicitly reveal lazy section.
+## Trạng thái
+- P0 PR #1 đã merge: deb00e9aacf6e2a98fa58a33cd739d253aaead92.
+- P1 PR #2 đã merge: 6d301ed7a98ba94d65d4ef6341a89c27d39da408.
+- Mã ứng dụng đã QA:161406f7855d104ff6c7250b673bc6da15fd31b4.
+- Website chính: https://bohoa96tb.github.io/ao-in-studio-demo/?v=p1content1
+- Bản preview phụ vẫn là P0, chưa triển khai các version P1 đã lưu lên hosting phụ:
+  https://ao-in-studio-p0-review.bohoa1996tb.chatgpt.site/
+  Không nhầm preview phụ với bản main mới.
+- Không làm thêm 3D/GLB hoặc backend trong đợt này.
 
-Next: LCP/hosting and physical-device QA, forced WebGL context loss and mockup/artwork export checks; JSON import and remaining architecture/media consistency. Still vanilla modules, not requested full React/TypeScript architecture. Rail repeats two licensed samples and catalog has12 separate original typographic presets; not unified motion assets. Models remain schematic; no production artwork or fit certification. Do not claim full master prompt complete.
+## Đã làm
+- Tủ áo còn đúng2 motion gốc;14 SKU thống nhất giữa rail/circle/catalogue/Studio.
+- Giữ12 chủ đề, thêm55 SVG gốc:12 con giáp Việt Nam (Mão là mèo),12 cung,
+  áo đôi sun/moon,20 biến thể số người/vai trò gia đình và các hình in theo chủ đề.
+- Form riêng: hai tên/kỷ niệm, thành viên/role, lớp/niên khóa, bố cục tên,
+  lịch/vintage ngày sinh, năm âm/con giáp, cung, số giải trí, slogan, sinh nhật.
+  Áo tự tải ảnh thật sự trống. Không chuyển đổi ngày dương sang âm quanh Tết.
+- Danh mục2 cột mobile, tìm kiếm, chip chủ đề, panel lọc kiểu/màu/giá trọn mẫu.
+  SKU ẩn khỏi thẻ chính; CTA nhất quán. Gallery trước/sau/cận và phóng to.
+- WebP preview dựng từ cùng layer/renderer với Studio; không thay artwork bằng ảnh khác.
+- Một nguồn tính giá: áo nền, hình mẫu, cá nhân hóa, mặt in thêm, số lượng.
+  Dữ liệu cũ không tự đổi tariff hoặc bố cục chữ. Giữ DB version1, undo/redo,
+  draft, export, cart snapshots/edit, thử phối và ép nhiệt.
+- Bỏ lỗi chiều cao290px cắt áo ở chi tiết; thumbnail không còn padding thu nhỏ.
+  Hero preload đúng ảnh thật đang hiển thị, thay cho ảnh nhỏ rồi tải ảnh đầy đủ.
+- Giấy phép/ghi công còn đầy đủ; không mua/tạo video trả phí.
 
+## QA thực tế
+Actions42498554194 / job128786089607 SUCCESS.
+Lint/build +20 unit tests; hồi quy5 viewport360/390/430/768/1440.
+P1:12 chủ đề đi hết shopping flow tại390;4 viewport còn lại kiểm tra tên/bố cục,
+gallery, snapshot JSON, đổi kiểu/giá, cart reload/edit;16 hành trình tổng cộng.
+Touch/keyboard/fitting/drop, reduced motion, ảnh atlas/manifest lỗi và axe đạt trong
+các trạng thái đã quét. Có ảnh trước/sau5 khu vực trong Actions artifacts.
+Lighthouse mobile lab cuối: Performance97,Accessibility96,LCP2630ms,CLS0,TBT0ms.
+LCP mục tiêu2500ms CHƯA ĐẠT; các phép đo trước dao động2447–2780ms.
+Không suy ra field INP/FPS hay kết quả điện thoại thật từ Lighthouse này.
 
-## Active P0 review — 2026-11-08
-Branch redesign/p0-product-identity from main 4eaed7d. See docs/P0_REVIEW.md.
-Two genuine motion products share canonical SKUs with circle/catalogue/Studio; previous
-draft cannot silently replace explicit product selection. Local media, interaction-only
-atlas decoding and redesigned Hero. Local lint/build and 16 unit tests pass.
-Browser regression, new product-identity/failure-injection tests and Lighthouse pending
-GitHub Actions; do not claim CI or performance passed before observing results.
-Do not merge this review branch or alter production until the user reviews the PR.
+## Việc tiếp theo, theo thứ tự
+1. Nghiệm thu bản main trên điện thoại thật; hiện chỉ có Chromium/touch emulation.
+2. Tối ưu LCP cho ổn định≤2.5s; đo trace resource/render của Hero trên hosting thật,
+   không chỉ dùng điểm số localhost. Giữ Performance≥85, CLS≤0.1.
+3. Kiểm tra forced no-WebGL/context loss và lỗi file ảnh front/back (chưa kiểm chứng).
+4. Hoàn thiện artwork/Studio UX theo phản hồi người dùng; xem P1_REVIEW và QA_REPORT.
+5. Chỉ thêm chất liệu/bảng size/chính sách khi người bán cung cấp số liệu xác minh.
+   Lifestyle photos phải có quyền và khớp artwork. Chưa có ảnh đời thực.
+6. GLB tự nhiên/Studio grouping/đổi luồng thử phối và ép nhiệt thuộc phạm vi tiếp theo;
+   không báo đã hoàn thành toàn bộ master prompt.
 
-
-### P0 validated checkpoint
-Reviewed application commit2e88fba68aac450aa13b7012dc03abdb3580d764.
-PR https://github.com/bohoa96tb/ao-in-studio-demo/pull/1 — not merged.
-Actions42492802283 SUCCESS: lint/build,16 unit tests,5-width full regression,
-5-width identity/draft tests and two motion-failure injections; touch/keyboard/axe pass.
-Lighthouse89/96,LCP2448ms,CLS0,TBT362ms (single simulated mobile lab run).
-Preview: https://ao-in-studio-p0-review.bohoa1996tb.chatgpt.site (owner-private; deployment status must be checked before handoff).
-Next: user reviews P0; keep main unchanged. Then P1 Studio grouping, licensed3D asset
-quality/performance evaluation, fitting/heat-press flow, differentiated template artwork.
-Outstanding QA: physical devices, forced no-WebGL/context loss, failed base photos,
-hosted-site/field performance. See P0_REVIEW, QA_REPORT and PERFORMANCE for exact scope.
-
-## Active P1 — 2026-11-09 (Asia/Tokyo)
-Branch feature/p1-collection-shopping based on434ce99d from P0. Do not merge P0 or P1.
-See P1_REVIEW.md for scope/data/fee compatibility. Original artwork, themed forms,
-mobile catalogue, live detail gallery and shared price breakdown implemented.
-Local lint/build and19 unit tests pass. Browser/Lighthouse and before/after screenshots
-pending CI; do not claim they passed before observing workflow results.
-
-## P1 review candidate — 2026-11-09 (Asia/Tokyo)
-PR https://github.com/bohoa96tb/ao-in-studio-demo/pull/2
-Base redesign/p0-product-identity; head feature/p1-collection-shopping.
-Do not merge either PR without user approval. Main/Pages unchanged.
-Feature code cd4e1057 validated in green Actions42497201781:20 unit tests, P0 five-width
-regression, P1 all12 themes at390 plus other four widths, matching snapshots/cart,
-touch/keyboard/axe. Lighthouse98/96,LCP2449ms,CLS0,TBT0ms in a single mobile lab run.
-Candidate44ad4b9d adds the image-framing fix found by visual QA and an automated check;
-consult the latest PR check for that candidate's final status. No other feature changes.
-55 original SVGs,14 unchanged SKUs, theme-specific forms, consistent WebP previews,
-native filter panel and shared fee breakdown. Old drafts/cart keep original snapshots
-and legacy tariff; new type changes update base price via cart-price.js.
-Review preview reuses existing hosting project appgprj_6af08f4c98c8819188c52cb0da13822f:
-https://ao-in-studio-p0-review.bohoa1996tb.chatgpt.site/
-Existing audience was public at start of P1; do not change access or create another Site.
-Publish only the candidate that passes QA; deployment status must be verified.
-Next: user reviews artwork/catalogue/detail/mobile; then address real materials/sizes,
-matching licensed lifestyle photos and physical-device QA. No new3D scope this phase.
+## Cách tiếp tục nhanh
+Đọc AGENTS, checkpoint này, P1_REVIEW, QA_REPORT và đúng module định sửa.
+Chỉ kiểm tra HEAD/chênh lệch mới; không khảo sát lại toàn repo/4 nguồn từ đầu.
+Giữ SKU, snapshot design/pricing, local IndexedDB và attribution. Tạo feature branch,
+test phần thay đổi cùng hồi quy quan trọng, đo thật rồi mới báo đạt.

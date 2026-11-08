@@ -54,3 +54,12 @@ Original SVG loads only when a catalogue card/detail/circular collection is requ
 Catalogue WebP previews use420x490 dimensions and intersection-driven loading; detail
 views600x700. New content adds no WebGL loop or remote image/font service.
 Further runs are attached to PR #2; use their recorded summaries rather than extrapolate.
+
+## Final main release measurement
+Final application161406f7: Actions42498554194, mobile simulated RTT150ms /
+1638.4Kbps / CPU4x. Performance97,Accessibility96,LCP2629.861ms,CLS0,TBT0ms.
+The preceding measurement at91c49c32 was96/96,LCP2779.569ms,CLS0,TBT0ms.
+Preloading the actual Hero front image removes the small-poster/full-image handoff,
+but final LCP still exceeds2500ms. Earlier2447ms runs are not a reliable guarantee.
+User requested release to main first; record LCP stability as remaining work.
+No field INP/FPS/physical-device performance measurement.

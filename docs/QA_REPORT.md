@@ -65,3 +65,15 @@ Actions42497201781 / job128781996768 SUCCESS, artifact13623184423.
 Limits: original stylised vectors and 2D mockups; no real lifestyle/product photographs,
 verified fabric/size measurements/delivery/durability, new GLB, physical Android/iPhone,
 forced WebGL context-loss/no-WebGL or certified production exports. No payment/backend.
+
+## P0 + P1 release authorised — 2026-11-09 (Asia/Tokyo)
+User explicitly authorised main release. PR1 merge deb00e9a, PR2 merge6d301ed7.
+Final application161406f7, Actions42498554194/job128786089607 SUCCESS.
+20 unit tests; five-width regression; all12 P1 themes at390 plus four other widths;
+native modal accessibility, non-cropped gallery geometry, matching artwork snapshots,
+cart reload/edit and legacy fee/text rendering preserved.
+Latest Lighthouse mobile97/96,LCP2630ms,CLS0,TBT0ms. LCP≤2500ms remains UNMET.
+Earlier runs2447–2780ms demonstrate variance; do not select only the fastest sample.
+Hero now preloads the full displayed image. Additional real-host/device optimisation
+and forced WebGL/base-photo failure QA remain. All production specifications unknown
+stay labelled unknown. See latest CHECKPOINT as authoritative resume state.
