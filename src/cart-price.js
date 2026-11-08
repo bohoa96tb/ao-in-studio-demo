@@ -1,7 +1,7 @@
 /** One pricing source. Unversioned saved designs keep their original P0 tariff. */
 export function priceBreakdown(design){
  const base=[199000,219000,239000].includes(design.basePrice)?design.basePrice:199000;
- const front=!!design.faces?.front?.length,back=!!design.faces?.back?.length;
+ const visible=layers=>layers?.some(l=>l.kind==='image'||(typeof l.text==='string'&&l.text.trim()));const legacy=design.pricing?.version!==2;const front=legacy?!!design.faces?.front?.length:!!visible(design.faces?.front),back=legacy?!!design.faces?.back?.length:!!visible(design.faces?.back);
  if(design.pricing?.version!==2){const template=front?30000:0,extraPrint=back?30000:0;return {base,template,personalization:0,extraPrint,total:base+template+extraPrint,legacy:true}}
  const p=design.pricing,template=front?Math.max(0,Number(p.templateFee)||0):0;
  const included=new Set(Array.isArray(p.includedFaces)?p.includedFaces:[]);

@@ -92,3 +92,5 @@ main{max-width:1120px;padding-top:30px}.intro{align-items:center;justify-content
  .product-copy{width:100%}.product-copy h2{font-size:30px}.detail-price strong{font-size:23px}
  .studio-preview{position:static!important;top:auto!important}.studio-layout{display:flex;flex-direction:column}.studio-layout>div{width:100%}
 }
+
+#detail-stage:focus-visible{outline:3px solid #526b46;outline-offset:3px}

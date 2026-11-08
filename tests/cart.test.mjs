@@ -11,3 +11,8 @@ test('v2 distinguishes blank, included template, edits and additional faces with
  const old={basePrice:219000,faces:{front:[{text:'old'}],back:[]}};assert.equal(unitPrice(old),249000);
  const blank={basePrice:239000,faces:{front:[],back:[]},pricing:{...pricing,templateFee:0,includedFaces:[]}};assert.equal(unitPrice(blank),239000);blank.faces.back.push({text:'Ảnh riêng'});assert.equal(unitPrice(blank),269000);
 });
+
+test('new designs do not charge an invisible empty text layer; stored legacy tariff is unchanged',()=>{
+ const d={basePrice:199000,faces:{front:[{kind:'text',text:'  '}],back:[]},pricing:{version:2,templateFee:30000,includedFaces:['front'],faceFee:30000}};
+ assert.equal(unitPrice(d),199000);delete d.pricing;assert.equal(unitPrice(d),229000);
+});
