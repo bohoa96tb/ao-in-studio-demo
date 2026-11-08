@@ -1,7 +1,8 @@
+import {mountCatalog} from './product-catalog.js';
 import {mountStyling} from './styling.js';
 import {mountHeatPress} from './heat-press.js';
-import {mountCart} from './cart.js';
-import {mountStudio} from './studio.js?v=effects6';
+import {mountCart} from './cart.js?v=catalog7';
+import {mountStudio} from './studio.js?v=catalog7';
 import {mountShowroom} from './circular-showroom.js';
 import {GarmentController} from './controller.js';
 import {rackPositions,slideStep} from './rack-layout.js';
@@ -14,6 +15,7 @@ const mobile=matchMedia('(max-width:700px)'),reduced=matchMedia('(prefers-reduce
 let showroom;
 const cart=mountCart({onEdit:(design,id)=>studio.restore(design,id)});
 const studio=mountStudio({onAdd:(design,previews,id)=>cart.add(design,previews,id)});
+mountCatalog(studio);
 const styling=mountStyling(studio);
 const heatPress=mountHeatPress(studio,{tryOn:()=>styling.open()});
 document.querySelector('#studio-try').onclick=()=>styling.open();

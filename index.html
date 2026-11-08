@@ -6,14 +6,14 @@
   <meta name="description" content="Showroom áo in tương tác. Bản demo Giai đoạn 1.">
   <meta name="theme-color" content="#f5f3ee">
   <title>ÁO IN STUDIO — Chiếc áo của bạn</title>
-  <link rel="stylesheet" href="src/style.css?v=effects6">
-  <script type="module" src="src/app.js?v=effects6"></script>
+  <link rel="stylesheet" href="src/style.css?v=catalog7">
+  <script type="module" src="src/app.js?v=catalog7"></script>
 </head>
 <body>
   <a class="skip" href="#showcase">Đến tủ áo</a>
   <header class="site-header">
     <a class="wordmark" href="#showcase" id="site-title">ÁO IN STUDIO<span aria-hidden="true">↗</span></a>
-    <button id="cart-open" class="text-button">Giỏ hàng (<span id="cart-count">0</span>)</button><span class="edition">BỘ SƯU TẬP / 01</span>
+    <a class="catalog-nav" href="#product-catalog">Bộ sưu tập</a><button id="cart-open" class="text-button">Giỏ hàng (<span id="cart-count">0</span>)</button><span class="edition">BỘ SƯU TẬP / 01</span>
     <button class="text-button" id="about-open">Về bản demo <span aria-hidden="true">↗</span></button>
   </header>
   <main id="showcase">
@@ -32,7 +32,7 @@
       <div class="browse-controls"><button id="previous" class="arrow-button" disabled aria-label="Áo trước">←</button><button id="next" class="arrow-button" disabled aria-label="Áo tiếp theo">→</button><button id="inspect" class="inspect-button" disabled>Xem áo <span aria-hidden="true">↗</span></button></div>
     </div>
     <p class="fixture-note">Vuốt để khám phá · Ảnh chuyển động mẫu MIT, chưa phải sản phẩm đang bán</p>
-  <section class="circular" id="collections"><div class="circle-heading"><p class="eyebrow">02 / SHOWROOM 360°</p><h2>KHÁM PHÁ BỘ SƯU TẬP</h2><p>Kéo ngang để xoay giá áo. Chạm một mẫu để đưa ra phía trước.</p></div><div id="circle-stage" class="circle-stage" tabindex="0" aria-label="Giá áo xoay 360 độ"><div class="circle-floor"></div><div id="circle-ring" class="circle-ring"></div></div><div class="circle-info"><span id="circle-count" aria-live="polite"></span><h3 id="circle-name"></h3><div class="circle-controls"><button id="circle-prev" aria-label="Xoay trái">←</button><button id="circle-next" aria-label="Xoay phải">→</button><button id="circle-inspect">Xem áo này ↗</button></div></div><small>Hai thiết kế chuyển động mẫu MIT được trưng bày tại sáu vị trí.</small></section><section id="studio" class="studio"></section><section id="styling" class="effect-section"></section><section id="heat-press" class="effect-section"></section><section class="next-stage"><span>01 / KHÁM PHÁ</span><h2>Từ một chiếc áo.<br>Đến dấu ấn của riêng bạn.</h2><p>Chọn mẫu trên thanh treo để xem mặt trước, mặt sau và thông tin sản phẩm.</p><div>Studio thiết kế &nbsp; / &nbsp; Thử phối &nbsp; / &nbsp; Ép nhiệt &nbsp; / &nbsp; Giỏ hàng demo</div><small>Trải nghiệm minh họa · Chưa nhận đơn hàng thật.</small></section></main>
+  <section class="circular" id="collections"><div class="circle-heading"><p class="eyebrow">02 / SHOWROOM 360°</p><h2>KHÁM PHÁ BỘ SƯU TẬP</h2><p>Kéo ngang để xoay giá áo. Chạm một mẫu để đưa ra phía trước.</p></div><div id="circle-stage" class="circle-stage" tabindex="0" aria-label="Giá áo xoay 360 độ"><div class="circle-floor"></div><div id="circle-ring" class="circle-ring"></div></div><div class="circle-info"><span id="circle-count" aria-live="polite"></span><h3 id="circle-name"></h3><div class="circle-controls"><button id="circle-prev" aria-label="Xoay trái">←</button><button id="circle-next" aria-label="Xoay phải">→</button><button id="circle-inspect">Xem áo này ↗</button></div></div><small>Hai thiết kế chuyển động mẫu MIT được trưng bày tại sáu vị trí.</small></section><section id="product-catalog" class="effect-section"></section><section id="studio" class="studio"></section><section id="styling" class="effect-section"></section><section id="heat-press" class="effect-section"></section><section class="next-stage"><span>01 / KHÁM PHÁ</span><h2>Từ một chiếc áo.<br>Đến dấu ấn của riêng bạn.</h2><p>Chọn mẫu trên thanh treo để xem mặt trước, mặt sau và thông tin sản phẩm.</p><div>Studio thiết kế &nbsp; / &nbsp; Thử phối &nbsp; / &nbsp; Ép nhiệt &nbsp; / &nbsp; Giỏ hàng demo</div><small>Trải nghiệm minh họa · Chưa nhận đơn hàng thật.</small></section></main>
   <footer class="site-footer"><span>Demo Giai đoạn 1 · Chưa nhận đơn hàng</span><a href="README.md" target="_blank" rel="noopener">Tài liệu dự án ↗</a><span>Chuyển động mẫu: Amir Mušić · MIT</span></footer>
   <dialog id="product-dialog" aria-labelledby="product-title">
     <div class="dialog-header"><span class="eyebrow">CHI TIẾT MẪU ÁO</span><button class="close-button" data-close="product-dialog" aria-label="Đóng chi tiết">Đóng ×</button></div>

@@ -1,15 +1,15 @@
 [
   {
     "sku": "AIS-001",
-    "name": "Áo đôi",
+    "name": "Cùng một nhịp",
     "category": "Áo đôi",
     "type": "crew",
     "colors": [
-      "white",
-      "black",
-      "cream",
-      "gray",
-      "navy"
+      "#f8f6ee",
+      "#242424",
+      "#dfd0b4",
+      "#a9aaa7",
+      "#23334d"
     ],
     "sizes": [
       "S",
@@ -24,20 +24,29 @@
       "back"
     ],
     "imageSurcharge": 30000,
-    "stock": "simulated",
-    "mediaStatus": "pending-owned-assets"
+    "stock": "simulated-in-stock",
+    "mediaStatus": "original-canvas-typography",
+    "defaultColor": "#f8f6ee",
+    "gender": "unisex",
+    "personalization": "none",
+    "print": {
+      "text": "YOU + ME\n♡",
+      "width": 150,
+      "color": "#86523a",
+      "font": "Arial"
+    }
   },
   {
     "sku": "AIS-002",
-    "name": "Áo gia đình",
+    "name": "Nhà mình là nhất",
     "category": "Áo gia đình",
-    "type": "crew",
+    "type": "oversize",
     "colors": [
-      "white",
-      "black",
-      "cream",
-      "gray",
-      "navy"
+      "#f8f6ee",
+      "#242424",
+      "#dfd0b4",
+      "#a9aaa7",
+      "#23334d"
     ],
     "sizes": [
       "S",
@@ -46,26 +55,35 @@
       "XL",
       "XXL"
     ],
-    "basePrice": 199000,
+    "basePrice": 219000,
     "printZones": [
       "front",
       "back"
     ],
     "imageSurcharge": 30000,
-    "stock": "simulated",
-    "mediaStatus": "pending-owned-assets"
+    "stock": "simulated-in-stock",
+    "mediaStatus": "original-canvas-typography",
+    "defaultColor": "#dfd0b4",
+    "gender": "unisex",
+    "personalization": "none",
+    "print": {
+      "text": "HOME\nIS US",
+      "width": 150,
+      "color": "#86523a",
+      "font": "Georgia"
+    }
   },
   {
     "sku": "AIS-003",
-    "name": "Áo nhóm lớp",
+    "name": "Chúng ta một đội",
     "category": "Áo nhóm lớp",
-    "type": "crew",
+    "type": "polo",
     "colors": [
-      "white",
-      "black",
-      "cream",
-      "gray",
-      "navy"
+      "#f8f6ee",
+      "#242424",
+      "#dfd0b4",
+      "#a9aaa7",
+      "#23334d"
     ],
     "sizes": [
       "S",
@@ -74,26 +92,35 @@
       "XL",
       "XXL"
     ],
-    "basePrice": 199000,
+    "basePrice": 239000,
     "printZones": [
       "front",
       "back"
     ],
     "imageSurcharge": 30000,
-    "stock": "simulated",
-    "mediaStatus": "pending-owned-assets"
+    "stock": "simulated-in-stock",
+    "mediaStatus": "original-canvas-typography",
+    "defaultColor": "#23334d",
+    "gender": "unisex",
+    "personalization": "none",
+    "print": {
+      "text": "ONE TEAM\n01",
+      "width": 120,
+      "color": "#eee5ce",
+      "font": "Arial"
+    }
   },
   {
     "sku": "AIS-004",
-    "name": "In tên",
+    "name": "Tên mình thật đẹp",
     "category": "In tên",
     "type": "crew",
     "colors": [
-      "white",
-      "black",
-      "cream",
-      "gray",
-      "navy"
+      "#f8f6ee",
+      "#242424",
+      "#dfd0b4",
+      "#a9aaa7",
+      "#23334d"
     ],
     "sizes": [
       "S",
@@ -108,20 +135,29 @@
       "back"
     ],
     "imageSurcharge": 30000,
-    "stock": "simulated",
-    "mediaStatus": "pending-owned-assets"
+    "stock": "simulated-in-stock",
+    "mediaStatus": "original-canvas-typography",
+    "defaultColor": "#f8f6ee",
+    "gender": "unisex",
+    "personalization": "name",
+    "print": {
+      "text": "YOUR NAME",
+      "width": 150,
+      "color": "#86523a",
+      "font": "Georgia"
+    }
   },
   {
     "sku": "AIS-005",
-    "name": "Ngày sinh",
+    "name": "Ngày của riêng mình",
     "category": "Ngày sinh",
-    "type": "crew",
+    "type": "oversize",
     "colors": [
-      "white",
-      "black",
-      "cream",
-      "gray",
-      "navy"
+      "#f8f6ee",
+      "#242424",
+      "#dfd0b4",
+      "#a9aaa7",
+      "#23334d"
     ],
     "sizes": [
       "S",
@@ -130,26 +166,35 @@
       "XL",
       "XXL"
     ],
-    "basePrice": 199000,
+    "basePrice": 219000,
     "printZones": [
       "front",
       "back"
     ],
     "imageSurcharge": 30000,
-    "stock": "simulated",
-    "mediaStatus": "pending-owned-assets"
+    "stock": "simulated-in-stock",
+    "mediaStatus": "original-canvas-typography",
+    "defaultColor": "#a9aaa7",
+    "gender": "unisex",
+    "personalization": "date",
+    "print": {
+      "text": "SINCE\n1996",
+      "width": 150,
+      "color": "#86523a",
+      "font": "Arial"
+    }
   },
   {
     "sku": "AIS-006",
-    "name": "Con giáp",
+    "name": "Dấu ấn năm sinh",
     "category": "Con giáp",
-    "type": "crew",
+    "type": "polo",
     "colors": [
-      "white",
-      "black",
-      "cream",
-      "gray",
-      "navy"
+      "#f8f6ee",
+      "#242424",
+      "#dfd0b4",
+      "#a9aaa7",
+      "#23334d"
     ],
     "sizes": [
       "S",
@@ -158,26 +203,35 @@
       "XL",
       "XXL"
     ],
-    "basePrice": 199000,
+    "basePrice": 239000,
     "printZones": [
       "front",
       "back"
     ],
     "imageSurcharge": 30000,
-    "stock": "simulated",
-    "mediaStatus": "pending-owned-assets"
+    "stock": "simulated-in-stock",
+    "mediaStatus": "original-canvas-typography",
+    "defaultColor": "#dfd0b4",
+    "gender": "unisex",
+    "personalization": "none",
+    "print": {
+      "text": "MY YEAR\n✦",
+      "width": 120,
+      "color": "#86523a",
+      "font": "Georgia"
+    }
   },
   {
     "sku": "AIS-007",
-    "name": "Cung hoàng đạo",
+    "name": "Chạm vào vũ trụ",
     "category": "Cung hoàng đạo",
     "type": "crew",
     "colors": [
-      "white",
-      "black",
-      "cream",
-      "gray",
-      "navy"
+      "#f8f6ee",
+      "#242424",
+      "#dfd0b4",
+      "#a9aaa7",
+      "#23334d"
     ],
     "sizes": [
       "S",
@@ -192,20 +246,29 @@
       "back"
     ],
     "imageSurcharge": 30000,
-    "stock": "simulated",
-    "mediaStatus": "pending-owned-assets"
+    "stock": "simulated-in-stock",
+    "mediaStatus": "original-canvas-typography",
+    "defaultColor": "#242424",
+    "gender": "unisex",
+    "personalization": "none",
+    "print": {
+      "text": "COSMIC\nSOUL",
+      "width": 150,
+      "color": "#eee5ce",
+      "font": "Arial"
+    }
   },
   {
     "sku": "AIS-008",
-    "name": "Số chủ đạo giải trí",
+    "name": "Con số của tôi",
     "category": "Số chủ đạo giải trí",
-    "type": "crew",
+    "type": "oversize",
     "colors": [
-      "white",
-      "black",
-      "cream",
-      "gray",
-      "navy"
+      "#f8f6ee",
+      "#242424",
+      "#dfd0b4",
+      "#a9aaa7",
+      "#23334d"
     ],
     "sizes": [
       "S",
@@ -214,26 +277,35 @@
       "XL",
       "XXL"
     ],
-    "basePrice": 199000,
+    "basePrice": 219000,
     "printZones": [
       "front",
       "back"
     ],
     "imageSurcharge": 30000,
-    "stock": "simulated",
-    "mediaStatus": "pending-owned-assets"
+    "stock": "simulated-in-stock",
+    "mediaStatus": "original-canvas-typography",
+    "defaultColor": "#a9aaa7",
+    "gender": "unisex",
+    "personalization": "date",
+    "print": {
+      "text": "MY NUMBER\n08",
+      "width": 150,
+      "color": "#86523a",
+      "font": "Georgia"
+    }
   },
   {
     "sku": "AIS-009",
-    "name": "Slogan",
+    "name": "Nghỉ một chút thôi",
     "category": "Slogan",
-    "type": "crew",
+    "type": "polo",
     "colors": [
-      "white",
-      "black",
-      "cream",
-      "gray",
-      "navy"
+      "#f8f6ee",
+      "#242424",
+      "#dfd0b4",
+      "#a9aaa7",
+      "#23334d"
     ],
     "sizes": [
       "S",
@@ -242,26 +314,35 @@
       "XL",
       "XXL"
     ],
-    "basePrice": 199000,
+    "basePrice": 239000,
     "printZones": [
       "front",
       "back"
     ],
     "imageSurcharge": 30000,
-    "stock": "simulated",
-    "mediaStatus": "pending-owned-assets"
+    "stock": "simulated-in-stock",
+    "mediaStatus": "original-canvas-typography",
+    "defaultColor": "#f8f6ee",
+    "gender": "unisex",
+    "personalization": "none",
+    "print": {
+      "text": "CÀ PHÊ\nRỒI TÍNH",
+      "width": 120,
+      "color": "#86523a",
+      "font": "Arial"
+    }
   },
   {
     "sku": "AIS-010",
-    "name": "Nghệ thuật",
+    "name": "Nắng trên vai",
     "category": "Nghệ thuật",
     "type": "crew",
     "colors": [
-      "white",
-      "black",
-      "cream",
-      "gray",
-      "navy"
+      "#f8f6ee",
+      "#242424",
+      "#dfd0b4",
+      "#a9aaa7",
+      "#23334d"
     ],
     "sizes": [
       "S",
@@ -276,20 +357,29 @@
       "back"
     ],
     "imageSurcharge": 30000,
-    "stock": "simulated",
-    "mediaStatus": "pending-owned-assets"
+    "stock": "simulated-in-stock",
+    "mediaStatus": "original-canvas-typography",
+    "defaultColor": "#23334d",
+    "gender": "unisex",
+    "personalization": "none",
+    "print": {
+      "text": "SUN\n& SOUL",
+      "width": 150,
+      "color": "#eee5ce",
+      "font": "Georgia"
+    }
   },
   {
     "sku": "AIS-011",
-    "name": "Quà sinh nhật",
+    "name": "Một tuổi mới vui",
     "category": "Quà sinh nhật",
-    "type": "crew",
+    "type": "oversize",
     "colors": [
-      "white",
-      "black",
-      "cream",
-      "gray",
-      "navy"
+      "#f8f6ee",
+      "#242424",
+      "#dfd0b4",
+      "#a9aaa7",
+      "#23334d"
     ],
     "sizes": [
       "S",
@@ -298,26 +388,35 @@
       "XL",
       "XXL"
     ],
-    "basePrice": 199000,
+    "basePrice": 219000,
     "printZones": [
       "front",
       "back"
     ],
     "imageSurcharge": 30000,
-    "stock": "simulated",
-    "mediaStatus": "pending-owned-assets"
+    "stock": "simulated-in-stock",
+    "mediaStatus": "original-canvas-typography",
+    "defaultColor": "#dfd0b4",
+    "gender": "unisex",
+    "personalization": "date",
+    "print": {
+      "text": "HAPPY\nBIRTHDAY",
+      "width": 150,
+      "color": "#86523a",
+      "font": "Arial"
+    }
   },
   {
     "sku": "AIS-012",
-    "name": "Tải ảnh",
+    "name": "Sáng tạo tự do",
     "category": "Tải ảnh",
-    "type": "crew",
+    "type": "polo",
     "colors": [
-      "white",
-      "black",
-      "cream",
-      "gray",
-      "navy"
+      "#f8f6ee",
+      "#242424",
+      "#dfd0b4",
+      "#a9aaa7",
+      "#23334d"
     ],
     "sizes": [
       "S",
@@ -326,13 +425,22 @@
       "XL",
       "XXL"
     ],
-    "basePrice": 199000,
+    "basePrice": 239000,
     "printZones": [
       "front",
       "back"
     ],
     "imageSurcharge": 30000,
-    "stock": "simulated",
-    "mediaStatus": "pending-owned-assets"
+    "stock": "simulated-in-stock",
+    "mediaStatus": "original-canvas-typography",
+    "defaultColor": "#f8f6ee",
+    "gender": "unisex",
+    "personalization": "none",
+    "print": {
+      "text": "YOUR\nSTORY",
+      "width": 120,
+      "color": "#86523a",
+      "font": "Georgia"
+    }
   }
 ]

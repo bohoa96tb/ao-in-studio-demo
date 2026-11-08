@@ -1,4 +1,4 @@
-import {unitPrice,totalPrice,quantity} from './cart-price.js';
+import {unitPrice,totalPrice,quantity} from './cart-price.js?v=catalog7';
 const money=n=>n.toLocaleString('vi-VN')+'đ';
 const clone=x=>structuredClone(x);
 export function mountCart({onEdit}){
