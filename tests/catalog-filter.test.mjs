@@ -2,3 +2,6 @@ import test from 'node:test';import assert from 'node:assert/strict';import {fil
 const products=JSON.parse(await readFile(new URL('../data/products.json',import.meta.url)));
 test('Vietnamese search, combined filters and empty states',()=>{assert.equal(products.length,12);assert.equal(new Set(products.map(p=>p.sku)).size,12);assert.equal(filterProducts(products,{q:'nha minh'})[0].sku,'AIS-002');assert.equal(filterProducts(products,{type:'polo',max:199000}).length,0);assert.equal(filterProducts(products,{category:'Áo đôi',gender:'female'}).length,1)});
 test('personalization and prices agree with Studio/cart',()=>{const name=presetDesign(products[3],{name:'Minh Anh'});assert.equal(name.faces.front[0].text,'Minh Anh');const date=presetDesign(products[4],{date:'1996-11-08'});assert.equal(date.faces.front[0].text,'SINCE\n08.11.1996');assert.equal(unitPrice(date),249000);assert.equal(products[4].basePrice,219000)});
+
+import {contrast} from '../src/color-contrast.js';
+test('every template keeps readable ink for all supported shirt overrides',()=>{for(const p of products)for(const color of p.colors){const d=presetDesign(p,{color});assert.ok(contrast(color,d.faces.front[0].color)>=4.5)}});

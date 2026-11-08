@@ -15,3 +15,10 @@ jobs:
           node scripts/serve.mjs &
           export CHROMIUM_PATH=$(node -e "console.log(require('playwright').chromium.executablePath())")
           TEST_URL=http://127.0.0.1:5264 npm run test:browser
+          TEST_URL=http://127.0.0.1:5264 node tests/interaction.mjs
+          TEST_URL=http://127.0.0.1:5264 node scripts/performance.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qa-results
+          path: qa-results
