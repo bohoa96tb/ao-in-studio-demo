@@ -1,0 +1,15 @@
+name: Build and QA
+on: [push, pull_request]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm run lint && npm test && npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/serve.mjs &
+      - run: CHROMIUM_PATH=$(find "$HOME/.cache/ms-playwright" -path '*/chrome-linux64/chrome' -o -path '*/chrome-linux/chrome' | head -1) TEST_URL=http://127.0.0.1:5264 npm run test:browser

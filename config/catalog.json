@@ -1,0 +1,72 @@
+{
+  "title": "ÁO IN STUDIO",
+  "subtitle": "T-shirt studies",
+  "timing": {
+    "intentMs": 80,
+    "turnMs": 360,
+    "returnMs": 280,
+    "endpointWindow": 0.3
+  },
+  "items": [
+    {
+      "id": "study-1",
+      "name": "Hồ núi — Alpine · 1",
+      "type": "Áo thun oversize · SKU AIS-001",
+      "color": "Trắng",
+      "description": "Mẫu chuyển động minh họa được cấp phép MIT bởi Amir Mušić. Giá demo 219.000đ. Mặt sau trơn.",
+      "previewLabel": "Ý tưởng áo tạo sẵn · chưa phải ảnh sản phẩm",
+      "motion": "fixtures/lake-white-v3/manifest.json",
+      "back": "fixtures/lake-white-v3/back.webp"
+    },
+    {
+      "id": "study-2",
+      "name": "Lá bài — Wild Cards · 2",
+      "type": "Áo thun oversize · SKU AIS-002",
+      "color": "Hồng pastel",
+      "description": "Mẫu chuyển động minh họa được cấp phép MIT bởi Amir Mušić. Giá demo 219.000đ. Mặt sau trơn.",
+      "previewLabel": "Ý tưởng áo tạo sẵn · chưa phải ảnh sản phẩm",
+      "motion": "fixtures/cards-pink-v3/manifest.json",
+      "back": "fixtures/cards-pink-v3/back.webp"
+    },
+    {
+      "id": "study-3",
+      "name": "Hồ núi — Alpine · 3",
+      "type": "Áo thun oversize · SKU AIS-001",
+      "color": "Trắng",
+      "description": "Mẫu chuyển động minh họa được cấp phép MIT bởi Amir Mušić. Giá demo 219.000đ. Mặt sau trơn.",
+      "previewLabel": "Ý tưởng áo tạo sẵn · chưa phải ảnh sản phẩm",
+      "motion": "fixtures/lake-white-v3/manifest.json",
+      "back": "fixtures/lake-white-v3/back.webp"
+    },
+    {
+      "id": "study-4",
+      "name": "Lá bài — Wild Cards · 4",
+      "type": "Áo thun oversize · SKU AIS-002",
+      "color": "Hồng pastel",
+      "description": "Mẫu chuyển động minh họa được cấp phép MIT bởi Amir Mušić. Giá demo 219.000đ. Mặt sau trơn.",
+      "previewLabel": "Ý tưởng áo tạo sẵn · chưa phải ảnh sản phẩm",
+      "motion": "fixtures/cards-pink-v3/manifest.json",
+      "back": "fixtures/cards-pink-v3/back.webp"
+    },
+    {
+      "id": "study-5",
+      "name": "Hồ núi — Alpine · 5",
+      "type": "Áo thun oversize · SKU AIS-001",
+      "color": "Trắng",
+      "description": "Mẫu chuyển động minh họa được cấp phép MIT bởi Amir Mušić. Giá demo 219.000đ. Mặt sau trơn.",
+      "previewLabel": "Ý tưởng áo tạo sẵn · chưa phải ảnh sản phẩm",
+      "motion": "fixtures/lake-white-v3/manifest.json",
+      "back": "fixtures/lake-white-v3/back.webp"
+    },
+    {
+      "id": "study-6",
+      "name": "Lá bài — Wild Cards · 6",
+      "type": "Áo thun oversize · SKU AIS-002",
+      "color": "Hồng pastel",
+      "description": "Mẫu chuyển động minh họa được cấp phép MIT bởi Amir Mušić. Giá demo 219.000đ. Mặt sau trơn.",
+      "previewLabel": "Ý tưởng áo tạo sẵn · chưa phải ảnh sản phẩm",
+      "motion": "fixtures/cards-pink-v3/manifest.json",
+      "back": "fixtures/cards-pink-v3/back.webp"
+    }
+  ]
+}

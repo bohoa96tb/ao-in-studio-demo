@@ -1,0 +1,2 @@
+# Architecture
+Phase 1 uses source-tested vanilla ES modules with Vite dev support. src/app.js coordinates catalog, rack-layout/mobile-rail and frame controller. config/catalog.json owns rail entries. Prepared atlases use 2D canvases, no WebGL. React/TypeScript, normalized design state, IndexedDB and later modules pending. Product list separate data/products.json contains 12 business entries; motion rail only showcases two authorized artwork studies in six positions. Production should replace repetitions with owned matching media.

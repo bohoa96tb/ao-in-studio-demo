@@ -1,0 +1,338 @@
+[
+  {
+    "sku": "AIS-001",
+    "name": "Áo đôi",
+    "category": "Áo đôi",
+    "type": "crew",
+    "colors": [
+      "white",
+      "black",
+      "cream",
+      "gray",
+      "navy"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "basePrice": 199000,
+    "printZones": [
+      "front",
+      "back"
+    ],
+    "imageSurcharge": 30000,
+    "stock": "simulated",
+    "mediaStatus": "pending-owned-assets"
+  },
+  {
+    "sku": "AIS-002",
+    "name": "Áo gia đình",
+    "category": "Áo gia đình",
+    "type": "crew",
+    "colors": [
+      "white",
+      "black",
+      "cream",
+      "gray",
+      "navy"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "basePrice": 199000,
+    "printZones": [
+      "front",
+      "back"
+    ],
+    "imageSurcharge": 30000,
+    "stock": "simulated",
+    "mediaStatus": "pending-owned-assets"
+  },
+  {
+    "sku": "AIS-003",
+    "name": "Áo nhóm lớp",
+    "category": "Áo nhóm lớp",
+    "type": "crew",
+    "colors": [
+      "white",
+      "black",
+      "cream",
+      "gray",
+      "navy"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "basePrice": 199000,
+    "printZones": [
+      "front",
+      "back"
+    ],
+    "imageSurcharge": 30000,
+    "stock": "simulated",
+    "mediaStatus": "pending-owned-assets"
+  },
+  {
+    "sku": "AIS-004",
+    "name": "In tên",
+    "category": "In tên",
+    "type": "crew",
+    "colors": [
+      "white",
+      "black",
+      "cream",
+      "gray",
+      "navy"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "basePrice": 199000,
+    "printZones": [
+      "front",
+      "back"
+    ],
+    "imageSurcharge": 30000,
+    "stock": "simulated",
+    "mediaStatus": "pending-owned-assets"
+  },
+  {
+    "sku": "AIS-005",
+    "name": "Ngày sinh",
+    "category": "Ngày sinh",
+    "type": "crew",
+    "colors": [
+      "white",
+      "black",
+      "cream",
+      "gray",
+      "navy"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "basePrice": 199000,
+    "printZones": [
+      "front",
+      "back"
+    ],
+    "imageSurcharge": 30000,
+    "stock": "simulated",
+    "mediaStatus": "pending-owned-assets"
+  },
+  {
+    "sku": "AIS-006",
+    "name": "Con giáp",
+    "category": "Con giáp",
+    "type": "crew",
+    "colors": [
+      "white",
+      "black",
+      "cream",
+      "gray",
+      "navy"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "basePrice": 199000,
+    "printZones": [
+      "front",
+      "back"
+    ],
+    "imageSurcharge": 30000,
+    "stock": "simulated",
+    "mediaStatus": "pending-owned-assets"
+  },
+  {
+    "sku": "AIS-007",
+    "name": "Cung hoàng đạo",
+    "category": "Cung hoàng đạo",
+    "type": "crew",
+    "colors": [
+      "white",
+      "black",
+      "cream",
+      "gray",
+      "navy"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "basePrice": 199000,
+    "printZones": [
+      "front",
+      "back"
+    ],
+    "imageSurcharge": 30000,
+    "stock": "simulated",
+    "mediaStatus": "pending-owned-assets"
+  },
+  {
+    "sku": "AIS-008",
+    "name": "Số chủ đạo giải trí",
+    "category": "Số chủ đạo giải trí",
+    "type": "crew",
+    "colors": [
+      "white",
+      "black",
+      "cream",
+      "gray",
+      "navy"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "basePrice": 199000,
+    "printZones": [
+      "front",
+      "back"
+    ],
+    "imageSurcharge": 30000,
+    "stock": "simulated",
+    "mediaStatus": "pending-owned-assets"
+  },
+  {
+    "sku": "AIS-009",
+    "name": "Slogan",
+    "category": "Slogan",
+    "type": "crew",
+    "colors": [
+      "white",
+      "black",
+      "cream",
+      "gray",
+      "navy"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "basePrice": 199000,
+    "printZones": [
+      "front",
+      "back"
+    ],
+    "imageSurcharge": 30000,
+    "stock": "simulated",
+    "mediaStatus": "pending-owned-assets"
+  },
+  {
+    "sku": "AIS-010",
+    "name": "Nghệ thuật",
+    "category": "Nghệ thuật",
+    "type": "crew",
+    "colors": [
+      "white",
+      "black",
+      "cream",
+      "gray",
+      "navy"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "basePrice": 199000,
+    "printZones": [
+      "front",
+      "back"
+    ],
+    "imageSurcharge": 30000,
+    "stock": "simulated",
+    "mediaStatus": "pending-owned-assets"
+  },
+  {
+    "sku": "AIS-011",
+    "name": "Quà sinh nhật",
+    "category": "Quà sinh nhật",
+    "type": "crew",
+    "colors": [
+      "white",
+      "black",
+      "cream",
+      "gray",
+      "navy"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "basePrice": 199000,
+    "printZones": [
+      "front",
+      "back"
+    ],
+    "imageSurcharge": 30000,
+    "stock": "simulated",
+    "mediaStatus": "pending-owned-assets"
+  },
+  {
+    "sku": "AIS-012",
+    "name": "Tải ảnh",
+    "category": "Tải ảnh",
+    "type": "crew",
+    "colors": [
+      "white",
+      "black",
+      "cream",
+      "gray",
+      "navy"
+    ],
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "basePrice": 199000,
+    "printZones": [
+      "front",
+      "back"
+    ],
+    "imageSurcharge": 30000,
+    "stock": "simulated",
+    "mediaStatus": "pending-owned-assets"
+  }
+]

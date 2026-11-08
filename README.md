@@ -1,2 +1,2 @@
-# ao-in-studio-demo
-Áo In Studio — showroom áo in tương tác, bản demo
+# ÁO IN STUDIO
+Phase 0/1 demo. Run `node scripts/serve.mjs`; build `npm run build`; test `npm test`. The rail currently uses the upstream framework-free runtime to preserve verified frame reversal. Vite dev is configured; React/TypeScript integration is deferred to the modular Studio phase. Six positions reuse two MIT motion studies, not six distinct products. Motion assets are pinned remote files at upstream commit 574299f; vendor locally before production.
