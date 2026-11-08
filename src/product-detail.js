@@ -13,7 +13,7 @@ export function mountProductDetail(studio){
  <details class="product-facts"><summary>Giá, hình in và thông tin áo</summary><dl id="detail-breakdown"></dl><p id="detail-fee-note"></p><p>Chưa có dữ liệu xác minh về chất liệu, số đo từng cỡ, độ bền hoặc giao hàng. Các cỡ S–XXL đang dùng để trải nghiệm chọn mua; vui lòng đối chiếu thông tin thực tế trước khi sản xuất.</p></details>
  <p id="detail-error" role="status"></p><button id="open-studio" class="inspect-button">Mở Studio với mẫu này</button><p class="price-explanation">Bạn vẫn có thể sửa chữ, tải ảnh và thêm mặt in trong Studio. Chưa đặt hàng thật.</p>
  </div></div>`;
- let product,values={},design,gallery,side='front',generation=0;const saved=new Map();
+ let product,values={},design,gallery,side='front',generation=0,inputTimer;const saved=new Map();
  const $=s=>dialog.querySelector(s);
  function view(face){side=face;for(const [id,key]of [['view-front','front'],['view-back','back'],['view-close','close']])$('#'+id).setAttribute('aria-pressed',String(face===key));if(gallery){$('#detail-image').src=gallery[face];$('#detail-image').alt=product.name+' — '+({front:'mặt trước',back:'mặt sau',close:'cận hình in'})[face]}}
  function fields(){
@@ -34,7 +34,7 @@ export function mountProductDetail(studio){
   const theme=product.artwork?.id;values[e.target.name]=e.target.value;
   if(theme==='animal'&&e.target.name==='year'){values.animal=animalForYear(e.target.value);$('#personal-animal').value=values.animal}
   if(theme==='family'&&e.target.name==='members'){if(values.role.startsWith('Con')&&Number(values.role.split(' ')[1])>Number(values.members)-2)values.role='Bố';fields()}
-  refresh();
+  $('#open-studio').disabled=true;dialog.dataset.previewReady='false';clearTimeout(inputTimer);inputTimer=setTimeout(refresh,140);
  };
  $('#detail-color').onchange=e=>{values.color=e.target.value;refresh()};
  $('#detail-size').onchange=e=>{values.size=e.target.value;refresh()};
@@ -42,7 +42,7 @@ export function mountProductDetail(studio){
  $('#detail-zoom').onclick=()=>{const zoom=$('#detail-stage').classList.toggle('zoomed');$('#detail-zoom').setAttribute('aria-pressed',String(zoom));$('#detail-zoom').textContent=zoom?'Thu nhỏ':'Phóng to'};
  $('#open-studio').onclick=async()=>{const selected=structuredClone(design);dialog.close();await studio.newDesign(selected)};
  return {async open(p,initial={}){
-  product=p;values={...defaults(p.artwork?.id),...saved.get(p.sku),...initial};side='front';gallery=null;
+  clearTimeout(inputTimer);product=p;values={...defaults(p.artwork?.id),...saved.get(p.sku),...initial};side='front';gallery=null;
   dialog.dataset.productId=p.sku;$('#product-title').textContent=p.name;$('#product-type').textContent=p.category+' · '+typeLabel(p.type);
   $('#product-description').textContent=p.description||'Thêm một chút của riêng bạn vào chiếc áo.';
   $('#detail-color').replaceChildren(...p.colors.map(c=>new Option(colorLabel(c),c)));$('#detail-color').value=values.color||p.defaultColor;

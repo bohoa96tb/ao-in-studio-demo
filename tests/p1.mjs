@@ -2,7 +2,7 @@ import {chromium} from 'playwright';import AxeBuilder from '@axe-core/playwright
 const b=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',args:['--no-sandbox']});
 await mkdir('qa-results',{recursive:true});const url=process.env.TEST_URL||'http://127.0.0.1:5264',report=[];
 for(const width of [360,390,430,768,1440]){
- const p=await b.newPage({viewport:{width,height:900},hasTouch:width<700});const errors=[];p.on('pageerror',e=>errors.push(e.message));await p.goto(url);await p.waitForSelector('html[data-ready=true]');
+ const context=await b.newContext({viewport:{width,height:900},hasTouch:width<700});const p=await context.newPage();const errors=[];p.on('pageerror',e=>errors.push(e.message));await p.goto(url);await p.waitForSelector('html[data-ready=true]');
  await p.screenshot({path:'qa-results/p1-home-'+width+'.png'});
  await p.locator('#product-catalog').scrollIntoViewIfNeeded();await p.waitForSelector('#product-catalog[data-ready=true]');await p.locator('.catalog-card').first().scrollIntoViewIfNeeded();await p.waitForFunction(()=>document.querySelector('.catalog-card').dataset.imageReady==='true');
  if(width<700&&await p.locator('#catalog-grid').evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length)!==2)throw Error('Not two columns');
@@ -32,6 +32,6 @@ for(const width of [360,390,430,768,1440]){
  }
  if(width===390&&artworkHashes.size!==12)throw Error('Duplicate theme images');
  await p.reload();await p.waitForSelector('#studio[data-ready=true]');await p.waitForSelector('#cart-dialog[data-ready=true]');await p.locator('#cart-open').click();if(await p.locator('.cart-line').count()!==checks.length)throw Error('Cart restore lost designs');await p.locator('.cart-edit').first().click();await p.waitForFunction(()=>document.querySelector('#add-to-cart').textContent.includes('Cập nhật'));await p.locator('#add-to-cart').click();if(await p.locator('.cart-line').count()!==checks.length)throw Error('Edit duplicated cart row');await p.locator('#cart-close').click();
- if(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw Error('Horizontal page overflow '+width);if(errors.length)throw Error(errors.join(';'));report.push({width,themeJourneys:checks.length,webp:true,gallery:true,exactArtwork:true,cartReloadEdit:true,errors});await p.close();
+ if(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw Error('Horizontal page overflow '+width);if(errors.length)throw Error(errors.join(';'));report.push({width,themeJourneys:checks.length,webp:true,gallery:true,exactArtwork:true,cartReloadEdit:true,errors});await context.close();
 }
 await writeFile('qa-results/p1.json',JSON.stringify(report,null,2));console.log('P1_REPORT '+JSON.stringify(report));await b.close();
