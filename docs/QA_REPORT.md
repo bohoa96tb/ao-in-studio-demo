@@ -1,2 +1,2 @@
-# QA update
-Previous CI failed because public/fixtures/tee/manifest.json was absent. Included that text fixture; clean checkout tests now 11/11 pass and build pass. Browser suite tests five widths, detail/back, no overflow, circle-to-detail selection consistency. Local Chromium previously blocked; remote CI/live results pending. No Lighthouse/FPS/physical phone claims.
+# QA — phase 2
+Verified commit 2bbc18dc24d3fd6780403352265f096e0f56a2b6. GitHub Actions run 42486722713 job 128750100700 SUCCESS: lint, build, 11/11 tests. Browser suite on 360/390/430/768/1440: detail, back, circle selection consistency, no horizontal overflow and zero pageerror. These are automated Chromium viewports, not physical devices or measured touch gestures. Lighthouse/FPS/INP unmeasured. Local browser remains sandbox-blocked. Two sample designs repeated at six positions. Remote pinned media dependency remains.
