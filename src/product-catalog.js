@@ -13,7 +13,7 @@ export async function mountCatalog(studio,detail){
  <p>Chủ đề hình in được chọn ở dãy phía trên. Bộ lọc này dành cho chiếc áo nền và giá trọn mẫu.</p>
  <label>Kiểu áo<select id="catalog-type"><option value="">Tất cả kiểu áo</option><option value="crew">Cổ tròn</option><option value="oversize">Dáng rộng</option><option value="polo">Cổ bẻ</option></select></label>
  <label>Màu áo<select id="catalog-color"><option value="">Tất cả màu</option></select></label>
- <label>Giá trọn mẫu tối đa<select id="catalog-price"><option value="1000000">Mọi mức giá</option><option value="199000">199.000đ</option><option value="249000">249.000đ</option><option value="269000">269.000đ</option></select></label><button id="catalog-filter-apply" class="inspect-button">Xem các mẫu phù hợp</button></div></dialog>`;
+ <label>Giá trọn mẫu tối đa<select id="catalog-price"><option value="1000000">Mọi mức giá</option><option value="229000">229.000đ</option><option value="249000">249.000đ</option><option value="269000">269.000đ</option></select></label><button id="catalog-filter-apply" class="inspect-button">Xem các mẫu phù hợp</button></div></dialog>`;
  try{
  const products=[...await getProducts()].sort((a,b)=>Number(!!a.photoBase)-Number(!!b.photoBase));let category='';const $=s=>host.querySelector(s),chips=$('#catalog-chips'),grid=$('#catalog-grid');
  const imageObserver=new IntersectionObserver(entries=>{for(const e of entries){if(e.isIntersecting){imageObserver.unobserve(e.target);e.target.loadPreview?.()}}},{rootMargin:'160px'});
