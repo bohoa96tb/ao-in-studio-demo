@@ -66,6 +66,7 @@ export async function mountStudioLive(studio) {
     try {
       await ensureBases();
       const snap = studio.snapshot();
+      await studio.prepare(snap);
       const base = supported(snap);
       for (const side of ['front','back']) panel.querySelector('#photo-' + side).setAttribute('aria-pressed', String(snap.side === side));
       if (snap.type === 'crew' && snap.color === '#f8f6ee' && !snap.lockedBase && !snap.baseImages) {

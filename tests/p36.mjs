@@ -9,7 +9,7 @@ for (const width of [360,390,430,768,1440]) {
  await page.locator('#design-collection').scrollIntoViewIfNeeded();
  await page.locator('[data-design-id="vintage-tulip"] .collection-use').click();
  await page.locator('.studio-live').scrollIntoViewIfNeeded();
- await page.waitForFunction(()=>document.querySelector('.studio-live')?.dataset.photo==='wearer-front');
+ await page.waitForFunction(()=>document.querySelector('.studio-live')?.dataset.photo==='wearer-front' && document.querySelector('#studio-live-note').textContent.startsWith('Hình in cập nhật'));
  const front=await page.locator('#studio-live-canvas').evaluate(c=>c.toDataURL());
  await page.locator('#photo-back').click();
  await page.waitForFunction(()=>document.querySelector('.studio-live')?.dataset.photo==='wearer-back');
@@ -22,8 +22,8 @@ for (const width of [360,390,430,768,1440]) {
  await page.waitForFunction(old=>document.querySelector('#studio-live-canvas').toDataURL()!==old,back);
  if(width===390) await page.locator('.studio-live').screenshot({path:'qa-results/p36-back-390.png'});
  await page.locator('#photo-front').click();
- await page.waitForFunction(()=>document.querySelector('.studio-live')?.dataset.photo==='wearer-front');
- assert.equal(await page.locator('#studio-live-canvas').evaluate(c=>c.toDataURL()),front);
+ await page.waitForFunction(()=>document.querySelector('.studio-live')?.dataset.photo==='wearer-front' && document.querySelector('#studio-live-note').textContent.startsWith('Hình in cập nhật'));
+ assert.ok(await page.locator('#studio-live-canvas').evaluate((c, original)=>c.toDataURL()===original,front),'front artwork must survive editing the back');
  if(width===390) await page.locator('.studio-live').screenshot({path:'qa-results/p36-front-390.png'});
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
  assert.deepEqual(errors,[]);
