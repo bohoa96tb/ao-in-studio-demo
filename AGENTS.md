@@ -46,3 +46,11 @@ verify the live site after deployment. If checks fail, fix them before merging;
 report genuine blockers. A later explicit instruction to wait or withhold a
 particular merge overrides this standing authorization. Platform approval and
 security requirements still apply.
+
+## P3.6 owner override — approximate worn-photo previews (2026-11-09)
+The owner explicitly accepts approximate photo previews and requests visible results.
+This supersedes the earlier ban on worn-photo compositing for the Studio pilot:
+Pexels 6787008 (Artem Podrez), white crew front/back crops, manual print quads.
+Label as illustrative preview, never actual manufactured stock or endorsement.
+Do not alter print exports or claim matching garments/materials. Other photos
+still require source and visual review; automatic garment generation is unchanged.

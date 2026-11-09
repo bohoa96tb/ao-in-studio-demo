@@ -1,15 +1,3 @@
-/**
- * Áo In Studio P3.1 — LIVE compositing preview inside the Studio.
- *
- * Renders the customer's CURRENT design (text, artwork, uploaded photo,
- * transforms) onto the calibrated real garment photo with the P3 mockup
- * engine, updating on every 'studio-change'. Pilot support: crew + white
- * (#f8f6ee) + front — the one APPROVED calibrated base. Anything else
- * falls back, honestly labelled, to the P2 illustrated preview.
- *
- * The production print export is untouched: it still uses drawArtwork()
- * alone (no shading, no perspective) from studio.js.
- */
 import { compositeMockup, loadImage } from './mockup-engine/composite.js?v=p31vis1';
 import { compositingBases, zoneFor } from './mockup-engine/engine.js?v=p31vis1';
 
@@ -21,7 +9,7 @@ export async function mountStudioLive(studio) {
   const panel = document.createElement('div');
   panel.className = 'studio-live';
   panel.innerHTML = `<div class="studio-live-head"><h3>Xem trước trên áo thật</h3><span id="studio-live-badge" class="studio-live-badge">Đang tải ảnh áo nền…</span></div>
-  <div class="studio-live-stage"><canvas id="studio-live-canvas" width="800" height="1200" hidden></canvas><img id="studio-live-fallback" alt="Ảnh áo trống mặc trên người để tham khảo" hidden></div>
+  <div class="view-tabs" role="group" aria-label="Góc xem ảnh thật"><button id="photo-front" aria-pressed="true">Mặt trước</button><button id="photo-back" aria-pressed="false">Mặt sau</button><button id="photo-edit">Chỉnh hình in ↓</button></div><div class="studio-live-stage"><canvas id="studio-live-canvas" width="800" height="1200" hidden></canvas><img id="studio-live-fallback" alt="Ảnh áo trống mặc trên người để tham khảo" hidden></div>
   <p id="studio-live-note" class="media-note" role="status"></p>`;
   host.querySelector('.studio-layout').before(panel);
 
@@ -31,6 +19,21 @@ export async function mountStudioLive(studio) {
   const badge = panel.querySelector('#studio-live-badge');
   const note = panel.querySelector('#studio-live-note');
 
+  for (const side of ['front', 'back']) panel.querySelector('#photo-' + side).onclick = () => document.querySelector('#face-' + side).click();
+  panel.querySelector('#photo-edit').onclick = () => document.querySelector('.studio-layout').scrollIntoView({behavior:'smooth',block:'start'});
+  let wearerSource;
+  async function wearerFor(side) {
+    const key = 'wearer-' + side;
+    if (!garmentImgs.has(key)) {
+      wearerSource ||= loadImage(document, (await import('./wearer-photo.js')).default);
+      const source = await wearerSource;
+      const crop = side === 'front' ? [280, 0, 700, 1012] : [1030, 100, 650, 912];
+      const c = document.createElement('canvas'); c.width = 600; c.height = Math.round(600 * crop[3] / crop[2]);
+      c.getContext('2d').drawImage(source, ...crop, 0, 0, c.width, c.height);
+      garmentImgs.set(key, await loadImage(document, c.toDataURL()));
+    }
+    return garmentImgs.get(key);
+  }
   let bases = null, visible = true;
   const garmentImgs = new Map();
   // Lazy: the garments data is fetched only when the Studio is first
@@ -64,7 +67,22 @@ export async function mountStudioLive(studio) {
       await ensureBases();
       const snap = studio.snapshot();
       const base = supported(snap);
-      if (base) {
+      for (const side of ['front','back']) panel.querySelector('#photo-' + side).setAttribute('aria-pressed', String(snap.side === side));
+      if (snap.type === 'crew' && snap.color === '#f8f6ee' && !snap.lockedBase && !snap.baseImages) {
+        const garmentImg = await wearerFor(snap.side);
+        const quad = snap.side === 'front'
+          ? [[.28,.43],[.70,.43],[.70,.85],[.28,.85]]
+          : [[.30,.51],[.73,.51],[.76,.91],[.29,.91]];
+        const zc = document.createElement('canvas'); zc.width = ZONE.w * 2; zc.height = ZONE.h * 2;
+        const zx = zc.getContext('2d'); zx.setTransform(2,0,0,2,-ZONE.x*2,-ZONE.y*2);
+        studio.drawLayers(zx, snap.side, snap);
+        const {canvas: out} = compositeMockup(document, {garmentImg, artworkImg:zc, zone:{quad}, maskPolygon:quad, shadingStrength:.3});
+        canvas.width=out.width; canvas.height=out.height; ctx.drawImage(out,0,0);
+        canvas.hidden=false; fallbackImg.hidden=true; panel.dataset.mode='real'; panel.dataset.photo='wearer-' + snap.side;
+        canvas.setAttribute('role','img'); canvas.setAttribute('aria-label','Thiết kế trên người mặc áo trắng, ' + (snap.side==='front'?'mặt trước':'mặt sau'));
+        badge.textContent='Xem trước minh họa · ' + (snap.side==='front'?'mặt trước':'mặt sau');
+        note.textContent = (snap.faces[snap.side].length ? 'Hình in cập nhật theo thiết kế của bạn. ' : 'Mặt này chưa có hình in. Chọn “Chỉnh hình in” để thêm ảnh hoặc chữ. ') + 'Ảnh tham khảo: Artem Podrez / Pexels; hai người mặc khác nhau, chưa phải sản phẩm của shop.';
+      } else if (base) {
         const garmentImg = await imgFor(base);
         const zoneResult = zoneFor(base, 'front');
         // Render the current face's layers into a print-zone canvas
@@ -85,6 +103,7 @@ export async function mountStudioLive(studio) {
         ctx.drawImage(out, 0, 0);
         canvas.hidden = false; fallbackImg.hidden = true;
         panel.dataset.mode = 'real';
+        panel.dataset.photo='hanger';
         const author = base.source?.author || '';
         badge.textContent = 'Ảnh mô phỏng trực tiếp · ' + (base.type === 'crew' ? 'áo cổ tròn' : base.type) + ' ' + (base.colorName || '').toLowerCase();
         note.textContent = 'Thiết kế hiện tại của bạn được ghép trực tiếp lên ảnh chụp ' + (base.type === 'crew' ? 'áo cổ tròn' : 'áo') + ' ' + (base.colorName || '').toLowerCase() + ' trống thật (Pexels' + (author ? ' / ' + author : '') + '). Kéo, sửa chữ hay đổi hình ở trên — bản xem này cập nhật theo. File in xuất ra vẫn sạch, không bóng vải.';
@@ -109,12 +128,12 @@ export async function mountStudioLive(studio) {
         fallbackImg.src = new URL('../public/fixtures/real-tee/' + file, import.meta.url).href;
         fallbackImg.alt = caption;
         fallbackImg.hidden = false; canvas.hidden = true;
-        panel.dataset.mode = 'fallback';
+        panel.dataset.mode = 'fallback'; panel.dataset.photo='reference';
         badge.textContent = 'Ảnh người thật · tham khảo';
         note.textContent = caption + '. Ảnh tham khảo áo trống, không có hình in của bạn; phom, màu hoặc góc nhìn có thể khác lựa chọn. Chỉnh và xem thiết kế tại khung phía trên.';
       }
     } catch {
-      panel.dataset.mode = 'fallback';
+      panel.dataset.mode = 'fallback'; panel.dataset.photo='reference';
       badge.textContent = 'Mockup minh họa';
       note.textContent = 'Chưa ghép được lên ảnh áo thật lúc này — đang hiển thị mockup minh họa.';
       try { fallbackImg.src = studio.preview(studio.snapshot().side); fallbackImg.hidden = false; canvas.hidden = true; } catch { /* keep last frame */ }

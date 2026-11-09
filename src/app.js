@@ -1,6 +1,6 @@
 import {mountProductDetail} from './product-detail.js?v=p31vis1';
 import {mountDesignCollection} from './design-collection.js?v=p33curated1';
-import {mountStudioLive} from './studio-live.js?v=p35photo1';
+import {mountStudioLive} from './studio-live.js?v=p36wearer1';
 import {getProducts,resolveRail,typeLabel} from './product-store.js?v=p31vis1';
 import {presetDesign} from './catalog-filter.js?v=p31vis1';
 import {mountCatalog} from './product-catalog.js?v=p31vis1';

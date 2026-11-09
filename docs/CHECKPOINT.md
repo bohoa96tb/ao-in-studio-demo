@@ -1,3 +1,6 @@
+# P3.6 — 2026-11-09
+Approximate real-person preview implemented for white crew front/back; see P36_PHOTO_PREVIEW.md. Owner explicitly supersedes worn-photo ban for this pilot. Release validation recorded in PR.
+
 # ÁO IN STUDIO — checkpoint P3.1 (mới nhất)
 
 Ngày: 2026-11-09 (Asia/Tokyo). Nhánh: `feature/p31-visual-completion`, base main `4efb522` (P3 đã merge qua PR #4).
