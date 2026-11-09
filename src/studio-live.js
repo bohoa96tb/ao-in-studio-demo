@@ -23,7 +23,7 @@ export async function mountStudioLive(studio) {
   panel.innerHTML = `<div class="studio-live-head"><h3>Xem trước trên áo thật</h3><span id="studio-live-badge" class="studio-live-badge">Đang tải ảnh áo nền…</span></div>
   <div class="studio-live-stage"><canvas id="studio-live-canvas" width="800" height="1200" hidden></canvas><img id="studio-live-fallback" alt="Ảnh áo trống mặc trên người để tham khảo" hidden></div>
   <p id="studio-live-note" class="media-note" role="status"></p>`;
-  host.append(panel);
+  host.querySelector('.studio-layout').before(panel);
 
   const canvas = panel.querySelector('#studio-live-canvas');
   const ctx = canvas.getContext('2d');
