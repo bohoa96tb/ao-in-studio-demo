@@ -55,7 +55,7 @@ git push -u origin <TÊN-NHÁNH>
   chia nhỏ, không chú thích, không placeholder.
 - **E. Sau khi push** — hướng dẫn người dùng gửi lại kết quả `git push`;
   Muse dùng connector tạo PR, theo dõi GitHub Actions, báo lỗi nếu có;
-  **không tự merge PR khi chưa có phê duyệt áp dụng cho PR đó.**
+  sau khi kiểm tra CI và QA đạt thì tự merge và kiểm tra live theo ủy quyền thường trực của chủ repo; không cần hỏi lại cho từng PR, trừ khi chủ repo yêu cầu dừng hoặc chờ duyệt cho PR cụ thể.
 
 ## 5. Mục tiêu
 
