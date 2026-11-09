@@ -165,6 +165,116 @@
    "status": "REJECTED",
    "checkedAt": "2026-11-09",
    "note": "Áo có in thương hiệu 'Third Wave Specialty Coffee'."
+  },
+  {
+   "id": "pexels-8532616",
+   "name": "Áo cổ tròn đen treo móc — mặt trước",
+   "platform": "Pexels",
+   "sourceUrl": "https://www.pexels.com/photo/a-black-shirt-hanging-on-the-wall-8532616/",
+   "author": "Hanna Pad",
+   "status": "APPROVED",
+   "note": "PM đã xem ảnh trực tiếp 2026-11-09: áo đen trơn, cổ tròn mặt trước rõ (thấy nhãn cổ trong), không logo/in. ĐÃ TÍCH HỢP làm base ghép GAR-CREW-BLK-HANGER-01. Cùng buổi chụp với 8532638.",
+   "checkedAt": "2026-11-09",
+   "round": "P3.1"
+  },
+  {
+   "id": "pexels-8532638",
+   "name": "Cận cổ áo cổ tròn đen",
+   "platform": "Pexels",
+   "sourceUrl": "https://www.pexels.com/photo/a-black-shirt-hanging-on-the-wall-8532638/",
+   "author": "Hanna Pad",
+   "status": "APPROVED",
+   "note": "PM đã xem trực tiếp: cận cảnh cổ áo của cùng buổi chụp 8532616 (KHÔNG phải mặt sau). ĐÃ TÍCH HỢP làm fabricDetail cho GAR-CREW-BLK-HANGER-01.",
+   "checkedAt": "2026-11-09",
+   "round": "P3.1"
+  },
+  {
+   "id": "pexels-30710033",
+   "name": "Cận vai và sớ vải jersey — người mặc",
+   "platform": "Pexels",
+   "sourceUrl": "https://www.pexels.com/photo/close-up-of-white-t-shirt-on-adult-arm-30710033/",
+   "author": "Luis Quintero",
+   "status": "APPROVED",
+   "note": "PM đã xem trực tiếp: cận vai/tay áo trắng người mặc, sớ jersey rõ, áo trơn. ĐÃ TÍCH HỢP GAR-CREW-WHT-SHOULDER-01 (detail-only, không phải mẫu vải phẳng).",
+   "checkedAt": "2026-11-09",
+   "round": "P3.1"
+  },
+  {
+   "id": "pexels-8148576",
+   "name": "Áo trắng treo móc trên tường đen",
+   "platform": "Pexels",
+   "sourceUrl": "https://www.pexels.com/photo/white-shirt-on-a-black-hanger-8148576/",
+   "author": "Vie Studio",
+   "status": "REJECTED",
+   "note": "PM đã xem trực tiếp: phom áo boxy/crop khác hẳn áo cổ tròn của shop, tay người cầm móc trong khung, vệt gấp giữa áo. Không dùng làm base.",
+   "checkedAt": "2026-11-09",
+   "round": "P3.1"
+  },
+  {
+   "id": "pexels-19041040",
+   "name": "Người mặc áo trắng — mặt sau, đường phố",
+   "platform": "Pexels",
+   "sourceUrl": "https://www.pexels.com/photo/a-man-in-white-t-shirt-against-a-graffiti-wall-19041040/",
+   "author": "Kassandre Pedro",
+   "status": "REJECTED",
+   "note": "PM đã xem trực tiếp: ảnh đen trắng, chủ thể ở rất xa, mặt sau áo chiếm tỉ lệ nhỏ, bối cảnh graffiti bận. Không dùng được làm tư liệu áo.",
+   "checkedAt": "2026-11-09",
+   "round": "P3.1"
+  },
+  {
+   "id": "pexels-18257675",
+   "name": "Áo trắng treo trong cửa hàng (Shanghai)",
+   "platform": "Pexels",
+   "sourceUrl": "https://www.pexels.com/photo/white-t-shirt-hanging-on-a-hanger-18257675/",
+   "author": "dayong tien",
+   "status": "NEEDS_REVIEW",
+   "note": "Có EXIF thật (Sony A7R III) nhưng chưa xác minh được mặt áo và đồ vật xung quanh trong khung.",
+   "checkedAt": "2026-11-09",
+   "round": "P3.1"
+  },
+  {
+   "id": "pexels-11871836",
+   "name": "Cận chất liệu xám",
+   "platform": "Pexels",
+   "sourceUrl": "https://www.pexels.com/photo/gray-fabric-texture-11871836/",
+   "author": "Engin Akyurt",
+   "status": "NEEDS_REVIEW",
+   "note": "Chưa xác minh được cấu trúc dệt jersey hay vải woven từ metadata; chỉ có màu xám.",
+   "checkedAt": "2026-11-09",
+   "round": "P3.1"
+  },
+  {
+   "id": "pexels-5531610",
+   "name": "Mặt sau áo cổ tròn xám — người mặc",
+   "platform": "Pexels",
+   "sourceUrl": "https://www.pexels.com/photo/back-view-of-a-person-wearing-gray-crew-neck-t-shirt-5531610/",
+   "author": "Rachel Claire",
+   "status": "NEEDS_REVIEW",
+   "note": "Trang nguồn không hiện EXIF, độ phân giải thấp, ảnh phong cảnh hoàng hôn.",
+   "checkedAt": "2026-11-09",
+   "round": "P3.1"
+  },
+  {
+   "id": "pexels-14044047",
+   "name": "Người mặc polo trắng sau hàng rào",
+   "platform": "Pexels",
+   "sourceUrl": "https://www.pexels.com/photo/a-man-in-white-polo-shirt-14044047/",
+   "author": "Lokman Sevim",
+   "status": "REJECTED",
+   "note": "Không EXIF, không xác minh được cổ polo và áo trơn; áo bị hàng rào che.",
+   "checkedAt": "2026-11-09",
+   "round": "P3.1"
+  },
+  {
+   "id": "pexels-6756833",
+   "name": "Chân dung áo trắng oversized",
+   "platform": "Pexels",
+   "sourceUrl": "https://www.pexels.com/photo/woman-in-oversized-white-outfit-6756833/",
+   "author": "Amusan John",
+   "status": "REJECTED",
+   "note": "Không có EXIF máy ảnh (chỉ Photoshop), không xác minh được áo thun trơn.",
+   "checkedAt": "2026-11-09",
+   "round": "P3.1"
   }
  ],
  "note": "Hàng chờ ứng viên ảnh áo nền P3. Quy trình: Agent 1 thêm ứng viên ở trạng thái CANDIDATE kèm bằng chứng giấy phép; con người duyệt mới chuyển APPROVED và chuyển vào data/garments.json. Không có bước tự động tải ảnh hay tự duyệt trong repo này.",

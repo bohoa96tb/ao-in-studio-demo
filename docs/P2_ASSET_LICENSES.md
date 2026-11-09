@@ -36,3 +36,13 @@ không phải ảnh sản phẩm đã sản xuất, người mẫu không xác n
 - 2 motion Hồ núi / Lá bài: MIT của Amir Mušić, xem `LICENSE-ASSETS.md` — giữ nguyên, vẫn ghi "concept, không phải ảnh sản phẩm đã sản xuất".
 - 55 SVG artwork gốc của dự án: MIT dự án, xem `docs/ASSET_LICENSES.md`.
 - Renderer mockup (P2 nâng cấp): tự biên soạn, không asset ngoài.
+
+## P3.1 additions (2026-11-09, PM-verified visually)
+
+| File | Source | Author | Role |
+|---|---|---|---|
+| public/fixtures/real-tee/crew-black-hanger.webp | Pexels photo 8532616 | Hanna Pad | Crew black FRONT hanger — compositing base GAR-CREW-BLK-HANGER-01 (calibrated) |
+| public/fixtures/real-tee/crew-black-collar-detail.webp | Pexels photo 8532638 | Hanna Pad | Crew black collar close-up — detail only (same shoot as 8532616; NOT a back view) |
+| public/fixtures/real-tee/crew-white-shoulder-detail.webp | Pexels photo 30710033 | Luis Quintero | Worn white jersey shoulder close-up — detail only, not a flat fabric swatch |
+
+All three: Pexels License (free commercial use, attribution not required, given anyway). PM viewed the actual images on 2026-11-09: blank garments, no logos/prints. Rejected in the same round: 8148576 (boxy cropped fit, hand in frame), 19041040 (black-and-white, subject too distant). Generated thumbnails in public/mockups/thumbs/ are derivatives of the project's own mockup renders.

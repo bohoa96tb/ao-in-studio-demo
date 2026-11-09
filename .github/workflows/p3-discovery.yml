@@ -1,9 +1,11 @@
-name: P3 Discovery (report only)
+name: P3 Inventory Scan + Source Discovery
 
-# Flow A of docs/P3_AUTOMATION.md: weekly + manual gap/candidate report.
-# This workflow never downloads images and never approves assets; it only
-# summarises data/garments.json and data/candidates.json into an artifact
-# for human review.
+# Stages A+B of docs/P3_AUTOMATION.md: weekly + manual.
+# A (Inventory Scan) summarises internal data only — it does not search
+# the internet. B (Source Discovery) queries the official Pexels API only
+# when the PEXELS_API_KEY secret exists, and emits unverified CANDIDATE
+# rows for human review. Neither stage downloads photos, approves assets,
+# buys anything, or merges.
 on:
   workflow_dispatch:
   schedule:
@@ -17,7 +19,15 @@ jobs:
         with:
           node-version: 22
       - run: node scripts/discovery/scan.mjs --write
+      - name: Source Discovery (stage B, key-gated)
+        run: node scripts/discovery/search-pexels.mjs
+        env:
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: p3-discovery-report
-          path: qa-results/p3-discovery-report.md
+          path: |
+            qa-results/p3-discovery-report.md
+            qa-results/p3-source-discovery.md
+            qa-results/p3-source-candidates.json

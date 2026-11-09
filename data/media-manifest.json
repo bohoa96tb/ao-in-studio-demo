@@ -5,7 +5,8 @@
    "lifestyle": [
     "couple-white-outdoor",
     "crew-white-hanger",
-    "crew-white-back-worn"
+    "crew-white-back-worn",
+    "crew-white-shoulder-detail"
    ],
    "mockup": "renderer-realistic"
   },
@@ -27,7 +28,8 @@
    "lifestyle": [
     "crew-white-hanger",
     "crew-black-woman",
-    "crew-white-back-worn"
+    "crew-white-back-worn",
+    "crew-white-shoulder-detail"
    ],
    "mockup": "renderer-realistic"
   },
@@ -49,7 +51,8 @@
    "lifestyle": [
     "crew-black-woman",
     "crew-white-hanger",
-    "crew-white-back-worn"
+    "crew-white-back-worn",
+    "crew-black-collar-detail"
    ],
    "mockup": "renderer-realistic"
   },
@@ -71,7 +74,8 @@
    "fallback": "renderer",
    "lifestyle": [
     "crew-white-hanger",
-    "crew-white-back-worn"
+    "crew-white-back-worn",
+    "crew-white-shoulder-detail"
    ],
    "mockup": "renderer-realistic"
   },
@@ -201,6 +205,36 @@
    "kind": "photograph",
    "provider": "Pexels",
    "verified": "2026-11-09"
+  },
+  {
+   "id": "crew-black-collar-detail",
+   "file": "public/fixtures/real-tee/crew-black-collar-detail.webp",
+   "garmentType": "crew",
+   "color": "#242424",
+   "view": "collar-detail",
+   "author": "Hanna Pad",
+   "provider": "Pexels",
+   "license": "Pexels License (free commercial use, no attribution required; credited anyway)",
+   "kind": "photograph",
+   "containsCustomerArtwork": false,
+   "verified": "2026-11-09",
+   "sourceUrl": "https://www.pexels.com/photo/a-black-shirt-hanging-on-the-wall-8532638/",
+   "labelVi": "Ảnh cận cổ áo cổ tròn đen trống — Pexels / Hanna Pad. Minh họa cổ áo và vải, không chứa hình in của bạn."
+  },
+  {
+   "id": "crew-white-shoulder-detail",
+   "file": "public/fixtures/real-tee/crew-white-shoulder-detail.webp",
+   "garmentType": "crew",
+   "color": "#f8f6ee",
+   "view": "shoulder-detail",
+   "author": "Luis Quintero",
+   "provider": "Pexels",
+   "license": "Pexels License (free commercial use, no attribution required; credited anyway)",
+   "kind": "photograph",
+   "containsCustomerArtwork": false,
+   "verified": "2026-11-09",
+   "sourceUrl": "https://www.pexels.com/photo/close-up-of-white-t-shirt-on-adult-arm-30710033/",
+   "labelVi": "Ảnh cận vai và sớ vải jersey áo trắng người mặc — Pexels / Luis Quintero. Minh họa vải và đường may vai, không chứa hình in của bạn."
   }
  ],
  "note": "Media manifest P2. lifestyle = anh chup that ao trong goc (blank) tu Pexels, chi dung lam anh nguoi mac / phang minh hoa. Chung KHONG chua hinh in cua khach va KHONG phai anh san pham da san xuat cua shop. mockup = anh dung bang Studio renderer tu dung artwork khach chon, co them bong/nep vai o lop xem truoc; file in goc xuat rieng, khong chua bong vai.",
