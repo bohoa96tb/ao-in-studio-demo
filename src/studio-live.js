@@ -21,7 +21,7 @@ export async function mountStudioLive(studio) {
   const panel = document.createElement('div');
   panel.className = 'studio-live';
   panel.innerHTML = `<div class="studio-live-head"><h3>Xem trước trên áo thật</h3><span id="studio-live-badge" class="studio-live-badge">Đang tải ảnh áo nền…</span></div>
-  <div class="studio-live-stage"><canvas id="studio-live-canvas" width="800" height="1200" hidden></canvas><img id="studio-live-fallback" alt="Mockup minh họa thiết kế hiện tại" hidden></div>
+  <div class="studio-live-stage"><canvas id="studio-live-canvas" width="800" height="1200" hidden></canvas><img id="studio-live-fallback" alt="Ảnh áo trống mặc trên người để tham khảo" hidden></div>
   <p id="studio-live-note" class="media-note" role="status"></p>`;
   host.append(panel);
 
@@ -89,11 +89,29 @@ export async function mountStudioLive(studio) {
         badge.textContent = 'Ảnh mô phỏng trực tiếp · ' + (base.type === 'crew' ? 'áo cổ tròn' : base.type) + ' ' + (base.colorName || '').toLowerCase();
         note.textContent = 'Thiết kế hiện tại của bạn được ghép trực tiếp lên ảnh chụp ' + (base.type === 'crew' ? 'áo cổ tròn' : 'áo') + ' ' + (base.colorName || '').toLowerCase() + ' trống thật (Pexels' + (author ? ' / ' + author : '') + '). Kéo, sửa chữ hay đổi hình ở trên — bản xem này cập nhật theo. File in xuất ra vẫn sạch, không bóng vải.';
       } else {
-        fallbackImg.src = studio.preview(snap.side);
+        const isPolo = snap.type === 'polo';
+        const isBack = snap.side === 'back';
+        const isBlack = snap.color === '#242424';
+        let file, caption;
+        if (isPolo) {
+          file = 'polo-white-worn.webp';
+          caption = 'Ảnh người mặc áo polo trắng trống, mặt trước · Mwabonje Ringa / Pexels';
+        } else if (isBack) {
+          file = 'crew-white-back-worn.webp';
+          caption = 'Ảnh người mặc áo thun trắng trống, mặt sau · NJH STUDIO / Pexels';
+        } else if (isBlack) {
+          file = 'crew-black-woman.webp';
+          caption = 'Ảnh người mặc áo thun đen trống · MART PRODUCTION / Pexels';
+        } else {
+          file = 'couple-white-outdoor.webp';
+          caption = 'Ảnh người mặc áo thun trắng trống · Israel Torres / Pexels';
+        }
+        fallbackImg.src = new URL('../public/fixtures/real-tee/' + file, import.meta.url).href;
+        fallbackImg.alt = caption;
         fallbackImg.hidden = false; canvas.hidden = true;
         panel.dataset.mode = 'fallback';
-        badge.textContent = 'Mockup minh họa';
-        note.textContent = 'Chưa có ảnh áo nền thật đã hiệu chuẩn cho phom/màu/mặt này. Ghép trực tiếp hiện hỗ trợ áo cổ tròn trắng kem và áo cổ tròn đen, mặt trước — các lựa chọn khác hiển thị bằng mockup minh họa, không giả làm ảnh thật.';
+        badge.textContent = 'Ảnh người thật · tham khảo';
+        note.textContent = caption + '. Ảnh tham khảo áo trống, không có hình in của bạn; phom, màu hoặc góc nhìn có thể khác lựa chọn. Chỉnh và xem thiết kế tại khung phía trên.';
       }
     } catch {
       panel.dataset.mode = 'fallback';
