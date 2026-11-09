@@ -14,28 +14,14 @@ p.on('pageerror', e => errors.push(e.message));
 await p.goto(url + '/?v=p31vis1');
 await p.waitForSelector('html[data-ready=true]');
 
-// 1) Collection section renders with the new-designs strip (>= 6 P3-new items).
+// Curated collection is short, filterable and can send a selected design to Studio.
 await p.locator('#design-collection').scrollIntoViewIfNeeded();
 await p.waitForSelector('#design-collection[data-ready=true]');
-const newCount = await p.locator('.collection-new-item').count();
-if (newCount < 6) fail('new-designs strip must show at least 6 new designs, got ' + newCount);
-const gridCards = await p.locator('.collection-card').count();
-if (gridCards < 40) fail('collection grid too small: ' + gridCards);
-
-// 2) Theme filter narrows the grid.
-await p.locator('#collection-chips button[data-theme="cafe-viet"]').click();
-await p.waitForTimeout(300);
-const cafeCount = await p.locator('.collection-card').count();
-if (cafeCount < 2 || cafeCount > 6) fail('cafe-viet filter should show the cafe designs only, got ' + cafeCount);
-await p.locator('#collection-chips button[data-theme=""]').click();
-await p.waitForTimeout(300);
-
-// 3) "Dùng hình này" sends the design into the Studio as an artwork layer.
-await p.locator('.collection-card[data-design-id="p31-meo-cuon"] .collection-use').click();
-await p.waitForFunction(() => (document.querySelector('#layer-select')?.textContent || '').includes('Hình in mẫu'), null, { timeout: 8000 })
-  .catch(() => fail('studio did not receive the collection design as an artwork layer'));
-await p.waitForFunction(() => (document.querySelector('#studio-product')?.textContent || '').includes('Mèo cuộn tròn ngủ'), null, { timeout: 8000 })
-  .catch(() => fail('studio product label did not pick up the collection design'));
+if (await p.locator('.curated-card').count() !== 2) fail('expected two curated artworks');
+await p.locator('#collection-theme').selectOption('zodiac');
+if (await p.locator('.curated-card').count() !== 1) fail('category filter did not narrow the results');
+await p.locator('.curated-card[data-design-id="zodiac-wheel"] .collection-use').click();
+await p.waitForFunction(() => (document.querySelector('#studio-product')?.textContent || '').includes('Vòng tròn hoàng đạo'), null, {timeout:8000});
 
 // 4) Studio live composite: real mode for crew/white/front, and it CHANGES
 //    when the user adds Vietnamese text.
