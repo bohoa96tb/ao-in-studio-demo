@@ -29,3 +29,12 @@ Compositing rules: only APPROVED non-worn garment photos with a calibrated zone 
 receive artwork; worn photos stay lifestyle-only; pre-rendered mockups depict the
 DEFAULT design only and must be labelled "Ảnh mô phỏng"; personalisation falls back
 to the P2 renderer. Pexels 9558713 remains banned everywhere, including candidates.
+
+## Git bundle handoff (Android Termux) — MANDATORY
+
+Read `docs/ANDROID_TERMUX_HANDOFF.md` before any bundle handoff. Bundle file
+names follow `ao-in-pXX.bundle` (P3.1 → ao-in-p31.bundle); the handoff report
+must use sections A–E with a single copy-paste Termux block; verify the bundle
+(verify + head/base + SHA-256) and check remote `main` compatibility first.
+Never ask for a PAT/password/token in chat. Never auto-merge a PR without the
+approval that applies to that PR.

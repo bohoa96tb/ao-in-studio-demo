@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 /**
- * Áo In Studio P3 — DISCOVERY report (Agent 6, flow A).
+ * Áo In Studio P3.1 — INVENTORY SCAN (stage A only).
+ *
+ * This step inspects data the project ALREADY has. It is NOT internet
+ * source discovery — that is stage B, scripts/discovery/search-pexels.mjs.
  *
  * Reads the garment library + candidate queue and writes a gap report.
  * It never downloads images and never approves anything: sources without a
@@ -17,7 +20,7 @@ const candidates = JSON.parse(await readFile(path.join(root, 'data/candidates.js
 const library = JSON.parse(await readFile(path.join(root, 'data/artwork-library.json'), 'utf8'));
 
 const lines = [];
-lines.push('# P3 Discovery report');
+lines.push('# P3 Inventory Scan (stage A — internal data only)');
 lines.push('');
 lines.push(`Generated: ${new Date().toISOString()}`);
 lines.push('');

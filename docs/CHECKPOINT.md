@@ -1,3 +1,19 @@
+# ÁO IN STUDIO — checkpoint P3.1 (mới nhất)
+
+Ngày: 2026-11-09 (Asia/Tokyo). Nhánh: `feature/p31-visual-completion`, base main `4efb522` (P3 đã merge qua PR #4).
+**P3.1 chờ PR**: theo brief P3.1, KHÔNG tự merge PR này — chờ phê duyệt áp dụng cho chính PR này (khác quy tắc merge-tự-động Van đặt trước đó).
+Chi tiết đầy đủ: docs/P3_1_QA_REPORT.md.
+
+## P3.1 đã làm
+- Section "BỘ SƯU TẬP HÌNH IN" (`src/design-collection.js`): toàn bộ 83 thiết kế duyệt/lọc theo chủ đề được, xem trước trên áo thật (thumb 400×600), dải "Thiết kế mới" 28 mẫu, nút "Dùng hình này" đưa thẳng vào Studio, nút "Tự thiết kế". Con giáp + cung hoàng đạo gộp thẻ chọn biến thể.
+- +22 thiết kế gốc mới (thư viện 83; tổng mới 28/40–60 — chưa đạt quota).
+- Mockup ảnh thật làm ảnh chính thẻ catalog cho AIS-001, AIS-004 (crew trắng) và AIS-007 (crew đen); SKU khác giữ renderer + nhãn minh họa.
+- Studio ghép TRỰC TIẾP (`src/studio-live.js`): sửa chữ/hình/kéo thả cập nhật ngay trên ảnh áo thật cho cổ tròn trắng và cổ tròn ĐEN (base mới), mặt trước; ngoài phạm vi → fallback có nhãn. File in xuất ra vẫn sạch.
+- Base ghép thứ hai: GAR-CREW-BLK-HANGER-01 (Pexels 8532616, Hanna Pad, PM đã xem ảnh và hiệu chuẩn, Δcoverage 0,013) + cận cổ đen (8532638) + cận vai/jersey trắng (30710033, Luis Quintero). Cặp trước/sau cùng sản phẩm, oversize, polo base: vẫn MISSING sau vòng tìm thứ 2.
+- Tự động hóa gọi đúng tên: A Inventory Scan (nội bộ), B Source Discovery (mã thật gọi Pexels API, chờ PEXELS_API_KEY trong Secrets — hiện NOT CONFIGURED), C duyệt thủ công, D Generation, E Release (docs/P3_AUTOMATION.md).
+- Hiệu năng: asset version `?v=p31vis1`; dựng lười theo viewport + fetch lười + thumb → Lighthouse mobile local Perf 92 / LCP 3013 ms / TBT 173 ms / CLS 0 / A11y 96 (P3 cùng điều kiện: 90 / 2949 / 246). **LCP ≤2,5s vẫn CHƯA ĐẠT.**
+- QA: unit 32/32; browser + interaction + P0 + P1 + P3 + P3.1 PASS 5 viewport; ảnh trước/sau ở ~/workspace/p31-qa/.
+
 # ÁO IN STUDIO — checkpoint P3 (mới nhất)
 
 Ngày: 2026-11-09 (Asia/Tokyo). Nhánh: `feature/p3-automated-mockup-library`, base main `ad81b8d` (P2 đã merge qua PR #3, bản live là P2).

@@ -23,21 +23,28 @@ import { buildArtworkLibrary } from './build-artwork-library.mjs';
 const root = path.resolve(fileURLToPath(new URL('../../', import.meta.url)));
 const sha256 = buf => createHash('sha256').update(buf).digest('hex');
 
-/** Pilot matrix: five difficulty classes + one large-print variant. */
-const PILOT = [
-  { artworkId: 'landscape', note: 'nhiều màu' },
-  { artworkId: 'animal-dragon', note: 'line art đơn sắc' },
-  { artworkId: 'couple-sun', note: 'đồ họa hai tông' },
-  { artworkId: 'zodiac-3', note: 'họa tiết tròn' },
-  { artworkId: 'birthday', note: 'đồ họa tiệc' },
-  { artworkId: 'landscape', variant: 'large', scaleFactor: 1.35, note: 'bản in lớn' },
-  { artworkId: 'name', note: 'khung tên mặc định của AIS-004' },
-  { artworkId: 'zodiac-0', note: 'cung mặc định (Bạch Dương) của AIS-007' },
-];
+/** Generation matrix is built after the library loads (see PILOT below). */
+let PILOT = [];
 const COVERAGE_TOLERANCE = 0.15;
 
 const garmentsDoc = JSON.parse(await readFile(path.join(root, 'data/garments.json'), 'utf8'));
 const library = await buildArtworkLibrary();
+/**
+ * P3.1 matrix: EVERY approved design on every approved base, so the design
+ * collection and product cards can show each design on a real garment —
+ * plus one large-print variant kept from the P3 pilot.
+ */
+PILOT = [
+  ...library.designs.filter(d => d.status === 'APPROVED').map(d => ({ artworkId: d.designId, note: 'toàn thư viện P3.1' })),
+  { artworkId: 'landscape', variant: 'large', scaleFactor: 1.35, note: 'bản in lớn' },
+];
+/**
+ * Non-primary bases get a deliberately small matrix: the black crew base
+ * serves the black-default SKU (AIS-007, zodiac) — rendering all 83 dark-ink
+ * designs on a black shirt would be near-invisible and misleading. The
+ * primary (white) base carries the full library.
+ */
+const SECONDARY_BASE_ARTWORKS = ['zodiac-0', 'zodiac-3'];
 const byId = Object.fromEntries(library.designs.map(d => [d.designId, d]));
 const bases = compositingBases(garmentsDoc);
 if (!bases.length) throw new Error('No APPROVED compositing base garments — nothing to generate.');
@@ -58,10 +65,11 @@ await page.waitForFunction(() => window.__p3ready === true);
 const entries = [];
 const results = [];
 try {
-  for (const garment of bases) {
+  for (const [baseIndex, garment] of bases.entries()) {
     const z = zoneFor(garment, 'front');
     if (!z.ok) { results.push(`SKIP ${garment.garmentId}: ${z.reason}`); continue; }
-    for (const combo of PILOT) {
+    const combos = baseIndex === 0 ? PILOT : PILOT.filter(c => SECONDARY_BASE_ARTWORKS.includes(c.artworkId) && !c.variant);
+    for (const combo of combos) {
       const design = byId[combo.artworkId];
       if (!design || design.status !== 'APPROVED') { results.push(`SKIP ${combo.artworkId}: not APPROVED`); continue; }
       const variant = combo.variant || 'std';

@@ -1,8 +1,8 @@
-import {presetDesign} from './catalog-filter.js?v=p2real1';
-import {schemas,defaults,animalForYear} from './artwork-library.js?v=p2real1';
-import {priceBreakdown,money,unitPrice} from './cart-price.js?v=p2real1';
-import {typeLabel,colorLabel} from './product-store.js?v=p2real1';
-import {lifestyleFor} from './media-manifest.js?v=p2real1';
+import {presetDesign} from './catalog-filter.js?v=p31vis1';
+import {schemas,defaults,animalForYear} from './artwork-library.js?v=p31vis1';
+import {priceBreakdown,money,unitPrice} from './cart-price.js?v=p31vis1';
+import {typeLabel,colorLabel} from './product-store.js?v=p31vis1';
+import {lifestyleFor} from './media-manifest.js?v=p31vis1';
 /** Single shopping detail/personalisation entry for rail, circle and catalogue. */
 export function mountProductDetail(studio){
  const dialog=document.querySelector('#product-dialog');
@@ -21,8 +21,8 @@ export function mountProductDetail(studio){
     Shown only for the product's DEFAULT design on a matching approved
     garment (same type + colour); any personalisation change hides it. */
  const DEFAULT_ARTWORK={couple:'couple-sun',family:'family-3-0',name:'name',date:'calendar',animal:'animal-rat',zodiac:'zodiac-0',number:'number',slogan:'coffee',art:'landscape',birthday:'birthday',group:'group'};
- let mockData=null;const mockReady=(async()=>{try{const [m,g]=await Promise.all([fetch(new URL('../data/mockup-manifest.json',import.meta.url)).then(r=>r.json()),fetch(new URL('../data/garments.json',import.meta.url)).then(r=>r.json())]);mockData={entries:m.entries,garments:g.garments}}catch{mockData=null}})();
- function mockPhoto(){if(!mockData)return null;const theme=product.artwork?.id,artId=DEFAULT_ARTWORK[theme];if(!artId)return null;const d=defaults(theme);for(const k of Object.keys(d))if(String(values[k]??'')!==String(d[k]??''))return null;const e=mockData.entries.find(x=>x.artworkId===artId&&x.view==='front'&&x.variant==='std');if(!e)return null;const g=mockData.garments.find(x=>x.garmentId===e.garmentId);if(!g||g.type!==product.type||g.color!==values.color)return null;return{file:e.file,author:g.source?.author||''}}
+ let mockData=null,mockPromise=null;function mockReady(){if(!mockPromise)mockPromise=(async()=>{try{const [m,g]=await Promise.all([fetch(new URL('../data/mockup-manifest.json',import.meta.url)).then(r=>r.json()),fetch(new URL('../data/garments.json',import.meta.url)).then(r=>r.json())]);mockData={entries:m.entries,garments:g.garments}}catch{mockData=null}})();return mockPromise}
+ function mockPhoto(){if(!mockData)return null;const theme=product.artwork?.id,artId=DEFAULT_ARTWORK[theme];if(!artId)return null;const d=defaults(theme);for(const k of Object.keys(d))if(String(values[k]??'')!==String(d[k]??''))return null;for(const e of mockData.entries.filter(x=>x.artworkId===artId&&x.view==='front'&&x.variant==='std')){const g=mockData.garments.find(x=>x.garmentId===e.garmentId);if(g&&g.type===product.type&&g.color===values.color)return{file:e.file,author:g.source?.author||''}}return null}
  function view(face){side=face;for(const [id,key]of [['view-front','front'],['view-back','back'],['view-close','close'],['view-worn','worn'],['view-mock','mock']])$('#'+id).setAttribute('aria-pressed',String(face===key));if(face==='mock'){const mp=mockPhoto();if(mp){$('#detail-image').src=new URL('../'+mp.file,import.meta.url).href;$('#detail-image').alt=product.name+' — ảnh mô phỏng trên áo thật';$('#media-note').textContent='Ảnh mô phỏng: hình in mặc định của mẫu được ghép bằng máy tính lên ảnh chụp áo trống thật (Pexels'+(mp.author?' / '+mp.author:'')+'). Đúng artwork của mẫu; chưa phải ảnh áo đã sản xuất.'}return}if(face==='worn'){const ph=wornPhoto();if(ph){$('#detail-image').src=new URL('../'+ph.file,import.meta.url).href;$('#detail-image').alt=product.name+' — ảnh người mặc minh họa';$('#media-note').textContent=ph.labelVi}return}if(gallery){$('#detail-image').src=gallery[face];$('#detail-image').alt=product.name+' — '+({front:'mặt trước',back:'mặt sau',close:'cận hình in'})[face];$('#media-note').textContent=product.photoBase?'Hình ý tưởng có giấy phép MIT; không phải ảnh áo đã sản xuất.':'Ảnh dựng từ đúng artwork gốc, có bóng vải minh họa ở bản xem trước. Mặt sau chưa in; không phải ảnh chụp sản phẩm.'}}
  function fields(){
   const root=$('#personal-fields');root.replaceChildren();const theme=product.artwork?.id,fields=schemas[theme]||[];
@@ -33,7 +33,7 @@ export function mountProductDetail(studio){
  function price(){const p=priceBreakdown(design);$('#detail-price').textContent=money(unitPrice(design));const dl=$('#detail-breakdown');dl.replaceChildren();for(const [label,value]of [['Áo nền',p.base],['Hình in mẫu',p.template],['Cá nhân hóa trong mẫu',p.personalization],['Mặt in thêm',p.extraPrint]]){const row=document.createElement('div'),dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=money(value);row.append(dt,dd);dl.append(row)}$('#detail-fee-note').textContent=product.photoBase?'Giá áo nền đã gồm hình in tuyển chọn có sẵn. Thêm nội dung mới: 30.000đ cho mỗi mặt có lớp in mới.':product.artwork?.id==='blank'?'Thêm nội dung vào mặt trước hoặc sau: 30.000đ mỗi mặt.':'Hình in mẫu mặt trước: 30.000đ, đã tính trong giá hiển thị. Đổi tên/nội dung trên mặt này không thêm phí. Thêm hình hoặc chữ mặt sau: 30.000đ.'}
  async function refresh(){
   const token=++generation;$('#open-studio').disabled=true;dialog.dataset.previewReady='false';$('#detail-error').textContent='';
-  design=presetDesign(product,values);saved.set(product.sku,{...values});price();$('#view-worn').hidden=!wornPhoto();await mockReady;$('#view-mock').hidden=!mockPhoto();if(side==='worn'&&!wornPhoto())view('front');else if(side==='worn')view('worn');if(side==='mock'&&!mockPhoto())view('front');else if(side==='mock')view('mock');
+  design=presetDesign(product,values);saved.set(product.sku,{...values});price();$('#view-worn').hidden=!wornPhoto();await mockReady();$('#view-mock').hidden=!mockPhoto();if(side==='worn'&&!wornPhoto())view('front');else if(side==='worn')view('worn');if(side==='mock'&&!mockPhoto())view('front');else if(side==='mock')view('mock');
   try{const next=await studio.gallery(design);if(token!==generation)return;gallery=next;view(side);dialog.dataset.previewReady='true';$('#open-studio').disabled=false}
   catch{if(token===generation)$('#detail-error').textContent='Chưa tải đủ hình xem trước. Vui lòng thử chọn lại mẫu.'}
  }

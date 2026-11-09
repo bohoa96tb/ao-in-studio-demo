@@ -1,6 +1,6 @@
-import {getProducts,typeLabel,colorLabel} from './product-store.js?v=p2real1';
-import {filterProducts,presetDesign} from './catalog-filter.js?v=p2real1';
-import {unitPrice,money} from './cart-price.js?v=p2real1';
+import {getProducts,typeLabel,colorLabel} from './product-store.js?v=p31vis1';
+import {filterProducts,presetDesign} from './catalog-filter.js?v=p31vis1';
+import {unitPrice,money} from './cart-price.js?v=p31vis1';
 export async function mountCatalog(studio,detail){
  const host=document.querySelector('#product-catalog');
  await new Promise(resolve=>{const o=new IntersectionObserver(([e])=>{if(e.isIntersecting){o.disconnect();resolve()}},{rootMargin:'120px'});o.observe(host)});
@@ -16,6 +16,13 @@ export async function mountCatalog(studio,detail){
  <label>Giá trọn mẫu tối đa<select id="catalog-price"><option value="1000000">Mọi mức giá</option><option value="229000">229.000đ</option><option value="249000">249.000đ</option><option value="269000">269.000đ</option></select></label><button id="catalog-filter-apply" class="inspect-button">Xem các mẫu phù hợp</button></div></dialog>`;
  try{
  const products=[...await getProducts()].sort((a,b)=>Number(!!a.photoBase)-Number(!!b.photoBase));let category='';const $=s=>host.querySelector(s),chips=$('#catalog-chips'),grid=$('#catalog-grid');
+ /* P3.1: where an APPROVED pre-rendered mockup on a real garment photo
+    matches this product's default design + crew + white, it becomes the
+    card's main image. Anything else keeps the P2 illustrated render and
+    its honest "Mockup minh họa" badge. */
+ const THEME_DEFAULT={couple:'couple-sun',family:'family-3-0',name:'name',date:'calendar',animal:'animal-rat',zodiac:'zodiac-0',number:'number',slogan:'coffee',art:'landscape',birthday:'birthday',group:'group'};
+ let mockMap=null;const mockReady=Promise.all([fetch(new URL('../data/mockup-manifest.json',import.meta.url)).then(r=>r.json()),fetch(new URL('../data/garments.json',import.meta.url)).then(r=>r.json())]).then(([m,g])=>{const byId=Object.fromEntries(g.garments.map(x=>[x.garmentId,x]));mockMap=new Map();for(const e of m.entries.filter(e=>e.view==='front'&&e.variant==='std')){const gar=byId[e.garmentId];if(gar)mockMap.set(e.artworkId+'|'+gar.type+'|'+gar.color,e.file)}}).catch(()=>{mockMap=new Map()});
+ function realMock(p,color){if(!mockMap)return null;const a=THEME_DEFAULT[p.artwork?.id];const f=a&&mockMap.get(a+'|'+p.type+'|'+color);return f?new URL('../'+f,import.meta.url).href:null}
  const imageObserver=new IntersectionObserver(entries=>{for(const e of entries){if(e.isIntersecting){imageObserver.unobserve(e.target);e.target.loadPreview?.()}}},{rootMargin:'160px'});
  const cache=new Map();function preview(p,color){const key=p.sku+':'+color;if(!cache.has(key))cache.set(key,studio.gallery(presetDesign(p,{color}),{thumbnail:true}));return cache.get(key)}
  function filters(){return {q:$('#catalog-search').value,category,type:$('#catalog-type').value,color:$('#catalog-color').value,max:$('#catalog-price').value}}
@@ -29,7 +36,7 @@ export async function mountCatalog(studio,detail){
    const card=document.createElement('article');card.className='catalog-card';card.dataset.sku=p.sku;
    const picture=document.createElement('button');picture.className='catalog-image-button';picture.setAttribute('aria-label','Xem '+p.name);
    const img=new Image();img.alt=p.name+' — mặt trước, ảnh dựng minh họa';img.width=420;img.height=490;img.loading='lazy';img.decoding='async';picture.append(img);
-   card.loadPreview=async()=>{try{const gallery=await preview(p,f.color);if(card.isConnected){img.src=gallery.front;card.dataset.imageReady='true'}}catch{if(card.isConnected){img.alt='Chưa tải được ảnh '+p.name;const retry=document.createElement('button');retry.textContent='Tải lại ảnh';retry.onclick=()=>{cache.delete(p.sku+':'+f.color);retry.remove();card.loadPreview()};card.append(retry)}}};
+   card.loadPreview=async()=>{try{await mockReady;const rm=realMock(p,f.color||p.defaultColor);if(rm&&card.isConnected){img.src=rm;img.alt=p.name+' — ảnh mô phỏng trên áo thật, thiết kế mặc định';badge.textContent='Ảnh mô phỏng trên áo thật · thiết kế mặc định';card.dataset.imageReady='true';return}const gallery=await preview(p,f.color);if(card.isConnected){img.src=gallery.front;card.dataset.imageReady='true'}}catch{if(card.isConnected){img.alt='Chưa tải được ảnh '+p.name;const retry=document.createElement('button');retry.textContent='Tải lại ảnh';retry.onclick=()=>{cache.delete(p.sku+':'+f.color);retry.remove();card.loadPreview()};card.append(retry)}}};
    const tag=document.createElement('small');tag.textContent=p.category+' · '+typeLabel(p.type);
    const h=document.createElement('h3');h.textContent=p.name;
    const price=document.createElement('p');price.className='catalog-price';price.textContent=money(unitPrice(presetDesign(p)));

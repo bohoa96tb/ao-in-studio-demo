@@ -292,6 +292,157 @@
     "back",
     "fabricDetail"
    ]
+  },
+  {
+   "garmentId": "GAR-CREW-BLK-HANGER-01",
+   "type": "crew",
+   "color": "#242424",
+   "colorName": "Đen",
+   "actualPhotoFront": "public/fixtures/real-tee/crew-black-hanger.webp",
+   "actualPhotoBack": null,
+   "wornPhoto": null,
+   "fabricDetail": "public/fixtures/real-tee/crew-black-collar-detail.webp",
+   "imageSize": {
+    "width": 1200,
+    "height": 800
+   },
+   "source": {
+    "platform": "Pexels",
+    "photoId": "8532616",
+    "author": "Hanna Pad",
+    "sourceUrl": "https://www.pexels.com/photo/a-black-shirt-hanging-on-the-wall-8532616/",
+    "checkedAt": "2026-11-09"
+   },
+   "verifiedLicense": "Pexels License — free commercial use, attribution not required (given anyway). See docs/P2_ASSET_LICENSES.md.",
+   "supplier": "Pexels contributor photo (not a garment supplier)",
+   "status": "APPROVED",
+   "sourceStatus": "APPROVED",
+   "compositing": {
+    "allowed": true,
+    "views": [
+     "front"
+    ]
+   },
+   "printableZones": {
+    "front": {
+     "quad": [
+      [
+       0.335,
+       0.33
+      ],
+      [
+       0.603,
+       0.33
+      ],
+      [
+       0.608,
+       0.86
+      ],
+      [
+       0.33,
+       0.86
+      ]
+     ],
+     "maxWidthCm": 28
+    },
+    "back": null
+   },
+   "calibration": {
+    "method": "manual-visual",
+    "calibratedAt": "2026-11-09",
+    "shadingStrength": 0.35,
+    "maskPolygon": [
+     [
+      0.315,
+      0.185
+     ],
+     [
+      0.245,
+      0.235
+     ],
+     [
+      0.205,
+      0.355
+     ],
+     [
+      0.275,
+      0.44
+     ],
+     [
+      0.262,
+      0.9
+     ],
+     [
+      0.715,
+      0.9
+     ],
+     [
+      0.722,
+      0.445
+     ],
+     [
+      0.795,
+      0.36
+     ],
+     [
+      0.757,
+      0.24
+     ],
+     [
+      0.66,
+      0.18
+     ],
+     [
+      0.565,
+      0.225
+     ],
+     [
+      0.415,
+      0.225
+     ]
+    ]
+   },
+   "brandingNotes": "Nhãn cổ trắng nhỏ phía trong cổ áo (ngoài vùng in); bóng cửa sổ chéo là ánh sáng thật của ảnh, engine dùng chính luminance của ảnh để đổ bóng lên hình in.",
+   "missing": [
+    "back",
+    "wornPhoto"
+   ]
+  },
+  {
+   "garmentId": "GAR-CREW-WHT-SHOULDER-01",
+   "type": "crew",
+   "color": "#f8f6ee",
+   "colorName": "Trắng",
+   "actualPhotoFront": null,
+   "actualPhotoBack": null,
+   "wornPhoto": null,
+   "fabricDetail": "public/fixtures/real-tee/crew-white-shoulder-detail.webp",
+   "imageSize": {
+    "width": 900,
+    "height": 1350
+   },
+   "source": {
+    "platform": "Pexels",
+    "photoId": "30710033",
+    "author": "Luis Quintero",
+    "sourceUrl": "https://www.pexels.com/photo/close-up-of-white-t-shirt-on-adult-arm-30710033/",
+    "checkedAt": "2026-11-09"
+   },
+   "verifiedLicense": "Pexels License — free commercial use, attribution not required (given anyway). See docs/P2_ASSET_LICENSES.md.",
+   "supplier": "Pexels contributor photo (not a garment supplier)",
+   "status": "APPROVED",
+   "sourceStatus": "APPROVED",
+   "compositing": {
+    "allowed": false,
+    "views": []
+   },
+   "printableZones": {
+    "front": null,
+    "back": null
+   },
+   "calibration": null,
+   "brandingNotes": "Ảnh cận vai/tay áo người mặc thật: thấy rõ sớ vải jersey và đường may vai. Vai trò detail-only — không phải ảnh mẫu vải phẳng, không ghép hình in.",
+   "missing": []
   }
  ],
  "missingSets": [
@@ -311,7 +462,7 @@
    "type": "polo"
   },
   {
-   "need": "dedicated fabric close-up texture — candidate 6843269 REJECTED by PM visual check (chunky sweater knit, not T-shirt jersey)",
+   "need": "flat fabric swatch still missing; a WORN jersey shoulder close-up now exists (GAR-CREW-WHT-SHOULDER-01, detail only). Candidate 6843269 REJECTED (chunky sweater knit).",
    "status": "MISSING",
    "type": "any"
   }
