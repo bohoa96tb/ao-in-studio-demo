@@ -46,3 +46,7 @@ không phải ảnh sản phẩm đã sản xuất, người mẫu không xác n
 | public/fixtures/real-tee/crew-white-shoulder-detail.webp | Pexels photo 30710033 | Luis Quintero | Worn white jersey shoulder close-up — detail only, not a flat fabric swatch |
 
 All three: Pexels License (free commercial use, attribution not required, given anyway). PM viewed the actual images on 2026-11-09: blank garments, no logos/prints. Rejected in the same round: 8148576 (boxy cropped fit, hand in frame), 19041040 (black-and-white, subject too distant). Generated thumbnails in public/mockups/thumbs/ are derivatives of the project's own mockup renders.
+
+## P3.2 ảnh mở đầu
+
+- `public/fixtures/real-tee/rack-neutral-ron-lach.webp`: ảnh giá áo trơn của Ron Lach, [Pexels 9594682](https://www.pexels.com/photo/white-and-brown-clothes-hanging-on-gray-metal-rack-9594682/), Pexels License, tải và xem ảnh 2026-11-09. Dùng làm ảnh không khí tham khảo, không đại diện sản phẩm thực tế hoặc dùng làm nền in.
