@@ -36,5 +36,13 @@ Read `docs/ANDROID_TERMUX_HANDOFF.md` before any bundle handoff. Bundle file
 names follow `ao-in-pXX.bundle` (P3.1 → ao-in-p31.bundle); the handoff report
 must use sections A–E with a single copy-paste Termux block; verify the bundle
 (verify + head/base + SHA-256) and check remote `main` compatibility first.
-Never ask for a PAT/password/token in chat. Never auto-merge a PR without the
-approval that applies to that PR.
+Never ask for a PAT/password/token in chat.
+
+## Owner authorization for delivery (2026-11-09)
+The owner authorizes agents to complete requested changes, create PRs, merge into
+main, and deploy without asking again for each PR. Verify the intended head and
+base, pass applicable CI and QA, preserve existing data and functionality, and
+verify the live site after deployment. If checks fail, fix them before merging;
+report genuine blockers. A later explicit instruction to wait or withhold a
+particular merge overrides this standing authorization. Platform approval and
+security requirements still apply.
