@@ -6,8 +6,8 @@
   <meta name="description" content="Áo in theo yêu cầu: chọn mẫu, thêm tên hoặc hình riêng và xem trước thành phẩm.">
   <meta name="theme-color" content="#f5f3ee">
   <title>ÁO IN STUDIO — Chiếc áo của bạn</title>
-  <link rel="stylesheet" href="src/style.css?v=p31vis1">
-  <script type="module" src="src/app.js?v=p31vis1"></script>
+  <link rel="stylesheet" href="src/style.css?v=p32photo1">
+  <script type="module" src="src/app.js?v=p32photo1"></script>
 <link rel="preload" as="image" href="public/fixtures/lake-white-v3/front.webp" fetchpriority="high"></head>
 <body>
   <a class="skip" href="#showcase">Đến tủ áo</a>
@@ -16,9 +16,20 @@
     <a class="catalog-nav" href="#product-catalog">Bộ sưu tập</a><button id="cart-open" class="text-button">Giỏ hàng (<span id="cart-count">0</span>)</button>
   </header>
   <main id="showcase">
+    <section class="photo-welcome" aria-labelledby="photo-welcome-title">
+      <div class="photo-welcome-copy">
+        <p class="eyebrow">ÁO IN THEO CÂU CHUYỆN CỦA BẠN</p>
+        <h2 id="photo-welcome-title">Chiếc áo quen thuộc,<br><em>dấu ấn rất riêng.</em></h2>
+        <p>Chọn một mẫu yêu thích hoặc tự thêm tên, lời nhắn và hình ảnh của bạn.</p>
+        <div class="photo-welcome-actions"><a class="photo-action" href="#design-collection">Khám phá hình in <span aria-hidden="true">↗</span></a><a class="photo-action photo-action-light" href="#studio">Tự thiết kế áo</a></div>
+        <p class="photo-welcome-note">Bản trải nghiệm · Giá và giỏ hàng chỉ để tham khảo</p>
+      </div>
+      <figure class="photo-welcome-image"><img src="public/fixtures/real-tee/rack-neutral-ron-lach.webp" width="1400" height="934" fetchpriority="high" alt="Những chiếc áo trơn màu nhẹ treo trên giá"><figcaption>Ảnh áo tham khảo · <a href="https://www.pexels.com/photo/white-and-brown-clothes-hanging-on-gray-metal-rack-9594682/" target="_blank" rel="noopener">Ron Lach / Pexels</a></figcaption></figure>
+    </section>
+    <nav class="shopping-steps" aria-label="Bắt đầu thiết kế"><a href="#design-collection"><span>01</span><strong>Chọn hình in</strong><small>Khám phá theo chủ đề</small></a><a href="#studio"><span>02</span><strong>Tạo dấu ấn riêng</strong><small>Thêm chữ hoặc ảnh của bạn</small></a><a href="#product-catalog"><span>03</span><strong>Chọn mẫu áo</strong><small>Xem các mẫu trong bộ sưu tập</small></a></nav>
     <div class="intro">
-      <p class="eyebrow">ÁO IN THEO YÊU CẦU</p>
-      <h1>Một chiếc áo.<br><em>Rất riêng bạn.</em></h1>
+      <p class="eyebrow">TỦ ÁO TƯƠNG TÁC</p>
+      <h1>Khám phá tủ áo.<br><em>Chọn mẫu bạn thích.</em></h1>
       <p class="hero-description">Chọn mẫu yêu thích. Thêm câu chuyện của bạn.</p><button id="hero-design" class="hero-cta">Tự thiết kế ngay <span aria-hidden="true">↗</span></button><a class="hero-cta hero-cta-secondary" href="#product-catalog">Khám phá bộ sưu tập</a><p class="intro-note" id="interaction-hint">Vuốt để khám phá bộ sưu tập</p>
     </div>
     <div class="rack" id="rack" role="region" aria-label="Tủ áo tương tác" aria-busy="true">
