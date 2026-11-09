@@ -54,3 +54,6 @@ Pexels 6787008 (Artem Podrez), white crew front/back crops, manual print quads.
 Label as illustrative preview, never actual manufactured stock or endorsement.
 Do not alter print exports or claim matching garments/materials. Other photos
 still require source and visual review; automatic garment generation is unchanged.
+
+## P3.7 owner-supplied replacements
+Owner explicitly supplied three screenshots for replacing the white crew pilot. Use owner-photo-{flat,model,detail}.js with runtime crops and print quads in studio-live.js; no phone UI in the displayed viewport. These replace P3.6 Pexels imagery in this pilot. Source is owner-provided, not independently licensed stock. Do not claim supplier identity, fabric composition or actual manufactured product.

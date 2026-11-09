@@ -1,0 +1,3 @@
+# P3.7 Owner photos
+
+Replaces white crew Studio pilot with the three screenshots supplied by owner on 2026-11-09: 1000011899.jpg collar detail, 1000011900.jpg model front, 1000011901.jpg flat front/back. Original screenshot bytes are stored in lazy data modules; runtime viewport crops exclude phone bars. No AI editing or new image content. Four tabs: front/back linked to design faces, model linked to front, detail without artwork. Calibrated approximate print quads per view. No independently verified source or material claims. Other shirt variants, print exports and saved designs remain unchanged.

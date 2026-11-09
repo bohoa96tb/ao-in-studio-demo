@@ -1,3 +1,6 @@
+# P3.7 — owner supplied white crew photos
+See P37_OWNER_PHOTOS.md. Four Studio views: flat front/back, model front, collar detail. Supersedes P3.6 photo selection.
+
 # P3.6 — 2026-11-09
 Approximate real-person preview implemented for white crew front/back; see P36_PHOTO_PREVIEW.md. Owner explicitly supersedes worn-photo ban for this pilot. Release validation recorded in PR.
 
