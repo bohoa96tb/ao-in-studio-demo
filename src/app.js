@@ -1,5 +1,5 @@
 import {mountProductDetail} from './product-detail.js?v=p31vis1';
-import {mountDesignCollection} from './design-collection.js?v=p31vis1';
+import {mountDesignCollection} from './design-collection.js?v=p33curated1';
 import {mountStudioLive} from './studio-live.js?v=p31vis1';
 import {getProducts,resolveRail,typeLabel} from './product-store.js?v=p31vis1';
 import {presetDesign} from './catalog-filter.js?v=p31vis1';

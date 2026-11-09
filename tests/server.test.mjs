@@ -9,6 +9,7 @@ test('the server exposes runtime assets, not credentials or generation inputs',a
   try{
     const response=await fetch(url+'/');assert.equal(response.status,200);assert.match(response.headers.get('content-type'),/text\/html/);
     const config=await fetch(url+'/config/catalog.json');const served=await config.json();const expected=JSON.parse(await readFile(new URL('../config/catalog.json',import.meta.url),'utf8'));assert.deepEqual(served,expected);
+    const art=await fetch(url+'/public/curated/zodiac.png');assert.equal(art.status,200);assert.match(art.headers.get('content-type'),/image\/png/);
     assert.equal((await fetch(url+'/.env.local')).status,404);
     assert.equal((await fetch(url+'/',{method:'POST'})).status,405);
   }finally{await new Promise(resolve=>server.close(resolve));}

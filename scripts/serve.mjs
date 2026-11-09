@@ -8,11 +8,11 @@ export function publicFile(url,base=root){
   let pathname;try{pathname=decodeURIComponent(new URL(url,'http://localhost').pathname);}catch{return null;}
   if(pathname.includes('\\')||pathname.includes('\0')||pathname.split('/').includes('..'))return null;
   if(pathname==='/')pathname='/index.html';
-  const allowed=/^\/(index\.html|(?:README|START-HERE|AGENTS|CLAUDE|LICENSE-ASSETS|THIRD_PARTY_NOTICES)\.md|LICENSE|(?:docs|prompts)\/[a-z0-9-]+\.md|(?:config\/catalog|data\/[a-z0-9-]+)\.json|src\/(?:[a-z0-9-]+\.(?:js|css)|mockup-engine\/[a-z0-9-]+\.js)|scripts\/mockup\/harness\.html|public\/(artwork\/[a-z0-9-]+\.svg|hero\.webp|mockups\/(?:thumbs\/)?[a-z0-9_-]+\.webp|fixtures\/[a-z0-9/-]+\.(webp|json|jpg)|fonts\/[a-zA-Z0-9.-]+\.(ttf|txt)))$/;
+  const allowed=/^\/(index\.html|(?:README|START-HERE|AGENTS|CLAUDE|LICENSE-ASSETS|THIRD_PARTY_NOTICES)\.md|LICENSE|(?:docs|prompts)\/[a-z0-9-]+\.md|(?:config\/catalog|data\/[a-z0-9-]+)\.json|src\/(?:[a-z0-9-]+\.(?:js|css)|mockup-engine\/[a-z0-9-]+\.js)|scripts\/mockup\/harness\.html|public\/(curated\/[a-z0-9-]+\.png|artwork\/[a-z0-9-]+\.svg|hero\.webp|mockups\/(?:thumbs\/)?[a-z0-9_-]+\.webp|fixtures\/[a-z0-9/-]+\.(webp|json|jpg)|fonts\/[a-zA-Z0-9.-]+\.(ttf|txt)))$/;
   if(!allowed.test(pathname))return null;
   const file=path.resolve(base,'.'+pathname);if(!file.startsWith(base+path.sep))return null;return file;
 }
-const mime={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.json':'application/json; charset=utf-8','.md':'text/plain; charset=utf-8','.svg':'image/svg+xml','.webp':'image/webp','.jpg':'image/jpeg','.ttf':'font/ttf','.txt':'text/plain; charset=utf-8'};
+const mime={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.json':'application/json; charset=utf-8','.md':'text/plain; charset=utf-8','.svg':'image/svg+xml','.webp':'image/webp','.jpg':'image/jpeg','.png':'image/png','.ttf':'font/ttf','.txt':'text/plain; charset=utf-8'};
 export function makeServer(base=root){return http.createServer(async(req,res)=>{
   if(!['GET','HEAD'].includes(req.method)){res.writeHead(405);res.end();return;}
   const file=publicFile(req.url,base);if(!file){res.writeHead(404);res.end('Not found');return;}
