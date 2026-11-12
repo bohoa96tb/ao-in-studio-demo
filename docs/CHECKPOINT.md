@@ -1,3 +1,10 @@
+# P4 — Print Production Workspace (Xưởng chuẩn bị file in)
+See P4_ARCHITECTURE.md + P4_QA_REPORT.md. On-device pipeline: bg removal
+(solid flood-fill / U2Netp via ONNX Web), VTracer vectorization behind a
+fidelity gate (photos graded strictly, raster wins), cm print size + live
+DPI, DTF checklist, verified PNG/SVG/PDF exports. Originals kept in a
+separate IndexedDB (ao-in-print). Vendor payloads lazy-loaded.
+
 # P3.7 — owner supplied white crew photos
 See P37_OWNER_PHOTOS.md. Four Studio views: flat front/back, model front, collar detail. Supersedes P3.6 photo selection.
 

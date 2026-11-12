@@ -57,3 +57,14 @@ still require source and visual review; automatic garment generation is unchange
 
 ## P3.7 owner-supplied replacements
 Owner explicitly supplied three screenshots for replacing the white crew pilot. Use owner-photo-{flat,model,detail}.js with runtime crops and print quads in studio-live.js; no phone UI in the displayed viewport. These replace P3.6 Pexels imagery in this pilot. Source is owner-provided, not independently licensed stock. Do not claim supplier identity, fabric composition or actual manufactured product.
+
+P4 (2026-11-12, branch feature/p4-print-production-workspace): read
+docs/P4_ARCHITECTURE.md + P4_QA_REPORT.md before touching the print
+workspace. Rules: never fake a vector (an exported SVG must contain real
+paths; a raster-only design exports raster PDF/PNG and says so); the
+fidelity gate decides the master (raster wins when vector loses detail,
+photos graded strictly); exports carry the real print size in cm and the
+effective DPI (PNG pHYs); originals live untouched in IndexedDB
+`ao-in-print` — never overwrite them and never touch Studio's v1 DB;
+ORT/VTracer/model payloads under public/vendor + public/models are
+lazy-loaded only. Print-core stays DOM-free and unit-tested.

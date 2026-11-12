@@ -13,3 +13,13 @@ The interaction concept was inspired by [@cambreedesigns](https://x.com/cambreed
 ## User-supplied assets
 
 The MIT license covers this repository's code and original fixtures. It does not grant rights to material users import, third-party product photographs, prints, trademarks, fonts or music.
+
+## Print Production Workspace (P4) — on-device processing libraries
+
+- ONNX Runtime Web 1.20.1 — MIT License — © Microsoft. Vendored under
+  `public/vendor/ort/` with its LICENSE file; loaded only on demand.
+- U2Netp (U-2-Net, Xuebin Qin et al.) — Apache License 2.0 — model vendored
+  under `public/models/` with the full licence text (`U2NET-LICENSE`).
+- VTracer (visioncortex) via the `wasm_vtracer` 0.2.0 WebAssembly binding —
+  MIT License — vendored under `public/vendor/vtracer/` with licence text.
+  Loaded only when the customer asks for vectorization.
