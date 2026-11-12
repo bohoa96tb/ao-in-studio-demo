@@ -51,3 +51,29 @@ see docs/P2_ASSET_LICENSES.md for the full audit trail.
 - Licence for both: Pexels License — free use including commercial/e-commerce, attribution not required (given voluntarily), no sale of unaltered copies as stock, no implied endorsement by depicted people. Re-verified by Agent 1 on 2026-11-09.
 - Rejected after PM visual check: Pexels 6843269 (chunky sweater knit, not T-shirt jersey — would misdescribe the fabric) and 8606514 (model age unverifiable). Full candidate queue with reasons: `data/candidates.json`. Pexels 9558713 remains banned.
 - The 8 pre-rendered mockups in `public/mockups/` are computer composites of the project's own MIT artwork over Pexels 20669538 (Dmitriy Steinke, Pexels License) and are labelled "Ảnh mô phỏng" wherever shown.
+
+## P4 Print Production Workspace — vendored libraries & model — 2026-11-12
+
+All processing runs on the customer's device; nothing below is a hosted
+service and no customer image ever leaves the browser.
+
+- **ONNX Runtime Web 1.20.1** — MIT License (Microsoft). Files:
+  `public/vendor/ort/ort.bundle.min.mjs`, `ort-wasm-simd-threaded.mjs`,
+  `ort-wasm-simd-threaded.wasm`, `LICENSE`. Lazy-loaded only when the customer
+  picks AI background removal (~11,7 MB one-time, browser-cached).
+- **U2Netp model** (`public/models/u2netp.onnx`, 4,6 MB) — from the U-2-Net
+  project by Xuebin Qin et al., **Apache License 2.0** (full text at
+  `public/models/U2NET-LICENSE`); ONNX build distributed via the rembg
+  project's release assets. Lazy-loaded with the runtime above.
+- **VTracer** (visioncortex VTracer 0.6.5 core) via the `wasm_vtracer` 0.2.0
+  WebAssembly binding — **MIT License** (binding metadata + upstream licence
+  text at `public/vendor/vtracer/LICENSE`). Files:
+  `public/vendor/vtracer/wasm_vtracer.js`, `wasm_vtracer_bg.js`,
+  `wasm_vtracer_bg.wasm` (0,14 MB). Lazy-loaded only for vectorization.
+- Considered and rejected for licensing: `@imgly/background-removal`
+  (AGPL-3.0) and BRIA RMBG-1.4 weights (CC BY-NC, non-commercial).
+- QA-only photos (NOT shipped in this repo or on the site; local QA records
+  in docs/P4_QA_REPORT.md): Pexels 8628173 (Luis Canelón, dog studio
+  portrait) and Pexels 9775318 (SHVETS production, woman's studio portrait),
+  Pexels License, downloaded 2026-11-12 solely to test background removal
+  and the photo fidelity gate.
