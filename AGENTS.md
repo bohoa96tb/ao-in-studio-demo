@@ -87,3 +87,12 @@ DB migration test lives in tests/ai-studio-p2.mjs phase D). Autosave writes a
 draft record only; explicit Save writes the project + a version snapshot.
 Node outputs are cached by chained config/input hash (status `cached`);
 preview/export/saveProject nodes are never served from cache.
+P3 (2026-11-14, branch feature/ai-studio-p3): geometry lives in
+`src/ai-studio/warp.js` (DOM-free, unit-tested — homography, wrinkle
+displacement, cover/contain fit, channel presets, config migration); keep AI
+Studio self-contained, do not import shop mockup-engine modules. Node count
+is 13 (`background` added). Composition P1 configs migrate on load
+(`migrateCompositionConfig`); a rotated P1 config stays in `simple` mode.
+The wrinkle/shading effect is a labelled visual simulation, not physics;
+the background node never fakes a cutout (opaque input → framed card).
+No IndexedDB version change in P3 (still v2).

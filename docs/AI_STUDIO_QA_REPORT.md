@@ -1,5 +1,27 @@
 # AI Studio — QA Report
 
+## P3 — Xử lý ảnh & ghép hình in nâng cao (2026-11-14)
+
+### Kết quả đã chạy thật
+- `npm test`: **78/78 PASS** (64 baseline P1+P2 + 14 test P3 mới): homography ánh xạ đúng 4 góc (sai số ≤1e-9) + tâm chiếu trùng giao điểm 2 đường chéo của quad; homography quad đơn vị ≈ ma trận đơn vị; trường cong nếp vải: bằng 0 ở strength 0, tăng đơn điệu theo strength, biên độ = độ lệch sáng × strength × hệ số, trường phẳng không dịch chuyển; toán cover/contain (800×600 → 1080×1920); bảng 6 kênh xuất (id duy nhất, kích thước đúng); `rectToQuad` bằng đúng hình chữ nhật P1; di trú cấu hình P1 → chế độ phối cảnh + quad tương đương (cấu hình có xoay → giữ chế độ đơn giản); quad mẫu khớp dữ liệu hiệu chuẩn `data/garments.json`; đăng ký 13 loại node; Mẫu 1 dùng phối cảnh, Mẫu 2 có node nền + xuất kênh.
+- `node tests/ai-studio-p3.mjs` (Playwright, server :5264): **PASS toàn bộ** —
+  - Pha A @430/1366: mở Thuộc tính node Ghép hình in → trình chỉnh quad hiện; **kéo núm góc 1 bằng pointer** → tọa độ X của góc đổi 31,5% → 40,7% (đọc từ ô số cấu hình); có đủ slider cong nếp vải + bóng vải; chạy Mẫu 1 → Preview thành công, node Ghép hình in thành công.
+  - Pha B @430/1366: Mẫu 2 chạy xong; đầu ra node Nền & bối cảnh giữ **đúng kích thước pixel** của đầu vào (900×1350); xuất ZIP → có `results/tiktok-1080x1920.png`, `results/shopee-1024x1024.png`, `results/website-vuong-2000x2000.png` và **đọc IHDR cho kích thước chính xác 1080×1920 và 1024×1024**.
+  - Pha E @390/1920: smoke Mẫu 1 thành công. Mọi pha: 0 lỗi trang, không tràn ngang.
+- Hồi quy: `node tests/ai-studio.mjs` **PASS** (exit 0, 4 viewport); `node tests/ai-studio-p2.mjs` **PASS** (exit 0, đủ 7 mục pha A×2/B/C/D/E×2 — gồm migration DB v1→v2 và đệm/chạy tiếp của P2 trên code P3); `npm run build` PASS, `dist/src/ai-studio/warp.js` có mặt; smoke trang chủ 390px: đủ #product-catalog/#design-collection/#studio/#print-workspace + link AI Studio, 0 lỗi trang.
+
+### Lỗi đã tìm và sửa trong QA P3
+- Test (không phải lỗi sản phẩm): lần chạy đầu suite P3 thất bại ở pha A — canvas quad nằm dưới nếp gấp của bottom-sheet thuộc tính trên mobile (y ≈ 947 > viewport 900) nên cú kéo chuột rơi ngoài màn hình. Đã sửa test bằng `scrollIntoViewIfNeeded()` trước khi kéo (đúng thao tác người dùng thật). Sau sửa: PASS ở cả 430 và 1366.
+- Đặc tả thay đổi có chủ đích: test P1 "đúng 12 loại node" được cập nhật thành 13 (P3 thêm node Nền & bối cảnh theo yêu cầu chủ shop) — ghi rõ trong test.
+
+### CHƯA đạt / chưa kiểm chứng ở P3 (không báo PASS)
+- Chưa kiểm chứng trên điện thoại Android thật (kéo núm quad bằng cảm ứng thật, hiệu năng warp trên máy yếu) — mới kiểm bằng Playwright (hasTouch + Pointer Events).
+- Hiệu ứng cong nếp vải là MÔ PHỎNG thị giác theo độ sáng (đã ghi rõ trong UI + tài liệu) — không phải mô hình vải vật lý; bóng vải dùng hệ số theo độ sáng trung bình của quad.
+- Quad mẫu cho ảnh trải phẳng + ảnh mặt sau là quad đặt tay theo vùng ngực hợp lý (chưa hiệu chuẩn thủ công như 2 ảnh móc treo trong `data/garments.json`) — người dùng kéo chỉnh được.
+- Ảnh nền riêng ở chế độ "vừa khung (contain)" có thể để lộ mép khi dùng kèm làm mờ (đã nới khung vẽ theo mức mờ, vẫn nên kiểm thực tế khi dùng).
+- AI vẫn DEMO (không đổi ở P3). Chưa đo Lighthouse cho studio.html.
+
+
 ## P2 — Workflow Engine & lưu trữ nâng cao (2026-11-14)
 
 ### Kết quả đã chạy thật
