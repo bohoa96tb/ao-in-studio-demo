@@ -23,3 +23,5 @@ Trạng thái node: `idle/running/success/error` + log tối đa 30 dòng/node +
 Thao tác canvas: kéo node, kéo dây cổng→cổng, pan, zoom (bánh xe/nút/pinch), fit, nhân bản, xóa node/dây (phím Delete hoặc nút), undo/redo snapshot (tối đa 60).
 
 **P3 bổ sung:** node `composition` có thêm trạng thái cấu hình `mode: perspective|simple`, `quad` (4 điểm 0..1), `wrinkle` (0–100), `shading` (0–100) — mọi trường đều vào khóa đệm P2. Tổng số loại node: **13**.
+
+**P4 bổ sung:** hành vi của `aiImageGen`/`aiVariation` phụ thuộc chế độ toàn cục (không phải config node): DEMO (mặc định) → `DemoAdapter` như cũ; AI THẬT + Classic → tạo ảnh thật qua `sana` (kẹp ≤768, nhãn AI thật, `count` ép 1); AI THẬT + keyed → model giá cố định đã chọn sau hộp thoại xác nhận chi phí. `aiVariation`: model không hỗ trợ img2img → tạo ảnh mới từ prompt biến thể và ghi nhãn đúng như vậy; model hỗ trợ img2img nhưng ảnh đầu vào là blob nội bộ → lỗi trung thực (chưa có URL công khai). `aiVideoGen` luôn DEMO ở P4. Tóm tắt node (summary) thay đổi theo chế độ đang bật; tên/loại node không đổi (vẫn 13).

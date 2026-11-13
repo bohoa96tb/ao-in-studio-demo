@@ -3,18 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="description" content="ÁO IN STUDIO — AI Creative Workflow: trình dựng workflow node để tạo ảnh/video quảng cáo áo in. Chế độ AI hiện là DEMO.">
+<meta name="description" content="ÁO IN STUDIO — AI Creative Workflow: trình dựng workflow node để tạo ảnh/video quảng cáo áo in. AI thật qua Pollinations sau công tắc riêng, mặc định DEMO.">
 <meta name="theme-color" content="#2b2b2b">
-<title>ÁO IN STUDIO — AI Creative Workflow (P3)</title>
-<link rel="stylesheet" href="src/ai-studio/studio.css?v=aistudio3">
-<script type="module" src="src/ai-studio/studio.js?v=aistudio3"></script>
+<title>ÁO IN STUDIO — AI Creative Workflow (P4)</title>
+<link rel="stylesheet" href="src/ai-studio/studio.css?v=aistudio4">
+<script type="module" src="src/ai-studio/studio.js?v=aistudio4"></script>
 </head>
 <body>
 <header class="ais-topbar">
   <a class="ais-back" href="index.html">← Cửa hàng</a>
   <input id="ais-project-name" value="Dự án mới" aria-label="Tên dự án">
   <span id="ais-save-status" role="status">Chưa lưu</span>
-  <span class="ais-demo-badge" title="Chưa kết nối provider AI thật">AI: DEMO</span>
+  <span class="ais-demo-badge" id="ais-mode-badge" title="Chưa kết nối provider AI thật">AI: DEMO</span>
   <div class="ais-top-actions">
     <button id="ais-save">💾 Lưu</button>
     <button id="ais-run" class="primary">▶ Chạy workflow</button>
@@ -50,6 +50,7 @@
   <section class="ais-canvas-wrap">
     <div class="ais-canvas-tools">
       <button id="ais-toggle-library">＋ Node</button>
+      <button id="ais-toggle-props">⚙ AI / Cài đặt</button>
       <button id="ais-undo">↩ Hoàn tác</button>
       <button id="ais-redo">↪ Làm lại</button>
       <button id="ais-zoom-out">−</button><span id="ais-zoom-label">90%</span><button id="ais-zoom-in">+</button>
@@ -84,5 +85,17 @@
   </div>
   <div id="ais-pane-storage" class="ais-tabpane" hidden><div id="ais-storage-panel"><p class="hint light">Đang tính dung lượng…</p></div></div>
 </footer>
+<div id="ais-cost-dialog" class="ais-cost-dialog" hidden role="alertdialog" aria-labelledby="ais-cost-title" aria-describedby="ais-cost-total">
+  <div class="ais-cost-card">
+    <h3 id="ais-cost-title">Xác nhận chi phí Pollen trước khi chạy AI thật</h3>
+    <p>Lượt chạy này sẽ gọi các lệnh tạo ảnh sau (mỗi lệnh tối đa 1 ảnh ở P4):</p>
+    <ul id="ais-cost-list"></ul>
+    <p id="ais-cost-total"></p>
+    <div class="ais-cost-actions">
+      <button id="ais-cost-cancel">Hủy — không gọi API</button>
+      <button id="ais-cost-accept" class="primary">Chạy và chấp nhận chi phí</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>

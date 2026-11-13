@@ -3,9 +3,9 @@
 // `ao-in-ai-studio`. AI nodes run the DEMO adapter until a real provider is
 // configured; every demo output is visibly labelled.
 import { NODE_DEFS, NODE_TYPES, TEMPLATES, emptyGraph, makeNode, findNode, validateConnection, buildPrompt, PROMPT_OPTIONS, PROMPT_TEMPLATES, checkSvgSafety, zipWrite, zipRead, uid, SAMPLE_DESIGN_SVG } from './core.js';
-import { Engine, downstreamOf } from './engine.js';
+import { Engine, downstreamOf, upstreamOf } from './engine.js';
 import { nodeCacheKey, isCacheable, RunQueue, validateWorkflow, collectReferencedAssetIds, findOrphanAssets, pruneOldest, formatDuration } from './p2.js';
-import { DemoAdapter, HttpAdapter, setSessionKey, BROWSER_KEY_WARNING, describeProvider } from './providers.js';
+import { DemoAdapter, HttpAdapter, PollinationsClassicAdapter, PollinationsKeyedAdapter, setSessionKey, hasSessionKey, BROWSER_KEY_WARNING, POLLINATIONS_KEY_WARNING, AUTO_TOPUP_WARNING, COMMERCIAL_USE_NOTE, PROVIDERS, providerById, modelOf, isRunnableModel, resolveGenerationMode, suppressRetryForMode, sizeForRatio, estimateGenerationCost, describePlannedCalls, describeProvider } from './providers.js';
 import { solveHomography, applyHomography, UNIT_SQUARE, rectToQuad, presetQuadFor, migrateCompositionConfig, fieldMean, displacementAt, buildWarpGrid, fitInto, CHANNEL_PRESETS, channelPreset, channelFileName } from './warp.js';
 import { store, storageEstimate } from './store.js';
 
@@ -19,10 +19,16 @@ const FIXTURES = [
 let graph = emptyGraph();
 let projectId = uid('project');
 let selectedId = null, selectedEdgeId = null;
+let propsForcedOpen = false; // P4: toolbar button opens the settings/provider sheet on mobile
 let view = { x: 40, y: 30, k: 0.9 };
 let history = [], historyIdx = -1;
 let engine = null, outputs = new Map();
 let providerKind = 'demo';
+// ---- P4 state: real-AI mode. Session-only, NEVER persisted: the master
+// switch defaults to OFF on every page load, and the keyed provider needs a
+// session key + an explicit in-panel confirmation before it can spend. ----
+const aiState = { realEnabled: false, keyedConfirmed: false, classicModel: 'sana', keyedModel: 'flux' };
+let runRealCalls = []; // actual real-provider calls of the current run (for history)
 const runtime = { previewValue: null };
 // ---- P2 state: run queue, run settings, failure/resume, progress timer ----
 const RUN_HISTORY_CAP = 50, VERSION_CAP = 20;
@@ -110,9 +116,36 @@ async function latestCacheByNode() {
 }
 
 function currentProvider() {
-  if (providerKind === 'http') return new HttpAdapter({ name: $('#ais-provider-name').value || 'HTTP Provider', endpoint: $('#ais-provider-endpoint').value.trim() });
+  if (providerKind === 'http') return new HttpAdapter({ name: $('#ais-provider-name')?.value || 'HTTP Provider', endpoint: $('#ais-provider-endpoint')?.value.trim() || '' });
+  const mode = generationMode().mode;
+  if (mode === 'classic') return new PollinationsClassicAdapter();
+  if (mode === 'keyed') return new PollinationsKeyedAdapter({ model: aiState.keyedModel });
   return new DemoAdapter(demoImpl);
 }
+/** Current generation mode from the P4 gating rules (pure logic in providers.js). */
+function generationMode() {
+  return resolveGenerationMode({ realEnabled: aiState.realEnabled, providerId: providerKind, hasKey: hasSessionKey(), keyedConfirmed: aiState.keyedConfirmed });
+}
+function selectedModel() {
+  const p = providerById(providerKind);
+  return modelOf(p, providerKind === 'pollinations' ? aiState.keyedModel : 'sana');
+}
+function modeBadgeText() {
+  const m = generationMode().mode;
+  if (m === 'classic') return 'AI THẬT — Classic (miễn phí)';
+  if (m === 'keyed') return 'AI THẬT — Pollinations (key)';
+  if (m === 'blocked') return 'AI THẬT — đang bị khóa';
+  if (m === 'http') return 'AI: HTTP stub (chưa cấu hình)';
+  return 'AI: DEMO';
+}
+function updateModeBadge() { const b = $('#ais-mode-badge'); if (b) { b.textContent = modeBadgeText(); b.classList.toggle('real', aiState.realEnabled); b.title = aiState.realEnabled ? 'Chế độ AI thật đang bật (phiên này)' : 'Chưa kết nối provider AI thật — đang chạy DEMO'; } }
+/** Record one ACTUAL real-provider call of the current run (history + audit). */
+function noteRealCall(res) { if (res && (res.providerId === 'pollinations-classic' || res.providerId === 'pollinations')) runRealCalls.push({ provider: res.providerId, model: res.modelId, costPollen: res.costPollen || 0 }); }
+const VARIED_PROMPTS = {
+  'boi-canh': 'Ảnh quảng cáo sản phẩm áo thun in theo yêu cầu, bối cảnh mới sáng sủa, ánh sáng studio mềm, chụp chính diện',
+  'goc-khac': 'Ảnh quảng cáo sản phẩm áo thun in theo yêu cầu, góc chụp nghiêng khác, ánh sáng studio mềm',
+  'can-canh': 'Ảnh cận cảnh hình in trên ngực áo thun, thấy rõ chi tiết vải và hình in, ánh sáng mềm',
+};
 
 // ---------- P3: perspective warp + wrinkle shading (uses warp.js geometry) ----------
 /** Draw one affine-mapped triangle of `img` (src px coords) onto ctx (dst px). */
@@ -319,9 +352,49 @@ const handlers = {
     x.translate(c.width / 2, c.height / 2); x.rotate(rot * Math.PI / 180); x.drawImage(img, img.width * crop, img.height * crop, sw, sh, -tw / 2, -th / 2, tw, th);
     return valueFromBlob(await canvasBlob(c), 'image', { label: 'Ảnh đã chỉnh sửa bằng Canvas API' });
   },
-  async aiImageGen(node, { inputs }) { const p = currentProvider(); const prompt = { text: inputs.prompt?.text || '', ratio: node.config.ratio }; if (p.isDemo) return p.generateImage({ prompt, image: inputs.image }); return p.generateImage({ prompt, image: inputs.image }); },
-  async aiVariation(node, { inputs }) { const p = currentProvider(); if (!inputs.in) throw new Error('Thiếu ảnh đầu vào.'); if (p.isDemo) return p.variation({ image: inputs.in, variant: node.config.variant }); return p.variation({ image: inputs.in, variant: node.config.variant }); },
-  async aiVideoGen(node, { inputs, log }) { const p = currentProvider(); if (!inputs.in) throw new Error('Thiếu ảnh đầu vào.'); if (p.isDemo) return p.imageToVideo({ image: inputs.in, motion: node.config.motion, duration: node.config.duration, ratio: node.config.ratio }, pct => log('Đang ghi video demo: ' + pct + '%')); return p.imageToVideo({ image: inputs.in }); },
+  async aiImageGen(node, { inputs, log }) {
+    const p = currentProvider();
+    if (p.isDemo || p.kind === 'http') return p.generateImage({ prompt: { text: inputs.prompt?.text || '', ratio: node.config.ratio }, image: inputs.image });
+    // ---- P4 real generation (classic free / keyed Pollen) ----
+    const gm = generationMode();
+    if (gm.mode === 'blocked') throw new Error(gm.reason);
+    const model = selectedModel();
+    if (!isRunnableModel(model)) throw new Error(`Model "${model?.name || '?'}" tính giá theo token — P4 không cho chạy (không đoán giá). Hãy chọn model có giá cố định trong bảng Nhà cung cấp AI.`);
+    const promptText = (inputs.prompt?.text || '').trim();
+    if (!promptText) throw new Error('Node Tạo ảnh AI thật cần prompt: hãy nối node Prompt hoặc Trợ lý prompt vào cổng Prompt.');
+    if ((node.config.count || 1) > 1) log('P4 giới hạn 1 ảnh cho mỗi lần gọi AI thật (kiểm soát chi phí) — cấu hình số lượng ' + node.config.count + ' được đưa về 1.');
+    if (inputs.image?.blob) {
+      if (model.supportsImg2Img) throw new Error('Model này hỗ trợ img2img NHƯNG ảnh tham chiếu đang lưu trên máy của bạn (IndexedDB), chưa có URL công khai — P4 không tự tải ảnh của bạn lên bất kỳ dịch vụ nào. Hãy bỏ dây ảnh tham chiếu, hoặc chọn model chỉ tạo từ chữ (flux / zimage).');
+      log(`Model ${model.name} không hỗ trợ ảnh tham chiếu — tạo ảnh chỉ từ prompt; ảnh tham chiếu KHÔNG bị gửi đi đâu.`);
+    }
+    const { w, h } = sizeForRatio(node.config.ratio || '4:5', p.kind);
+    log(`Đang gọi AI THẬT: ${p.name} · model ${model.name} · ${w}×${h} · chi phí ${model.pricePerImage === 0 ? '0 (miễn phí)' : '~' + model.pricePerImage + ' Pollen'}…`);
+    const res = await p.generateImage({ prompt: promptText, width: w, height: h, seed: -1 });
+    noteRealCall(res);
+    return valueFromBlob(res.blob, 'image', { name: 'anh-ai-that', label: res.label });
+  },
+  async aiVariation(node, { inputs, log }) {
+    const p = currentProvider();
+    if (!inputs.in) throw new Error('Thiếu ảnh đầu vào.');
+    if (p.isDemo || p.kind === 'http') return p.variation({ image: inputs.in, variant: node.config.variant });
+    // ---- P4 real variation ----
+    const gm = generationMode();
+    if (gm.mode === 'blocked') throw new Error(gm.reason);
+    const model = selectedModel();
+    if (!isRunnableModel(model)) throw new Error(`Model "${model?.name || '?'}" tính giá theo token — P4 không cho chạy (không đoán giá).`);
+    if (model.supportsImg2Img) throw new Error('Biến thể img2img cần ảnh tham chiếu có URL công khai — ảnh của bạn đang lưu trên máy (IndexedDB) và P4 không tự tải ảnh của bạn lên dịch vụ ngoài. Hãy chọn model chỉ tạo từ chữ (flux / zimage) để tạo biến thể mới từ prompt, hoặc dùng biến thể DEMO.');
+    // Text-only path (classic sana + keyed flux/zimage): a FRESH generation
+    // from a variant prompt — honestly labelled, never claimed as img2img.
+    const promptText = VARIED_PROMPTS[node.config.variant] || VARIED_PROMPTS['boi-canh'];
+    const src = await blobToImg(inputs.in.blob);
+    const ratio = src.width >= src.height ? (src.width / src.height >= 1.6 ? '16:9' : '1:1') : (src.height / src.width >= 1.6 ? '9:16' : '4:5');
+    const { w, h } = sizeForRatio(ratio, p.kind);
+    log(`Biến thể AI THẬT dạng tạo mới từ prompt (model ${model.name} không nhận ảnh tham chiếu trong P4) — đây KHÔNG phải img2img.`);
+    const res = await p.generateImage({ prompt: promptText, width: w, height: h, seed: -1 });
+    noteRealCall(res);
+    return valueFromBlob(res.blob, 'image', { name: 'bien-the-ai-that', label: res.label + ' · Biến thể tạo MỚI từ prompt biến thể — không phải img2img, không giữ nguyên sản phẩm gốc' });
+  },
+  async aiVideoGen(node, { inputs, log }) { if (!inputs.in) throw new Error('Thiếu ảnh đầu vào.'); const demo = new DemoAdapter(demoImpl); return demo.imageToVideo({ image: inputs.in, motion: node.config.motion, duration: node.config.duration, ratio: node.config.ratio }, pct => log('Đang ghi video demo: ' + pct + '%')); },
   async preview(node, { inputs }) { const v = inputs.in; if (!v) throw new Error('Chưa có dữ liệu để xem trước.'); runtime.previewValue = v; return v; },
   async exportNode(node, { inputs, log }) {
     const v = inputs.in; if (!v) throw new Error('Chưa có dữ liệu để xuất.');
@@ -377,7 +450,15 @@ function renderNodes() {
   renderEdges();
 }
 function summary(node) { const c = node.config; return node.type === 'imageInput' ? (c.assetName || 'Ảnh áo có sẵn của shop') : node.type === 'designInput' ? (c.assetName || (c.svgText ? 'Hình in SVG' : 'Chưa chọn hình in')) : node.type === 'promptInput' ? String(c.text || '').slice(0, 60) : def0(node.type); }
-function def0(t) { return { promptAssistant: 'Trợ lý quy tắc — không phải AI', composition: 'Ghép hình in gốc hậu kỳ', background: 'Thêm nền / bối cảnh cho ảnh sản phẩm', imageEditor: 'Cắt / xoay / sáng / tương phản', aiImageGen: 'DEMO — chưa kết nối AI', aiVariation: 'DEMO — biến đổi canvas', aiVideoGen: 'DEMO — WebM từ canvas', preview: 'Xem ảnh / video kết quả', exportNode: 'Tải PNG/JPG/SVG/ZIP + nhiều kích thước kênh', saveProject: 'Lưu vào IndexedDB' }[t] || ''; }
+function def0(t) { const gm = generationMode().mode; const aiTxt = gm === 'classic' ? 'AI THẬT — Pollinations Classic (miễn phí)' : gm === 'keyed' ? 'AI THẬT — Pollinations (key + Pollen)' : gm === 'blocked' ? 'AI thật đang BỊ KHÓA — mở bảng Nhà cung cấp AI' : gm === 'http' ? 'HTTP stub — chưa cấu hình (sẽ báo lỗi)' : 'DEMO — chưa kết nối AI'; return { promptAssistant: 'Trợ lý quy tắc — không phải AI', composition: 'Ghép hình in gốc hậu kỳ', background: 'Thêm nền / bối cảnh cho ảnh sản phẩm', imageEditor: 'Cắt / xoay / sáng / tương phản', aiImageGen: aiTxt, aiVariation: aiTxt, aiVideoGen: 'DEMO — WebM từ canvas', preview: 'Xem ảnh / video kết quả', exportNode: 'Tải PNG/JPG/SVG/ZIP + nhiều kích thước kênh', saveProject: 'Lưu vào IndexedDB' }[t] || ''; }
+function aiModeHint() {
+  const gm = generationMode();
+  if (gm.mode === 'demo') return '<p class="hint warn">DEMO: chưa kết nối AI thật — kết quả là ảnh canvas có đóng dấu DEMO. Muốn tạo ảnh thật: bỏ chọn node để mở bảng "Nhà cung cấp AI", bật Chế độ AI thật và chọn Pollinations.</p>';
+  if (gm.mode === 'blocked') return `<p class="hint warn">AI THẬT đang BỊ KHÓA: ${gm.reason}</p>`;
+  if (gm.mode === 'http') return '<p class="hint warn">Đang chọn HTTP stub (P1) — node sẽ báo lỗi cấu hình rõ ràng, không tạo ảnh giả.</p>';
+  const m = selectedModel();
+  return `<p class="hint">AI THẬT đang bật: ${providerById(providerKind).name} · model ${m?.name || ''} · giá ${m?.pricePerImage === 0 ? '0 Pollen (miễn phí)' : '~' + m?.pricePerImage + ' Pollen/ảnh'} · P4 giới hạn 1 ảnh/lần chạy · không tự thử lại khi lỗi. Ảnh AI không phải ảnh sản phẩm thật.</p>`;
+}
 function renderAll() { renderNodes(); applyView(); renderProperties(); }
 
 // ---------- history / persistence ----------
@@ -421,7 +502,7 @@ function num(id, val, attrs = '') { return `<input type="number" id="${id}" valu
 function sel(id, opts, val) { return `<select id="${id}">${opts.map(([v, l]) => `<option value="${v}" ${v === val ? 'selected' : ''}>${l}</option>`).join('')}</select>`; }
 function renderProperties() {
   const box = $('#ais-properties'); const node = findNode(graph, selectedId);
-  box.classList.toggle('open', !!node);
+  box.classList.toggle('open', !!node || propsForcedOpen);
   if (!node) { box.innerHTML = `<h3>Thuộc tính</h3><p class="hint">Chọn một node để xem cấu hình, chạy riêng node đó và xem kết quả. Kéo từ cổng tròn bên phải của node này sang cổng bên trái của node khác để nối dây.</p>${runSettingsHtml()}${providerHtml()}${storageHtml()}`; bindProvider(box); bindRunSettings(box); return; }
   const def = NODE_DEFS[node.type]; const c = node.config; const out = outputs.get(node.id);
   let h = `<div class="ph"><h3 style="--nc:${def.color}">${def.label}</h3><button id="ais-prop-close" aria-label="Đóng">×</button></div>
@@ -464,8 +545,8 @@ function renderProperties() {
     h += '<p class="hint">Ảnh đầu vào có nền trong suốt (PNG) sẽ được đặt trực tiếp lên nền. Ảnh KHÔNG trong suốt sẽ được đặt dạng KHUNG ẢNH — node không tách nền giả.</p>';
   }
   if (node.type === 'imageEditor') { h += field('Cắt mỗi cạnh %', num('pf-crop', c.crop, 'min="0" max="40"')) + field('Xoay (độ: 0/90/180/270)', num('pf-rotate', c.rotate)) + field('Rộng đầu ra px (0 = giữ nguyên)', num('pf-resizeW', c.resizeW, 'min="0" max="2000"')) + field('Độ sáng %', num('pf-brightness', c.brightness, 'min="20" max="200"')) + field('Tương phản %', num('pf-contrast', c.contrast, 'min="20" max="200"')); }
-  if (node.type === 'aiImageGen') { h += field('Tỉ lệ ảnh', sel('pf-ratio', [['4:5', '4:5'], ['1:1', '1:1'], ['9:16', '9:16 (TikTok)'], ['16:9', '16:9']], c.ratio)) + field('Số lượng (P1 demo tạo 1)', num('pf-count', c.count, 'min="1" max="4"')) + '<p class="hint warn">DEMO: chưa kết nối AI thật — kết quả là ảnh canvas có đóng dấu DEMO.</p>'; }
-  if (node.type === 'aiVariation') { h += field('Kiểu biến thể', sel('pf-variant', [['boi-canh', 'Đổi bối cảnh (tông màu)'], ['goc-khac', 'Đổi góc (phóng 1.3×)'], ['can-canh', 'Cận cảnh (phóng 2×)']], c.variant)); }
+  if (node.type === 'aiImageGen') { h += field('Tỉ lệ ảnh', sel('pf-ratio', [['4:5', '4:5'], ['1:1', '1:1'], ['9:16', '9:16 (TikTok)'], ['16:9', '16:9']], c.ratio)) + field('Số lượng (DEMO tạo 1; AI thật P4 luôn 1)', num('pf-count', c.count, 'min="1" max="4"')) + aiModeHint(); }
+  if (node.type === 'aiVariation') { h += field('Kiểu biến thể', sel('pf-variant', [['boi-canh', 'Đổi bối cảnh (tông màu)'], ['goc-khac', 'Đổi góc (phóng 1.3×)'], ['can-canh', 'Cận cảnh (phóng 2×)']], c.variant)) + aiModeHint() + '<p class="hint">Ở chế độ AI thật với model chỉ-tạo-từ-chữ, biến thể = tạo ảnh MỚI từ prompt biến thể (không phải img2img); với model img2img (klein/kontext) node sẽ báo rõ giới hạn URL tham chiếu của P4.</p>'; }
   if (node.type === 'aiVideoGen') { h += field('Mô tả chuyển động', `<input type="text" id="pf-motion" value="${(c.motion || '').replace(/"/g, '&quot;')}">`) + field('Thời lượng (giây, demo tối đa 6)', num('pf-duration', c.duration, 'min="1" max="6"')) + field('Tỉ lệ', sel('pf-ratio', [['9:16', '9:16 dọc'], ['16:9', '16:9 ngang'], ['1:1', '1:1']], c.ratio)) + '<p class="hint warn">DEMO: video WebM ghi từ canvas bằng MediaRecorder — không phải MP4, không phải AI video thật.</p>'; }
   if (node.type === 'exportNode') {
     h += field('Định dạng khi tải', sel('pf-format', [['png', 'PNG'], ['jpg', 'JPG'], ['svg', 'SVG (chỉ khi đầu vào là SVG thật)'], ['webm', 'Video WebM (chỉ khi đầu vào là video)']], c.format));
@@ -490,22 +571,69 @@ function bindRunSettings(scope) {
   scope.querySelector('#ais-set-timeout')?.addEventListener('change', e => { runSettings.timeoutSec = Math.min(600, Math.max(5, Number(e.target.value) || 60)); });
   scope.querySelector('#ais-clear-cache-2')?.addEventListener('click', async () => { await store.clearCache(); message('Đã xóa bộ nhớ đệm kết quả node.'); await renderStoragePanel(); });
 }
-function providerHtml() { return `<div class="psec"><h4>Nhà cung cấp AI</h4>
-  ${field('Loại', sel('ais-provider-kind', [['demo', 'Demo — không kết nối AI'], ['http', 'HTTP provider / proxy (nâng cao)']], providerKind))}
-  ${field('Tên nhà cung cấp', '<input type="text" id="ais-provider-name" value="HTTP Provider">')}
-  ${field('Endpoint', '<input type="url" id="ais-provider-endpoint" placeholder="https://proxy.example.com/ai">')}
-  ${field('API key (chỉ trong bộ nhớ phiên — KHÔNG lưu)', '<input type="password" id="ais-provider-key" autocomplete="off" placeholder="Nhập key cho phiên này">')}
-  <button id="ais-provider-test">Kiểm tra kết nối</button><p class="hint warn">${BROWSER_KEY_WARNING}</p><p class="hint" id="ais-provider-status">${describeProvider(currentProvider())}</p></div>`; }
+function providerStatusText() {
+  const gm = generationMode();
+  if (providerKind === 'http') return describeProvider(currentProvider());
+  if (gm.mode === 'demo') return 'Đang ở chế độ DEMO — node AI chạy ngay trên máy, KHÔNG có lệnh gọi AI thật nào được thực hiện.';
+  if (gm.mode === 'classic') return 'AI THẬT đang bật: Pollinations Classic (miễn phí, model sana, tối đa 768px, ảnh có logo). Lượt chạy có node AI sẽ gọi API thật (0 chi phí) và được ghi vào Lịch sử chạy.';
+  if (gm.mode === 'blocked') return 'AI THẬT đang bật nhưng provider BỊ KHÓA: ' + gm.reason;
+  if (gm.mode === 'keyed') return 'AI THẬT đang bật: Pollinations (key) · model ' + aiState.keyedModel + ' · ~' + (selectedModel()?.pricePerImage ?? '?') + ' Pollen/ảnh. Mỗi lượt chạy tốn Pollen đều phải xác nhận chi phí trước khi gọi API.';
+  return '';
+}
+function providerHtml() {
+  const prov = providerById(providerKind);
+  const gm = generationMode();
+  const curModelId = providerKind === 'pollinations' ? aiState.keyedModel : 'sana';
+  let h = `<div class="psec"><h4>Nhà cung cấp AI (P4)</h4>
+  <label class="pf-switch"><input type="checkbox" id="ais-real-switch" ${aiState.realEnabled ? 'checked' : ''}> <strong>Bật chế độ AI THẬT</strong></label>
+  <p class="hint">Mặc định TẮT mỗi khi mở trang: khi tắt, mọi node AI chạy DEMO trên máy và không có lệnh gọi tạo ảnh nào ra ngoài. Bật lên mới dùng được 2 provider Pollinations dưới đây. Node video luôn là DEMO (P4 chưa có provider video thật).</p>
+  ${field('Nhà cung cấp', sel('ais-provider-kind', PROVIDERS.map(p => [p.id, p.name]), providerKind))}`;
+  if (prov.models.length) {
+    h += field('Model', `<select id="ais-provider-model">${prov.models.map(m => `<option value="${m.id}" ${m.id === curModelId ? 'selected' : ''} ${isRunnableModel(m) ? '' : 'disabled'}>${m.name} — ${m.pricePerImage === null ? 'giá theo token · P4 không cho chạy' : m.pricePerImage === 0 ? '0 Pollen (miễn phí)' : '~' + m.pricePerImage + ' Pollen/ảnh'}</option>`).join('')}</select>`);
+  }
+  h += `<div class="pf-provider-info" id="ais-provider-info"><p class="hint"><strong>Chi phí & hạn mức:</strong> ${prov.limits}</p><p class="hint">${COMMERCIAL_USE_NOTE}</p></div>`;
+  if (providerKind === 'pollinations') {
+    h += field('API key Pollinations (chỉ trong bộ nhớ phiên — KHÔNG lưu)', `<input type="password" id="ais-provider-key" autocomplete="off" placeholder="${hasSessionKey() ? 'Đã nhập key cho phiên này (gõ lại để thay)' : 'Dán key sk_… cho phiên này'}">`);
+    h += `<label class="pf-switch"><input type="checkbox" id="ais-keyed-confirm" ${aiState.keyedConfirmed ? 'checked' : ''}> Tôi hiểu rủi ro bảo mật + chi phí và muốn bật provider có key trong phiên này</label>`;
+    h += `<p class="hint warn">${BROWSER_KEY_WARNING}</p><p class="hint warn">${POLLINATIONS_KEY_WARNING}</p><p class="hint warn">${AUTO_TOPUP_WARNING}</p>`;
+    h += `<div class="prow"><button id="ais-provider-balance">Kiểm tra số dư Pollen</button></div><p class="hint" id="ais-balance-status">Số dư: chưa kiểm tra. Kiểm tra số dư chỉ đọc thông tin tài khoản — không tạo ảnh, không tốn Pollen.</p>`;
+  }
+  if (providerKind === 'http') {
+    h += field('Tên nhà cung cấp', '<input type="text" id="ais-provider-name" value="HTTP Provider">')
+      + field('Endpoint', '<input type="url" id="ais-provider-endpoint" placeholder="https://proxy.example.com/ai">')
+      + field('API key (chỉ trong bộ nhớ phiên — KHÔNG lưu)', '<input type="password" id="ais-provider-key" autocomplete="off" placeholder="Nhập key cho phiên này">')
+      + `<p class="hint warn">${BROWSER_KEY_WARNING}</p>`;
+  }
+  h += `<div class="prow"><button id="ais-provider-test">Kiểm tra kết nối (0 chi phí)</button></div>
+  <p class="hint">Nút kiểm tra chỉ gọi endpoint danh mục model công khai của Pollinations (không cần key, không tạo ảnh, không tốn chi phí)${providerKind === 'http' || providerKind === 'demo' ? ' — với loại provider đang chọn, nút này chỉ báo trạng thái cấu hình như các phiên bản trước' : ''}.</p>
+  <p class="hint" id="ais-provider-status">${providerStatusText()}</p></div>`;
+  return h;
+}
 function bindProvider(scope) {
-  scope.querySelector('#ais-provider-kind')?.addEventListener('change', e => { providerKind = e.target.value; renderProperties(); });
-  scope.querySelector('#ais-provider-key')?.addEventListener('change', e => setSessionKey(e.target.value));
-  scope.querySelector('#ais-provider-test')?.addEventListener('click', async () => { const p = currentProvider(); const st = scope.querySelector('#ais-provider-status'); if (p.isDemo) { st.textContent = 'Đang ở chế độ DEMO — chưa kết nối AI thật.'; return; } const r = await p.testConnection(); st.textContent = r.message; });
+  const rerender = () => { updateModeBadge(); renderProperties(); };
+  scope.querySelector('#ais-provider-kind')?.addEventListener('change', e => { providerKind = e.target.value; rerender(); });
+  scope.querySelector('#ais-real-switch')?.addEventListener('change', e => { aiState.realEnabled = e.target.checked; rerender(); logLine(e.target.checked ? 'Đã BẬT chế độ AI thật cho phiên này (tự tắt khi tải lại trang).' : 'Đã tắt chế độ AI thật — node AI chạy DEMO.'); });
+  scope.querySelector('#ais-provider-model')?.addEventListener('change', e => { if (providerKind === 'pollinations') aiState.keyedModel = e.target.value; rerender(); });
+  scope.querySelector('#ais-provider-key')?.addEventListener('change', e => { setSessionKey(e.target.value); rerender(); });
+  scope.querySelector('#ais-keyed-confirm')?.addEventListener('change', e => { aiState.keyedConfirmed = e.target.checked; rerender(); });
+  scope.querySelector('#ais-provider-test')?.addEventListener('click', async () => {
+    const st = scope.querySelector('#ais-provider-status'); if (st) st.textContent = 'Đang kiểm tra kết nối (chỉ đọc danh mục model — 0 chi phí)…';
+    const p = currentProvider();
+    if (p.isDemo && providerKind !== 'http') { if (st) st.textContent = 'Đang ở chế độ DEMO — chưa kết nối AI thật.'; return; }
+    try { const r = await p.testConnection(); if (st) st.textContent = r.message; logLine('Kiểm tra kết nối provider: ' + r.message); }
+    catch (e) { if (st) st.textContent = 'Kiểm tra kết nối thất bại: ' + e.message; }
+  });
+  scope.querySelector('#ais-provider-balance')?.addEventListener('click', async () => {
+    const st = scope.querySelector('#ais-balance-status'); if (st) st.textContent = 'Đang đọc số dư…';
+    try { const r = await new PollinationsKeyedAdapter().checkBalance(); if (st) st.textContent = r.balance === null ? 'Đã kết nối được bằng key này nhưng phản hồi không có trường số dư đọc được.' : `Số dư Pollen khả dụng: ${r.balance} (≈ ${r.balance} USD) · ${new Date(r.at).toLocaleTimeString('vi-VN')}. Đây là số dư trả trước — hết số dư provider sẽ dừng cứng (402).`; }
+    catch (e) { if (st) st.textContent = 'Kiểm tra số dư lỗi: ' + e.message; }
+  });
   refreshStorage();
 }
 function bindProperties(node) {
   const c = node.config; const on = (id, ev, fn) => { const el = document.getElementById(id); el?.addEventListener(ev, fn); };
   const upd = (key, val) => { c[key] = val; renderNodes(); scheduleSave(); };
-  $('#ais-prop-close')?.addEventListener('click', () => { selectedId = null; renderAll(); });
+  $('#ais-prop-close')?.addEventListener('click', () => { selectedId = null; propsForcedOpen = false; renderAll(); });
   on('ais-p-run', 'click', () => runNodes('single', node.id));
   on('ais-p-runfrom', 'click', () => runNodes('from', node.id));
   on('ais-p-del', 'click', () => { graph.nodes = graph.nodes.filter(n => n.id !== node.id); graph.edges = graph.edges.filter(e => e.from !== node.id && e.to !== node.id); selectedId = null; pushHistory(); renderAll(); scheduleSave(); });
@@ -654,7 +782,7 @@ async function exportZip() {
   const entries = [];
   const wf = { app: 'AO IN STUDIO — AI CREATIVE WORKFLOW', version: 1, exportedAt: new Date().toISOString(), projectId, name, graph: JSON.parse(snapshot()) };
   entries.push({ name: 'workflow.json', data: te.encode(JSON.stringify(wf, null, 2)) });
-  entries.push({ name: 'metadata.json', data: te.encode(JSON.stringify({ name, nodes: graph.nodes.length, edges: graph.edges.length, note: 'Không chứa API key. Ảnh DEMO được ghi rõ trong workflow.', demoMode: providerKind === 'demo' }, null, 2)) });
+  entries.push({ name: 'metadata.json', data: te.encode(JSON.stringify({ name, nodes: graph.nodes.length, edges: graph.edges.length, note: 'Không chứa API key. Ảnh DEMO/AI thật được ghi rõ nhãn trong workflow và lịch sử chạy.', demoMode: generationMode().mode === 'demo', aiMode: modeBadgeText() }, null, 2)) });
   entries.push({ name: 'prompts.txt', data: te.encode(graph.nodes.filter(n => ['promptInput', 'promptAssistant'].includes(n.type)).map(n => `[${NODE_DEFS[n.type].label}] ${n.config.text || n.config.composed || ''}`).join('\n\n')) });
   const assetIds = new Set(); for (const n of graph.nodes) { if (n.config.assetId) assetIds.add(n.config.assetId); for (const id of n.config.assetIds || []) assetIds.add(id); }
   for (const id of assetIds) { const a = await store.getAsset(id); if (a) entries.push({ name: `assets/${id}_${a.name}`, data: new Uint8Array(await a.blob.arrayBuffer()) }); }
@@ -703,6 +831,25 @@ async function recordRun(rec) {
   await renderHistory(); await renderStoragePanel();
 }
 
+/**
+ * P4 pre-run cost confirmation for KEYED generation. Lists every planned
+ * generation call with its Pollen price and the maximum total; the run only
+ * proceeds on an explicit "Chạy và chấp nhận chi phí". Classic (free) runs
+ * never show this dialog because their cost is exactly 0.
+ */
+function confirmCostDialog(calls, totalPollen) {
+  return new Promise((resolve) => {
+    const dlg = document.getElementById('ais-cost-dialog');
+    if (!dlg) return resolve(false);
+    document.getElementById('ais-cost-list').innerHTML = calls.map(c => `<li>${esc(c.nodeLabel)} — ${esc(c.providerName)} · model ${esc(c.modelName)} · <strong>${c.costPollen === 0 ? '0 Pollen (miễn phí)' : '~' + c.costPollen + ' Pollen'}</strong></li>`).join('');
+    document.getElementById('ais-cost-total').textContent = `Tổng tối đa ước tính: ~${totalPollen} Pollen (≈ ${totalPollen} USD). Đây là mức TỐI ĐA của lượt này — node nào được phục vụ từ bộ nhớ đệm sẽ không gọi API và không tốn Pollen. Pollen là trả trước: hết số dư thì provider dừng cứng (HTTP 402), không tự trừ thẻ — trừ khi bạn đã tự bật auto top-up trong dashboard Pollinations.`;
+    dlg.hidden = false;
+    const done = (v) => { dlg.hidden = true; document.getElementById('ais-cost-accept').onclick = null; document.getElementById('ais-cost-cancel').onclick = null; resolve(v); };
+    document.getElementById('ais-cost-accept').onclick = () => done(true);
+    document.getElementById('ais-cost-cancel').onclick = () => done(false);
+  });
+}
+
 /** All run requests go through the queue: one active run at a time. */
 function runNodes(mode, id) {
   return runQueue.enqueue(TRIGGER_LABELS[mode] || mode, () => executeRun(mode, id));
@@ -717,6 +864,31 @@ async function executeRun(mode, id) {
     $('#ais-message').appendChild(ul);
     return { blocked: true, problems };
   }
+  // ---- P4 cost gate: real-provider planning BEFORE anything runs ----
+  const gm = generationMode();
+  if (gm.mode === 'blocked') { message(gm.reason, true); logLine('⚠ ' + gm.reason); return { blocked: true, problems: [{ message: gm.reason }] }; }
+  const realActive = gm.mode === 'classic' || gm.mode === 'keyed';
+  let runIds;
+  if (mode === 'single') runIds = new Set(upstreamOf(graph, id));
+  else if (mode === 'from') runIds = new Set([...upstreamOf(graph, id), ...downstreamOf(graph, id)]);
+  else if (mode === 'resume') runIds = new Set([id, ...downstreamOf(graph, id)]);
+  else runIds = new Set(graph.nodes.map(n => n.id));
+  const genNodes = graph.nodes.filter(n => runIds.has(n.id) && (n.type === 'aiImageGen' || n.type === 'aiVariation'));
+  if (realActive && genNodes.length) {
+    const provider = providerById(providerKind); const model = selectedModel();
+    const calls = describePlannedCalls(genNodes.map(n => ({ nodeId: n.id, label: NODE_DEFS[n.type].label })), provider, model);
+    const est = estimateGenerationCost(calls.map(c => ({ providerId: c.providerId, modelId: c.modelId, count: 1 })));
+    if (!est.ok) { for (const pr of est.problems) { message(pr, true); logLine('⚠ ' + pr); } return { blocked: true, problems: est.problems.map(message => ({ message })) }; }
+    if (gm.mode === 'keyed') {
+      const accepted = await confirmCostDialog(calls, est.totalPollen);
+      if (!accepted) { message('Đã hủy lượt chạy trước khi gọi API — chưa phát sinh chi phí nào.'); return { cancelled: true }; }
+      logLine(`Đã xác nhận chi phí: tối đa ~${est.totalPollen} Pollen cho ${calls.length} lệnh gọi AI thật.`);
+    } else {
+      logLine(`Lượt này có ${calls.length} lệnh gọi AI THẬT qua Pollinations Classic (miễn phí, 0 Pollen) — node được phục vụ từ bộ nhớ đệm sẽ không gọi API.`);
+    }
+    if (runSettings.retriesAi > 0) logLine('Đã tắt thử lại tự động cho các lệnh gọi AI thật ở lượt này (tránh phát sinh chi phí / trừ Pollen ngoài ý muốn).');
+  }
+  runRealCalls = [];
   lastFailedNodeId = null; updateResumeBtn();
   const startedAt = Date.now();
   let seedOutputs = outputs, seedKeys = new Map();
@@ -732,14 +904,14 @@ async function executeRun(mode, id) {
     cacheable: (node) => isCacheable(node),
     cacheGet: cacheGetRecord,
     cachePut: cachePutRecord,
-    retriesFor: (node) => NODE_DEFS[node.type]?.category === 'ai' ? runSettings.retriesAi : 0,
+    retriesFor: (node) => (realActive && suppressRetryForMode(gm.mode) && (node.type === 'aiImageGen' || node.type === 'aiVariation')) ? 0 : (NODE_DEFS[node.type]?.category === 'ai' ? runSettings.retriesAi : 0),
     timeoutFor: () => runSettings.timeoutSec * 1000,
     onNode: (n) => { renderNodes(); if (n.id === selectedId) renderProperties(); },
     onLog: (n, m) => logLine((n ? NODE_DEFS[n.type].label + ': ' : '') + m),
     onProgress: (doneCount, total) => setRunProgress(`Đang chạy: ${doneCount}/${total} node · ${formatDuration(Date.now() - startedAt)}`),
   });
   outputs = engine.outputs;
-  message('Đang chạy workflow (chế độ ' + (providerKind === 'demo' ? 'DEMO' : 'HTTP') + ')…');
+  message('Đang chạy workflow (' + modeBadgeText() + ')…');
   startRunTimer();
   let r = { done: [], failed: [], stopped: false };
   try {
@@ -759,6 +931,8 @@ async function executeRun(mode, id) {
     id: uid('run'), projectId, startedAt, finishedAt, trigger: mode,
     result: r.failed.length ? 'failed' : r.stopped ? 'stopped' : 'success',
     nodes: [...engine.records.entries()].map(([nodeId, rec]) => { const n = findNode(graph, nodeId); return { nodeId, type: n?.type || '', label: n ? NODE_DEFS[n.type].label : nodeId, status: rec.status, durationMs: rec.durationMs, attempts: rec.attempts, error: rec.error || '' }; }),
+    aiCalls: runRealCalls,
+    aiCostPollen: Math.round(runRealCalls.reduce((s, c) => s + (c.costPollen || 0), 0) * 1e6) / 1e6,
   });
   renderAll();
   return r;
@@ -774,7 +948,7 @@ async function renderHistory() {
     const total = r.finishedAt - r.startedAt;
     const cached = r.nodes.filter(n => n.status === 'cached').length;
     return `<details class="ais-run-item"><summary><span class="badge ${r.result}">${r.result === 'success' ? 'Thành công' : r.result === 'stopped' ? 'Đã dừng' : 'Có lỗi'}</span>
-    ${new Date(r.startedAt).toLocaleString('vi-VN')} — ${esc(TRIGGER_LABELS[r.trigger] || r.trigger)} · ${r.nodes.length} node (${cached} đệm) · ${formatDuration(total)}</summary>
+    ${new Date(r.startedAt).toLocaleString('vi-VN')} — ${esc(TRIGGER_LABELS[r.trigger] || r.trigger)} · ${r.nodes.length} node (${cached} đệm) · ${formatDuration(total)}${r.aiCalls?.length ? ` · AI thật: ${r.aiCalls.length} lệnh (${esc(r.aiCalls.map(c => c.provider + '/' + c.model).join(', '))}) · ~${r.aiCostPollen || 0} Pollen` : ''}</summary>
     <table class="ais-run-nodes"><tr><th>Node</th><th>Trạng thái</th><th>Thời gian</th><th>Lần thử</th><th>Lỗi</th></tr>
     ${r.nodes.map(n => `<tr><td>${esc(n.label)}</td><td>${n.status === 'cached' ? '<span class="st-cached-t">cached (đệm)</span>' : esc(n.status)}</td><td>${formatDuration(n.durationMs)}</td><td>${n.attempts || 1}</td><td>${esc(n.error || '')}</td></tr>`).join('')}</table></details>`;
   }).join('');
@@ -946,6 +1120,7 @@ $('#ais-export-zip-btn').addEventListener('click', exportZip);
 $('#ais-export-workflow-btn').addEventListener('click', () => { saveBlob(new Blob([JSON.stringify({ app: 'AO IN STUDIO — AI CREATIVE WORKFLOW', version: 1, name: $('#ais-project-name').value, graph: JSON.parse(snapshot()) }, null, 2)], { type: 'application/json' }), 'workflow.json'); message('Đã xuất workflow.json (chỉ cấu trúc, không kèm ảnh, không API key).'); });
 $('#ais-import').addEventListener('change', (e) => { if (e.target.files[0]) importFile(e.target.files[0]); });
 $('#ais-toggle-library').addEventListener('click', () => $('#ais-library').classList.toggle('open'));
+$('#ais-toggle-props').addEventListener('click', () => { selectedId = null; selectedEdgeId = null; propsForcedOpen = !propsForcedOpen; renderAll(); });
 $('#ais-run-mobile')?.addEventListener('click', () => runNodes('all'));
 
 // ---------- init ----------
@@ -955,6 +1130,7 @@ $('#ais-run-mobile')?.addEventListener('click', () => runNodes('all'));
   if (list.length) await openProject(list[0].id);
   await renderHistory(); await renderVersions(); await renderStoragePanel();
   await checkRecovery();
+  updateModeBadge();
   document.body.dataset.ready = 'true'; document.documentElement.dataset.ready = 'true';
-  logLine('AI Studio P3 sẵn sàng: ghép hình in phối cảnh 4 điểm + cong theo nếp vải, node Nền & bối cảnh, xuất nhiều kích thước kênh (Website/Facebook/TikTok/Shopee). Hàng đợi + lịch sử + bộ nhớ đệm + phiên bản (P2) giữ nguyên. Chế độ AI: DEMO (chưa kết nối provider thật).');
+  logLine('AI Studio P4 sẵn sàng: Provider Adapter + AI thật qua Pollinations (Classic miễn phí / key + Pollen trả trước) sau công tắc "Chế độ AI thật" — mặc định TẮT, đang ở DEMO. Ghép phối cảnh + nếp vải, nền & bối cảnh, xuất đa kênh (P3) và hàng đợi + lịch sử + bộ nhớ đệm + phiên bản (P2) giữ nguyên.');
 })();

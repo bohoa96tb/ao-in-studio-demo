@@ -96,3 +96,22 @@ is 13 (`background` added). Composition P1 configs migrate on load
 The wrinkle/shading effect is a labelled visual simulation, not physics;
 the background node never fakes a cutout (opaque input → framed card).
 No IndexedDB version change in P3 (still v2).
+P4 (2026-11-14, branch feature/ai-studio-p4): real AI exists ONLY behind the
+session-only "AI THẬT" master switch (defaults OFF on every page load, never
+persisted). Provider specifics live in `src/ai-studio/providers.js`
+(`PROVIDERS` descriptors + adapters) — the Workflow Engine stays
+provider-agnostic. Cost-safety standing rules: NEVER auto-call a
+cost-incurring endpoint; keyed Pollinations runs require a session-memory
+key + in-panel confirmation + a per-run cost dialog listing every call
+(cancel = zero requests); retries are FORCED to 0 for real generation calls;
+cache hits never trigger a call; real-mode image `count` is forced to 1;
+token-priced models (no fixed per-image price) are NOT runnable — never
+guess a price; run history records provider/model/estimated cost per real
+call. The ONLY zero-cost real path is Pollinations Classic (anonymous, sana
+only, ≤768px, logo, ~1 req/45s/IP); the ONLY permitted live check is the
+no-auth `GET gen.pollinations.ai/image/models` catalog — never test by
+generating. Never upload user assets anywhere (local blobs have no public
+URL → img2img honestly errors). Keys stay session-memory only with the
+browser-key + auto-top-up warnings in the panel. AI outputs keep the
+"Ảnh AI" label; video stays DEMO. No IndexedDB version change in P4
+(still v2; run records gained `aiCalls`/`aiCostPollen` fields).
