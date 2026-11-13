@@ -45,4 +45,6 @@
 - Cảm ứng kéo/nối trên **điện thoại Android thật** (mới kiểm bằng Playwright hasTouch + Pointer Events).
 - Pinch-zoom 2 ngón thật (có code, chưa có thiết bị kiểm chứng).
 - Provider AI thật (chưa tồn tại ở P1).
+
+**P4 bổ sung (2026-11-14):** unit `tests/ai-studio-p4.test.mjs` (mô tả/giá provider, URL + header, cổng chế độ, ước tính chi phí, ép retry, ánh xạ lỗi, adapter với fetch giả lập) và Playwright `tests/ai-studio-p4.mjs` (vào CI) với **route interception mock toàn bộ miền pollinations** — quy tắc cứng: không test nào được gọi endpoint tạo ảnh thật; endpoint thật duy nhất được phép chạm là danh mục model 0 chi phí, và trong CI nó cũng bị mock. Các khẳng định bắt buộc: tắt công tắc → 0 request; Classic → đúng 1 request `model=sana` + lịch sử 0 Pollen; keyed thiếu key → chặn + 0 request; hộp thoại chi phí — Hủy → 0 request, Chấp nhận → đúng 1 request có header Authorization; kiểm tra kết nối chỉ chạm `/image/models`.
 - Xuất MP4 (không hỗ trợ; chỉ WebM demo).

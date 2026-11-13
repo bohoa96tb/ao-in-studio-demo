@@ -70,3 +70,24 @@
 - ZIP import chỉ đọc được ZIP dạng store (đúng định dạng ZIP xuất của chính app); ZIP nén deflate từ công cụ khác sẽ báo lỗi rõ ràng.
 - Minimap: chưa làm (brief cho phép tùy chọn).
 - Lighthouse/LCP cho `studio.html`: chưa đo.
+
+## P4 — Provider Adapter & AI thật (2026-11-14)
+
+Kết quả kiểm chứng trên nhánh `feature/ai-studio-p4` (base `aabf024`), máy local:
+
+- **Unit:** `npm test` **89/89 PASS** (78 baseline P1–P3 + 11 test P4 mới trong `tests/ai-studio-p4.test.mjs`: toàn vẹn bảng mô tả provider/giá, URL Classic + kẹp 768, URL/header keyed không lộ key vào URL, ma trận cổng chế độ, ép retry, ước tính chi phí + từ chối model giá token, ánh xạ lỗi 401/402/429, 2 adapter chạy với fetch giả lập, endpoint 0 chi phí giả lập).
+- **Playwright P4** (`tests/ai-studio-p4.mjs`, vào CI; **toàn bộ endpoint Pollinations bị mock bằng route interception** — không một request tạo ảnh thật nào được thực hiện): PASS mọi pha —
+  - OFF @430: công tắc mặc định TẮT, huy hiệu "AI: DEMO"; chạy Mẫu 1 → **0 request** tới mọi miền pollinations, kết quả demo bình thường.
+  - CLASSIC @430 + @1366: nút Kiểm tra kết nối chỉ gọi `/image/models` (1 lần); chạy → **đúng 1 request** Classic chứa `model=sana`; lịch sử chạy ghi `pollinations-classic/sana` + `0 Pollen`.
+  - KEYED @430 + @1366: chưa có key → lượt chạy bị chặn kèm giải thích, **0 request**; bộ chọn model hiển thị giá 0.002 của flux; nhập key giả + tick xác nhận → Kiểm tra số dư đọc được 7.5 (mock) với header `Authorization: Bearer …`; chạy → hộp thoại chi phí hiện tổng 0.002 Pollen → **Hủy: 0 request tạo ảnh**; chạy lại → **Chấp nhận: đúng 1 request** tạo ảnh có header Authorization + `model=flux`; lịch sử ghi `pollinations/flux` + `0.002 Pollen`.
+  - SMOKE @390 + @1920 (Mẫu 1 demo, 0 request pollinations) + HOME @390 (đủ 4 section trang chủ + link studio.html, 0 lỗi trang). Mọi pha: không tràn ngang, không lỗi trang.
+- **Hồi quy:** `tests/ai-studio.mjs` (P1), `tests/ai-studio-p2.mjs` (P2, gồm cả kiểm tra di trú DB v1→v2), `tests/ai-studio-p3.mjs` (P3) đều **PASS**; `npm run build` PASS (dist chứa studio.html nhãn (P4) + đủ file ai-studio). Suite P2 đã bắt được 1 lỗi thật của P4 (thiếu import `describeProvider` làm panel Provider sập khi chọn stub HTTP) — đã sửa và chạy lại PASS. Suite P4 bắt được lỗi `fetch` mất receiver ("Illegal invocation") khiến mọi lệnh gọi thật sẽ hỏng trên trình duyệt thật — đã sửa bằng wrapper `defaultFetch`.
+- **Kiểm chứng trực tiếp 0 chi phí (duy nhất được phép gọi thật):** `GET https://gen.pollinations.ai/image/models` trả về danh mục model thật **không cần key**; giá spot-check khớp bảng P4 (z-image-turbo: 0.004 Pollen/ảnh phẳng; dòng GPT Image: giá theo token ở cả prompt/completion).
+
+### CHƯA đạt / chưa kiểm chứng ở P4 (không báo PASS)
+
+- **Tạo ảnh thật end-to-end với Pollinations: CHƯA kiểm thử — có chủ đích.** Không test nào (kể cả thủ công) được gọi endpoint tạo ảnh thật, vì mọi lần tạo đều có thể trừ Pollen hoặc vướng hạn mức ẩn danh. Đường thật mới chỉ được kiểm chứng bằng mock ở tầng route + endpoint danh mục model 0 chi phí ở trên. Lần chạy thật đầu tiên phải do chủ shop tự bật công tắc và tự chịu quyết định chi phí.
+- **Img2Img thật: chưa hỗ trợ ở P4** — ảnh người dùng là blob nội bộ không có URL công khai; app báo lỗi trung thực thay vì tải ảnh lên dịch vụ ngoài.
+- **Điện thoại Android thật:** chưa kiểm chứng P4 trên thiết bị thật (mới qua Playwright hasTouch @430/390). Chủ shop cần kiểm tra: mở panel bằng nút "⚙ AI / Cài đặt", bật công tắc, hộp thoại chi phí.
+- Model giá theo token (GPT Image, Nano Banana) **không chạy được ở P4** theo thiết kế (không có giá cố định để xác nhận trước).
+- Các mục chưa đạt từ P1–P3 vẫn giữ nguyên (MP4, minimap, LCP studio.html chưa đo, quad mặt phẳng/mặt sau chưa hiệu chuẩn tay).
