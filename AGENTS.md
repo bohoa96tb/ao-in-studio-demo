@@ -80,3 +80,10 @@ pixels, never call them AI-generated or real product photos; never fake MP4
 API keys live only in page-session memory — never in Git/IndexedDB/localStorage/
 exports. Design originals stay untouched; composition overlays the original
 pixels post-hoc. Prompt Assistant is rule-based, not AI — label it as such.
+P2 (2026-11-14, branch feature/ai-studio-p2): IndexedDB `ao-in-ai-studio` is at
+**version 2** (v2 added `runs`/`versions`/`cache`/`drafts` stores). Migrations
+must only ADD stores/fields — never drop or reinterpret P1 data (a v1-shaped
+DB migration test lives in tests/ai-studio-p2.mjs phase D). Autosave writes a
+draft record only; explicit Save writes the project + a version snapshot.
+Node outputs are cached by chained config/input hash (status `cached`);
+preview/export/saveProject nodes are never served from cache.

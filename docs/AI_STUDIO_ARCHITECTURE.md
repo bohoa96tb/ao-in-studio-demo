@@ -23,6 +23,22 @@ Node xuất ra "value" theo kiểu: `image | design | prompt | video | any` (blo
 ## Bảo toàn hình in
 Node `designInput` giữ file gốc (blob trong IndexedDB hoặc SVG text đã qua kiểm tra an toàn). Node `composition` vẽ **chính pixel gốc** đó lên ảnh áo trong vùng in an toàn (khung đứt nét), kèm xoay/tỉ lệ — AI không tham gia vẽ lại hình in. Mọi ảnh do node AI tạo ở P1 đều đóng dấu "ẢNH DEMO — chưa kết nối AI" ngay trong pixel.
 
+## P2 — Engine & lưu trữ nâng cao (2026-11-14)
+
+**IndexedDB v2** (`store.js`, DB vẫn là `ao-in-ai-studio`): migration chỉ THÊM store, không đụng dữ liệu P1 — `runs` (lịch sử chạy), `versions` (phiên bản dự án), `cache` (đệm kết quả node, keyPath = khóa đệm), `drafts` (bản nháp chưa lưu, keyPath = projectId). Quy tắc đứng: mọi migration sau này cũng chỉ thêm store / thêm trường có mặc định, không bao giờ xóa hay đổi nghĩa dữ liệu cũ (có test migration v1→v2 trong `tests/ai-studio-p2.mjs` pha D).
+
+**Hàng đợi chạy** (`RunQueue` trong `p2.js`, DOM-free): mọi yêu cầu chạy (toàn bộ / 1 node / từ node / chạy tiếp) đều qua 1 hàng đợi tuần tự — tối đa 1 lượt chạy tại 1 thời điểm, các yêu cầu sau xếp hàng và hiển thị trạng thái ở thanh tiến trình. Không chạy chồng vì các lượt chạy dùng chung state đồ thị/outputs.
+
+**Đệm kết quả node** (`p2.js` + hook của `engine.js`): khóa đệm = `loại node + hash(cấu hình ổn định + khóa đệm của mọi đầu vào)`. Hash lồng nhau nên sửa 1 node chỉ làm mất hiệu lực đệm của chính node đó và các node phía sau nó; node không đổi được phục vụ từ store `cache` với trạng thái riêng **`cached`** (hiện trong UI + lịch sử chạy). Trường cấu hình suy biến khi chạy (`promptAssistant.composed`) bị loại khỏi khóa. Node qua đường (preview/export) và node có tác dụng phụ (saveProject) không bao giờ phục vụ từ đệm — nhưng vẫn tính khóa để chuỗi phía sau ổn định. Giá trị đệm đi qua đúng cùng pipeline giá trị như kết quả chạy thật (blob/text được lưu, object URL được tạo lại khi dùng). Nút "Xóa bộ nhớ đệm" ở tab Lưu trữ + bảng thuộc tính.
+
+**Thử lại + giới hạn thời gian + chạy tiếp**: node nhóm AI mặc định thử lại 1 lần (cấu hình được trong "Cài đặt chạy", áp cho phiên làm việc); mỗi node có timeout mặc định 60s — quá hạn thì node lỗi với thông báo rõ ràng thay vì treo. Khi 1 lượt chạy lỗi giữa chừng, nút **"Chạy tiếp từ node lỗi"** xuất hiện: chỉ chạy lại node lỗi + phía sau nó, tái dùng kết quả phía trước từ outputs trong phiên hoặc từ đệm đã lưu (kể cả sau khi tải lại trang). Kết quả từng phần của lượt lỗi vẫn xem được (Preview giữ kết quả thành công gần nhất).
+
+**Kiểm tra trước khi chạy** (`validateWorkflow` trong `p2.js`): kiểm tra nối dây bắt buộc (của P1) + kiểm tra nội dung (designInput chưa có hình in, promptInput trống, imageInput chưa có ảnh, composition không có nền). Có vấn đề → không chạy, hiện danh sách tiếng Việt.
+
+**Phiên bản dự án & bản nháp**: TỰ LƯU chỉ ghi **bản nháp** (store `drafts`). Nút **Lưu** ghi bản chính thức + tạo 1 **phiên bản** (tối đa 20/dự án, cắt cũ nhất; snapshot chỉ chứa workflow JSON + metadata, tham chiếu asset id — không nhân bản blob). Khôi phục 1 phiên bản = thay trạng thái hiện tại + tự ghi thành 1 phiên bản mới. Khi mở trang, nếu có bản nháp mới hơn bản đã lưu (hoặc dự án chưa từng lưu) → banner **"Khôi phục bản nháp chưa lưu"** (khôi phục / bỏ qua). Đây là lựa chọn đã ghi rõ: autosave KHÔNG tạo phiên bản.
+
+**Quản lý lưu trữ** (tab "Lưu trữ"): ước tính dung lượng trình duyệt (`navigator.storage.estimate` + dự phòng), số file/dung lượng assets, đệm, lịch sử chạy, phiên bản; dung lượng theo từng dự án; cảnh báo khi dùng ≥80% hạn mức; **dọn file rác**: asset không còn được bất kỳ dự án / phiên bản / bản nháp nào tham chiếu sẽ bị xóa kèm báo cáo số file + dung lượng giải phóng. Lịch sử chạy: tối đa 50 lượt/dự án, xem chi tiết từng node (trạng thái/thời lượng/số lần thử/lỗi), xóa được; còn nguyên sau khi tải lại trang. Thanh tiến trình hiện số node xong/tổng + thời gian đã chạy; thời lượng từng node hiện ở bảng thuộc tính + lịch sử.
+
 ## Lưu trữ & xuất
 - Tự lưu (debounce 800 ms) + nút Lưu; mở lại dự án mới nhất khi vào trang.
 - Xuất ZIP (store, tự viết): `workflow.json`, `metadata.json`, `prompts.txt`, `assets/…` (file gốc), `designs/…svg`, `results/…` (kết quả đã chạy). **Không chứa API key.** Xuất riêng `workflow.json` khi chỉ cần cấu trúc. Nhập lại từ JSON/ZIP (ZIP đọc được bởi chính reader tối giản; chỉ hỗ trợ store-method).

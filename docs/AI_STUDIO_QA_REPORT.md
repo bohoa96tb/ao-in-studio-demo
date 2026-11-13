@@ -1,4 +1,29 @@
-# AI Studio — QA Report (P1, độc lập, 2026-11-13)
+# AI Studio — QA Report
+
+## P2 — Workflow Engine & lưu trữ nâng cao (2026-11-14)
+
+### Kết quả đã chạy thật
+| Kiểm tra | Lệnh / cách chạy | Kết quả |
+|---|---|---|
+| Unit toàn repo | `npm test` | **64/64 PASS** (50 cũ + 14 mới của P2: hash ổn định, khóa đệm + phạm vi mất hiệu lực, engine đệm/thử lại/timeout/ghi thời lượng/tiến trình/seed chạy tiếp, hàng đợi tuần tự, validator, tham chiếu GC, cắt danh sách theo cap) |
+| Browser P2 | `node tests/ai-studio-p2.mjs` (server :5264) | **PASS toàn bộ**: Pha A (430 + 1366): chạy Mẫu 1 → lịch sử có lượt "Thành công"; chạy lại không đổi → **6/6 node có thể đệm ở trạng thái `cached`** (đúng các node preview/export không đệm); sửa prompt → promptAssistant + aiImageGen chạy lại, composition + imageInput vẫn `cached`; Lưu 2 lần → 2 phiên bản, thêm node (9) rồi khôi phục → về 8 node; tab Lưu trữ + nút dọn file rác chạy và báo cáo; reload → lịch sử còn nguyên, không hiện banner nháp (đã lưu chính thức). Pha B (430): chuyển provider HTTP (stub) → aiImageGen lỗi thật, lịch sử ghi "Có lỗi", nút "Chạy tiếp từ node lỗi" hiện; về DEMO + chạy tiếp → thành công, Preview có ảnh, lịch sử ghi lượt "Chạy tiếp — Thành công". Pha C (430): sửa mà không Lưu → reload → banner khôi phục bản nháp hiện → khôi phục đủ 8 node + đúng tên. Pha D (1366): tạo tay DB **v1 kiểu P1** (chỉ 2 store) có dự án cũ → mở studio → dự án cũ tải đúng, DB lên **v2** đủ 4 store mới. Pha E (390 + 1920): khói — chạy Mẫu 1 + lịch sử + không tràn ngang |
+| Browser P1 (hồi quy) | `node tests/ai-studio.mjs` | **PASS ở 390, 430, 1366, 1920** (kéo node, nối dây, Mẫu 1, ZIP 10 entries, lưu → reload) |
+| Hồi quy trang chủ | Smoke Playwright 390px | `#product-catalog`, `#design-collection`, `#studio`, `#print-workspace` còn đủ; link "AI Studio" có mặt; **0 lỗi trang** |
+| Build | `npm run build` | PASS — `dist/studio.html` + `dist/src/ai-studio/*` (gồm `p2.js`) có trong bản dựng Pages |
+
+### Lỗi đã tìm và sửa trong QA P2
+1. Test P2 pha A đọc trạng thái node quá sớm: ở lần chạy lại, Preview vẫn giữ `st-success` của lượt trước nên điều kiện chờ thỏa ngay trước khi lượt mới bắt đầu → đổi điều kiện chờ sang **số lượt trong lịch sử chạy** (chỉ tăng sau khi lượt chạy kết thúc và đã ghi).
+2. Test pha A/B ở mobile: bảng thuộc tính dạng bottom sheet phủ lên thanh dưới cùng, chặn click nút khôi phục phiên bản / tab lịch sử → đóng sheet trước các click đó (đúng thao tác người dùng thật).
+3. Test pha C đọc IndexedDB thô từ bên ngoài để chờ bản nháp — đua với chính cơ chế mở/đóng connection của store → đổi sang chờ **chính dòng trạng thái "Đã tự lưu bản nháp" của trang** (chỉ hiện sau khi giao dịch ghi nháp hoàn tất).
+
+### CHƯA đạt / chưa kiểm chứng ở P2 (không báo PASS)
+- **Điện thoại Android thật:** vẫn chưa kiểm chứng cảm ứng trên thiết bị thật (kể cả các panel/tab mới) — việc của chủ repo trên máy thật.
+- Timeout hủy việc *chờ* node, nhưng tác vụ nền của handler (ví dụ MediaRecorder đang ghi) có thể chạy nốt ở nền; kết quả của nó bị bỏ qua, không ghi vào outputs.
+- Cài đặt chạy (số lần thử lại / timeout) chỉ áp cho phiên làm việc hiện tại, chưa lưu theo dự án.
+- Dung lượng "theo dự án" là ước tính từ kích thước JSON + blob tham chiếu trực tiếp, không phải số đo vật lý của IndexedDB.
+- Provider AI thật: vẫn chưa kết nối (như P1) — pha B dùng stub HTTP có cổng để tạo lỗi thật có kiểm soát, không phải provider thật.
+
+## P1 — 2026-11-13
 
 ## Kết quả đã chạy thật
 | Kiểm tra | Lệnh / cách chạy | Kết quả |
