@@ -6,6 +6,7 @@ import { NODE_DEFS, NODE_TYPES, TEMPLATES, emptyGraph, makeNode, findNode, valid
 import { Engine, downstreamOf } from './engine.js';
 import { nodeCacheKey, isCacheable, RunQueue, validateWorkflow, collectReferencedAssetIds, findOrphanAssets, pruneOldest, formatDuration } from './p2.js';
 import { DemoAdapter, HttpAdapter, setSessionKey, BROWSER_KEY_WARNING, describeProvider } from './providers.js';
+import { solveHomography, applyHomography, UNIT_SQUARE, rectToQuad, presetQuadFor, migrateCompositionConfig, fieldMean, displacementAt, buildWarpGrid, fitInto, CHANNEL_PRESETS, channelPreset, channelFileName } from './warp.js';
 import { store, storageEstimate } from './store.js';
 
 const $ = (s) => document.querySelector(s);
@@ -40,7 +41,7 @@ function logLine(msg) { const li = document.createElement('li'); li.textContent 
 // ---------- image helpers ----------
 const loadImg = (src) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
 async function blobToImg(blob) { const url = URL.createObjectURL(blob); try { return await loadImg(url); } finally { /* keep url alive during draw; revoked by GC of blob url pool */ } }
-const canvasBlob = (c, type = 'image/png') => new Promise(r => c.toBlob(r, type, 0.92));
+const canvasBlob = (c, type = 'image/png', q = 0.92) => new Promise(r => c.toBlob(r, type, q));
 function makeCanvas(w, h) { const c = document.createElement('canvas'); c.width = Math.max(2, Math.round(w)); c.height = Math.max(2, Math.round(h)); return c; }
 function valueFromBlob(blob, kind, extra = {}) { return { kind, blob, url: URL.createObjectURL(blob), mime: blob.type, name: extra.name || 'ket-qua', demo: !!extra.demo, label: extra.label || '', svgText: extra.svgText || '' }; }
 async function fetchBlob(url) { const r = await fetch(url); if (!r.ok) throw new Error('Không tải được file: ' + url); return r.blob(); }
@@ -113,6 +114,105 @@ function currentProvider() {
   return new DemoAdapter(demoImpl);
 }
 
+// ---------- P3: perspective warp + wrinkle shading (uses warp.js geometry) ----------
+/** Draw one affine-mapped triangle of `img` (src px coords) onto ctx (dst px). */
+function drawTri(ctx, img, s0, s1, s2, d0, d1, d2) {
+  const det = (s1[0] - s0[0]) * (s2[1] - s0[1]) - (s2[0] - s0[0]) * (s1[1] - s0[1]);
+  if (!det) return;
+  const a = ((d1[0] - d0[0]) * (s2[1] - s0[1]) - (d2[0] - d0[0]) * (s1[1] - s0[1])) / det;
+  const b = ((d1[1] - d0[1]) * (s2[1] - s0[1]) - (d2[1] - d0[1]) * (s1[1] - s0[1])) / det;
+  const c2 = ((d2[0] - d0[0]) * (s1[0] - s0[0]) - (d1[0] - d0[0]) * (s2[0] - s0[0])) / det;
+  const d2v = ((d2[1] - d0[1]) * (s1[0] - s0[0]) - (d1[1] - d0[1]) * (s2[0] - s0[0])) / det;
+  const e = d0[0] - a * s0[0] - c2 * s0[1], f = d0[1] - b * s0[0] - d2v * s0[1];
+  ctx.save();
+  ctx.beginPath(); ctx.moveTo(d0[0], d0[1]); ctx.lineTo(d1[0], d1[1]); ctx.lineTo(d2[0], d2[1]); ctx.closePath(); ctx.clip();
+  ctx.transform(a, b, c2, d2v, e, f);
+  ctx.drawImage(img, 0, 0);
+  ctx.restore();
+}
+/** Sample the garment's luminance inside the quad (quad-UV space grid). */
+function garmentLuminanceGrid(garmentCtx, W, H, quadPx, n = 20) {
+  const data = garmentCtx.getImageData(0, 0, W, H).data;
+  const Hm = solveHomography(UNIT_SQUARE, quadPx);
+  const grid = [];
+  for (let j = 0; j <= n; j++) {
+    const row = [];
+    for (let i = 0; i <= n; i++) {
+      const [px, py] = applyHomography(Hm, i / n, j / n);
+      const xi = Math.min(W - 1, Math.max(0, Math.round(px))), yi = Math.min(H - 1, Math.max(0, Math.round(py)));
+      const o = (yi * W + xi) * 4;
+      row.push((0.2126 * data[o] + 0.7152 * data[o + 1] + 0.0722 * data[o + 2]) / 255);
+    }
+    grid.push(row);
+  }
+  return grid;
+}
+/**
+ * Render the design warped onto the garment quad on its own transparent
+ * layer: homography mesh (20×20) + wrinkle displacement from garment
+ * luminance + garment shading multiplied into the design pixels.
+ * Returns the layer canvas (same size as the garment canvas).
+ */
+function renderWarpedLayer(garmentCanvas, designImg, quadRel, { wrinkle = 0, shading = 0 } = {}) {
+  const W = garmentCanvas.width, H = garmentCanvas.height;
+  const quadPx = quadRel.map(([qx, qy]) => [qx * W, qy * H]);
+  const gtx = garmentCanvas.getContext('2d');
+  const grid = garmentLuminanceGrid(gtx, W, H, quadPx, 20);
+  const mean = fieldMean(grid);
+  const dispFn = wrinkle > 0 ? (u, v) => displacementAt(grid, mean, u, v, wrinkle) : null;
+  const verts = buildWarpGrid(quadPx, 20, 20, dispFn);
+  const layer = makeCanvas(W, H), lx = layer.getContext('2d');
+  const sw = designImg.width, sh = designImg.height;
+  for (let j = 0; j < 20; j++) for (let i = 0; i < 20; i++) {
+    const v00 = verts[j][i], v10 = verts[j][i + 1], v01 = verts[j + 1][i], v11 = verts[j + 1][i + 1];
+    drawTri(lx, designImg, [v00.u * sw, v00.v * sh], [v10.u * sw, v10.v * sh], [v01.u * sw, v01.v * sh], v00.dst, v10.dst, v01.dst);
+    drawTri(lx, designImg, [v10.u * sw, v10.v * sh], [v11.u * sw, v11.v * sh], [v01.u * sw, v01.v * sh], v10.dst, v11.dst, v01.dst);
+  }
+  if (shading > 0) {
+    // Multiply garment shading into the design pixels: pixels darken where
+    // the garment is darker than its quad mean (folds) — hue is preserved.
+    const sAmt = Math.min(100, shading) / 100;
+    const xs = quadPx.map(p => p[0]), ys = quadPx.map(p => p[1]);
+    const bx = Math.max(0, Math.floor(Math.min(...xs))), by = Math.max(0, Math.floor(Math.min(...ys)));
+    const bw = Math.min(W, Math.ceil(Math.max(...xs))) - bx, bh = Math.min(H, Math.ceil(Math.max(...ys))) - by;
+    if (bw > 0 && bh > 0) {
+      const imgData = lx.getImageData(bx, by, bw, bh), px = imgData.data;
+      const gData = gtx.getImageData(bx, by, bw, bh).data;
+      for (let o = 0; o < px.length; o += 4) {
+        if (px[o + 3] === 0) continue;
+        const lum = (0.2126 * gData[o] + 0.7152 * gData[o + 1] + 0.0722 * gData[o + 2]) / 255;
+        const f = Math.min(1.15, Math.max(0.4, lum / (mean || 0.5)));
+        const m = 1 + (f - 1) * sAmt;
+        px[o] *= m; px[o + 1] *= m; px[o + 2] *= m;
+      }
+      lx.putImageData(imgData, bx, by);
+    }
+  }
+  return { layer, quadPx };
+}
+/** Stroke the dashed safe-print-area quad (the P1 safe-area guide, now a quad). */
+function strokeQuad(x, quadPx) {
+  x.save(); x.strokeStyle = 'rgba(182,73,47,0.9)'; x.setLineDash([8, 6]); x.lineWidth = 2;
+  x.beginPath(); quadPx.forEach(([px, py], i) => i ? x.lineTo(px, py) : x.moveTo(px, py)); x.closePath(); x.stroke(); x.restore();
+}
+/** Detect whether an image has any (semi-)transparent pixels. */
+function imageHasAlpha(img) {
+  const c = makeCanvas(img.width, img.height), x = c.getContext('2d');
+  x.drawImage(img, 0, 0);
+  const data = x.getImageData(0, 0, c.width, c.height).data;
+  const step = Math.max(1, Math.floor((c.width * c.height) / 20000)) * 4;
+  for (let o = 3; o < data.length; o += step) if (data[o] < 250) return true;
+  return false;
+}
+/** Migrate a loaded graph's node configs to P3 shapes (P1/P2 saves keep working). */
+function migrateGraph(g) {
+  for (const n of g?.nodes || []) {
+    if (n.type === 'composition') n.config = migrateCompositionConfig(n.config);
+    if (n.type === 'exportNode') { n.config.channels ??= []; n.config.jpgQuality ??= 92; n.config.namePattern ??= ''; }
+  }
+  return g;
+}
+
 // ---------- node handlers ----------
 const handlers = {
   async imageInput(node) {
@@ -128,16 +228,86 @@ const handlers = {
   async promptAssistant(node, { inputs }) { const composed = buildPrompt(node.config, inputs.in?.text || ''); node.config.composed = composed; return { kind: 'prompt', text: composed }; },
   async composition(node, { inputs, log }) {
     const design = inputs.design; if (!design) throw new Error('Thiếu hình in.');
-    let garmentBlob = inputs.garment?.blob; if (!garmentBlob) garmentBlob = await fetchBlob(node.config.base);
+    const cfg = migrateCompositionConfig(node.config); node.config = cfg;
+    let garmentBlob = inputs.garment?.blob; if (!garmentBlob) garmentBlob = await fetchBlob(cfg.base);
     const g = await blobToImg(garmentBlob);
-    const scale = Math.min(1, 900 / g.width); const W = g.width * scale, H = g.height * scale;
+    const scale = Math.min(1, 900 / g.width); const W = Math.round(g.width * scale), H = Math.round(g.height * scale);
     const c = makeCanvas(W, H), x = c.getContext('2d'); x.drawImage(g, 0, 0, W, H);
-    const pw = W * (node.config.printW / 100), px = W * (node.config.printX / 100) - pw / 2, py = H * (node.config.printY / 100) - pw / 2;
-    x.save(); x.strokeStyle = 'rgba(182,73,47,0.9)'; x.setLineDash([8, 6]); x.lineWidth = 2; x.strokeRect(px, py, pw, pw); x.setLineDash([]); x.restore();
-    let dImg; if (design.svgText) { dImg = await blobToImg(design.blob); } else dImg = await blobToImg(design.blob);
-    x.save(); x.translate(px + pw / 2, py + pw / 2); x.rotate((node.config.rotation || 0) * Math.PI / 180); const ds = Math.min(pw / dImg.width, pw / dImg.height); x.drawImage(dImg, -dImg.width * ds / 2, -dImg.height * ds / 2, dImg.width * ds, dImg.height * ds); x.restore();
-    log('Đã ghép file hình in GỐC lên ảnh áo (hậu kỳ) — nội dung hình in không bị AI vẽ lại.');
-    return valueFromBlob(await canvasBlob(c), 'image', { label: node.config.label });
+    const dImg = await blobToImg(design.blob);
+    if (cfg.mode === 'simple') {
+      // P1 behaviour, unchanged: rectangle + rotation, dashed safe-area box.
+      const pw = W * (cfg.printW / 100), px = W * (cfg.printX / 100) - pw / 2, py = H * (cfg.printY / 100) - pw / 2;
+      x.save(); x.translate(px + pw / 2, py + pw / 2); x.rotate((cfg.rotation || 0) * Math.PI / 180); const ds = Math.min(pw / dImg.width, pw / dImg.height); x.drawImage(dImg, -dImg.width * ds / 2, -dImg.height * ds / 2, dImg.width * ds, dImg.height * ds); x.restore();
+      x.save(); x.strokeStyle = 'rgba(182,73,47,0.9)'; x.setLineDash([8, 6]); x.lineWidth = 2; x.strokeRect(px, py, pw, pw); x.restore();
+      log('Đã ghép file hình in GỐC lên ảnh áo (chế độ đơn giản P1) — nội dung hình in không bị AI vẽ lại.');
+      return valueFromBlob(await canvasBlob(c), 'image', { label: cfg.label });
+    }
+    // P3 perspective mode: homography warp onto the 4-point quad + wrinkle
+    // displacement + garment shading. The design drawn is the ORIGINAL file.
+    const quad = (Array.isArray(cfg.quad) && cfg.quad.length === 4) ? cfg.quad : (presetQuadFor(cfg.base) || rectToQuad(cfg.printX, cfg.printY, cfg.printW));
+    const { layer, quadPx } = renderWarpedLayer(c, dImg, quad, { wrinkle: cfg.wrinkle || 0, shading: cfg.shading || 0 });
+    x.drawImage(layer, 0, 0);
+    strokeQuad(x, quadPx);
+    log(`Đã ghép file hình in GỐC theo phối cảnh 4 điểm (cong nếp vải ${cfg.wrinkle || 0}%, bóng vải ${cfg.shading || 0}%) — mô phỏng bằng hình học, không phải ảnh sản phẩm thật.`);
+    return valueFromBlob(await canvasBlob(c), 'image', { label: cfg.label + ' · phối cảnh 4 điểm + cong theo nếp vải (mô phỏng)' });
+  },
+  async background(node, { inputs, log }) {
+    const v = inputs.in; if (!v?.blob) throw new Error('Thiếu ảnh đầu vào.');
+    const cfg = node.config;
+    const img = await blobToImg(v.blob);
+    const W = img.width, H = img.height;
+    const c = makeCanvas(W, H), x = c.getContext('2d');
+    // --- background layer (all procedural/on-device — no external images) ---
+    if (cfg.mode === 'gradient') {
+      const [x1, y1] = cfg.dir === 'diag' ? [W, H] : cfg.dir === 'right' ? [W, 0] : [0, H];
+      const gr = x.createLinearGradient(0, 0, x1, y1); gr.addColorStop(0, cfg.color); gr.addColorStop(1, cfg.color2);
+      x.fillStyle = gr; x.fillRect(0, 0, W, H);
+    } else if (cfg.mode === 'scene') {
+      const horizonY = H * (cfg.horizon ?? 62) / 100;
+      const wall = x.createLinearGradient(0, 0, 0, horizonY); wall.addColorStop(0, cfg.color); wall.addColorStop(1, cfg.color2);
+      x.fillStyle = wall; x.fillRect(0, 0, W, horizonY + 1);
+      x.fillStyle = cfg.color2; x.fillRect(0, horizonY, W, H - horizonY);
+      const floor = x.createLinearGradient(0, horizonY, 0, H); floor.addColorStop(0, 'rgba(0,0,0,0)'); floor.addColorStop(1, 'rgba(0,0,0,0.28)');
+      x.fillStyle = floor; x.fillRect(0, horizonY, W, H - horizonY);
+      x.fillStyle = 'rgba(255,255,255,0.25)'; x.fillRect(0, horizonY - 1, W, 2);
+    } else if (cfg.mode === 'image') {
+      const a = cfg.assetId ? await store.getAsset(cfg.assetId) : null;
+      if (!a) throw new Error('Chế độ ảnh nền riêng cần tải 1 ảnh nền lên trước (mục Thuộc tính của node).');
+      const bg = await blobToImg(a.blob);
+      const f = fitInto(bg.width, bg.height, W, H, cfg.bgFit || 'cover');
+      if ((cfg.bgBlur || 0) > 0) x.filter = `blur(${cfg.bgBlur}px)`;
+      x.drawImage(bg, f.sx, f.sy, f.sw, f.sh, f.dx - (cfg.bgBlur || 0), f.dy - (cfg.bgBlur || 0), f.dw + (cfg.bgBlur || 0) * 2, f.dh + (cfg.bgBlur || 0) * 2);
+      x.filter = 'none';
+    } else { x.fillStyle = cfg.color; x.fillRect(0, 0, W, H); }
+    // --- subject placement ---
+    const hasAlpha = imageHasAlpha(img);
+    const boxW = W * (cfg.scale ?? 82) / 100, boxH = H * (cfg.scale ?? 82) / 100;
+    const s = Math.min(boxW / img.width, boxH / img.height);
+    const dw = img.width * s, dh = img.height * s;
+    const dx = W * (cfg.posX ?? 50) / 100 - dw / 2, dy = H * (cfg.posY ?? 50) / 100 - dh / 2;
+    if (hasAlpha) {
+      if ((cfg.shadow ?? 0) > 0) {
+        x.save(); x.fillStyle = `rgba(30,25,20,${0.45 * (cfg.shadow / 100)})`;
+        x.beginPath(); x.ellipse(dx + dw / 2, dy + dh * 0.98, dw * 0.42, Math.max(6, dw * 0.055), 0, 0, Math.PI * 2); x.fill(); x.restore();
+      }
+      x.drawImage(img, dx, dy, dw, dh);
+    } else {
+      // No transparency: honest framed-card placement — never a fake cutout.
+      const pad = Math.max(8, W * (cfg.framePad ?? 7) / 100 * 0.35);
+      x.save(); x.shadowColor = 'rgba(30,25,20,0.4)'; x.shadowBlur = Math.max(12, W * 0.03); x.shadowOffsetY = Math.max(6, H * 0.012);
+      x.fillStyle = '#ffffff'; x.fillRect(dx - pad, dy - pad, dw + pad * 2, dh + pad * 2); x.restore();
+      x.drawImage(img, dx, dy, dw, dh);
+    }
+    if ((cfg.vignette ?? 0) > 0) {
+      const rg = x.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.75);
+      rg.addColorStop(0, 'rgba(0,0,0,0)'); rg.addColorStop(1, `rgba(0,0,0,${0.5 * (cfg.vignette / 100)})`);
+      x.fillStyle = rg; x.fillRect(0, 0, W, H);
+    }
+    const label = hasAlpha
+      ? 'Ảnh có nền trong suốt — đã đặt trực tiếp lên nền/bối cảnh, file gốc giữ nguyên'
+      : 'Ảnh gốc KHÔNG có nền trong suốt — đặt dạng KHUNG ẢNH trên nền (không tách nền giả)';
+    log(label + '.');
+    return valueFromBlob(await canvasBlob(c), 'image', { label });
   },
   async imageEditor(node, { inputs }) {
     const img = await blobToImg(inputs.in.blob); const crop = Math.min(40, Math.max(0, node.config.crop || 0)) / 100;
@@ -153,7 +323,25 @@ const handlers = {
   async aiVariation(node, { inputs }) { const p = currentProvider(); if (!inputs.in) throw new Error('Thiếu ảnh đầu vào.'); if (p.isDemo) return p.variation({ image: inputs.in, variant: node.config.variant }); return p.variation({ image: inputs.in, variant: node.config.variant }); },
   async aiVideoGen(node, { inputs, log }) { const p = currentProvider(); if (!inputs.in) throw new Error('Thiếu ảnh đầu vào.'); if (p.isDemo) return p.imageToVideo({ image: inputs.in, motion: node.config.motion, duration: node.config.duration, ratio: node.config.ratio }, pct => log('Đang ghi video demo: ' + pct + '%')); return p.imageToVideo({ image: inputs.in }); },
   async preview(node, { inputs }) { const v = inputs.in; if (!v) throw new Error('Chưa có dữ liệu để xem trước.'); runtime.previewValue = v; return v; },
-  async exportNode(node, { inputs }) { if (!inputs.in) throw new Error('Chưa có dữ liệu để xuất.'); return inputs.in; },
+  async exportNode(node, { inputs, log }) {
+    const v = inputs.in; if (!v) throw new Error('Chưa có dữ liệu để xuất.');
+    const chans = (node.config.channels || []).map(channelPreset).filter(Boolean);
+    if (!chans.length || !v.blob || v.kind === 'video' || v.kind === 'prompt') return v; // P1 behaviour
+    // P3: render every selected channel size from the input image.
+    const img = await blobToImg(v.blob);
+    const format = node.config.format === 'jpg' ? 'jpg' : 'png';
+    const files = [];
+    for (const p of chans) {
+      const f = fitInto(img.width, img.height, p.w, p.h, p.fit);
+      const c = makeCanvas(p.w, p.h), x = c.getContext('2d');
+      x.fillStyle = '#ffffff'; x.fillRect(0, 0, p.w, p.h);
+      x.drawImage(img, f.sx, f.sy, f.sw, f.sh, f.dx, f.dy, f.dw, f.dh);
+      const blob = await canvasBlob(c, format === 'jpg' ? 'image/jpeg' : 'image/png', (node.config.jpgQuality || 92) / 100);
+      files.push(valueFromBlob(blob, 'image', { name: channelFileName(p, format, node.config.namePattern), label: `Kênh ${p.label} (${p.fit === 'cover' ? 'cắt phủ khung' : 'vừa khung, chừa nền trắng'})` }));
+    }
+    log('Đã tạo ' + files.length + ' kích thước kênh: ' + files.map(f => f.name).join(', '));
+    return { ...v, kind: 'image', blob: files[0].blob, url: files[0].url, mime: files[0].mime, files, label: `Đã xuất ${files.length} kích thước cho kênh bán hàng (xem danh sách file ở Thuộc tính node / trong ZIP)` };
+  },
   async saveProject(node, { inputs }) { await saveProjectNow(); return inputs.in || { kind: 'any' }; },
 };
 
@@ -189,7 +377,7 @@ function renderNodes() {
   renderEdges();
 }
 function summary(node) { const c = node.config; return node.type === 'imageInput' ? (c.assetName || 'Ảnh áo có sẵn của shop') : node.type === 'designInput' ? (c.assetName || (c.svgText ? 'Hình in SVG' : 'Chưa chọn hình in')) : node.type === 'promptInput' ? String(c.text || '').slice(0, 60) : def0(node.type); }
-function def0(t) { return { promptAssistant: 'Trợ lý quy tắc — không phải AI', composition: 'Ghép hình in gốc hậu kỳ', imageEditor: 'Cắt / xoay / sáng / tương phản', aiImageGen: 'DEMO — chưa kết nối AI', aiVariation: 'DEMO — biến đổi canvas', aiVideoGen: 'DEMO — WebM từ canvas', preview: 'Xem ảnh / video kết quả', exportNode: 'Tải PNG/JPG/SVG/ZIP', saveProject: 'Lưu vào IndexedDB' }[t] || ''; }
+function def0(t) { return { promptAssistant: 'Trợ lý quy tắc — không phải AI', composition: 'Ghép hình in gốc hậu kỳ', background: 'Thêm nền / bối cảnh cho ảnh sản phẩm', imageEditor: 'Cắt / xoay / sáng / tương phản', aiImageGen: 'DEMO — chưa kết nối AI', aiVariation: 'DEMO — biến đổi canvas', aiVideoGen: 'DEMO — WebM từ canvas', preview: 'Xem ảnh / video kết quả', exportNode: 'Tải PNG/JPG/SVG/ZIP + nhiều kích thước kênh', saveProject: 'Lưu vào IndexedDB' }[t] || ''; }
 function renderAll() { renderNodes(); applyView(); renderProperties(); }
 
 // ---------- history / persistence ----------
@@ -225,7 +413,7 @@ async function saveProjectNow(opts = {}) {
 }
 async function refreshProjectList() { const list = (await store.listProjects()).sort((a, b) => b.updatedAt - a.updatedAt); const sel = $('#ais-project-select'); sel.innerHTML = list.map(p => `<option value="${p.id}" ${p.id === projectId ? 'selected' : ''}>${p.name} — ${new Date(p.updatedAt).toLocaleDateString('vi-VN')}</option>`).join('') || '<option value="">(chưa có dự án)</option>'; }
 async function refreshStorage() { const e = await storageEstimate(); const assets = await store.listAssets(); const el = $('#ais-storage-info'); if (el) el.textContent = `Dung lượng trình duyệt đã dùng: ${(e.usage / 1048576).toFixed(1)} MB${e.quota ? ' / ' + (e.quota / 1073741824).toFixed(1) + ' GB' : ''} · ${assets.length} file đã lưu trong AI Studio`; }
-async function openProject(id) { const p = await store.getProject(id); if (!p) return message('Không tìm thấy dự án.', true); projectId = p.id; $('#ais-project-name').value = p.name; graph = { nodes: p.graph.nodes.map(n => ({ ...n, status: 'idle', logs: [], error: '' })), edges: p.graph.edges }; outputs = new Map(); lastFailedNodeId = null; updateResumeBtn(); history = []; historyIdx = -1; pushHistory(); selectedId = null; renderAll(); await renderHistory(); await renderVersions(); await renderStoragePanel(); message('Đã mở dự án "' + p.name + '"'); }
+async function openProject(id) { const p = await store.getProject(id); if (!p) return message('Không tìm thấy dự án.', true); projectId = p.id; $('#ais-project-name').value = p.name; graph = { nodes: p.graph.nodes.map(n => ({ ...n, status: 'idle', logs: [], error: '' })), edges: p.graph.edges }; migrateGraph(graph); outputs = new Map(); lastFailedNodeId = null; updateResumeBtn(); history = []; historyIdx = -1; pushHistory(); selectedId = null; renderAll(); await renderHistory(); await renderVersions(); await renderStoragePanel(); message('Đã mở dự án "' + p.name + '"'); }
 
 // ---------- properties panel ----------
 function field(label, inner) { return `<label class="pf"><span>${label}</span>${inner}</label>`; }
@@ -243,12 +431,50 @@ function renderProperties() {
   if (node.type === 'designInput') { h += field('Tải hình in (PNG trong suốt / SVG an toàn)', '<input type="file" id="pf-file" accept="image/png,image/svg+xml">') + '<button id="pf-sample">Dùng hình in mẫu (SVG thật)</button>' + field('Nội dung SVG (nếu có)', `<textarea id="pf-svg" rows="4">${(c.svgText || '').replace(/</g, '&lt;')}</textarea>`) + (c.assetName ? `<p class="hint">Đang dùng: ${c.assetName}</p>` : ''); }
   if (node.type === 'promptInput') { h += field('Nội dung prompt (tiếng Việt)', `<textarea id="pf-text" rows="4">${c.text}</textarea>`) + '<p class="hint">Mẫu prompt:</p>' + PROMPT_TEMPLATES.map((t, i) => `<button class="pf-tpl" data-tpl="${i}">${t}</button>`).join(''); }
   if (node.type === 'promptAssistant') { for (const gName of Object.keys(PROMPT_OPTIONS)) h += field({ style: 'Phong cách chụp', model: 'Người mẫu', background: 'Bối cảnh', lighting: 'Ánh sáng', angle: 'Góc chụp' }[gName], sel('pf-' + gName, Object.entries(PROMPT_OPTIONS[gName]), c[gName])); h += field('Bổ sung', `<input type="text" id="pf-extra" value="${(c.extra || '').replace(/"/g, '&quot;')}">`) + field('Prompt đã soạn (sửa được)', `<textarea id="pf-composed" rows="4">${c.composed || ''}</textarea>`) + '<p class="hint">Trợ lý này ghép prompt bằng QUY TẮC có sẵn — không phải AI.</p>'; }
-  if (node.type === 'composition') { h += field('Ảnh áo nền (khi không có dây vào)', sel('pf-base', FIXTURES, c.base)) + field('Vị trí in X %', num('pf-printX', c.printX, 'min="5" max="95"')) + field('Vị trí in Y %', num('pf-printY', c.printY, 'min="5" max="95"')) + field('Rộng vùng in %', num('pf-printW', c.printW, 'min="5" max="80"')) + field('Xoay hình in (độ)', num('pf-rotation', c.rotation, 'min="-45" max="45"')) + '<p class="hint">Khung đứt nét đỏ = vùng in an toàn. File hình in gốc không bị sửa.</p>'; }
+  if (node.type === 'composition') {
+    const cm = migrateCompositionConfig(c);
+    h += field('Ảnh áo nền (khi không có dây vào)', sel('pf-base', FIXTURES, c.base));
+    h += field('Chế độ ghép', sel('pf-comp-mode', [['perspective', 'Phối cảnh 4 điểm (P3)'], ['simple', 'Đơn giản — chữ nhật (P1)']], cm.mode));
+    if (cm.mode === 'perspective') {
+      h += `<div class="pf-quad-wrap"><canvas id="ais-quad-canvas" width="300" height="380"></canvas><p class="hint">Kéo 4 núm tròn ở góc vùng in để chỉnh phối cảnh (chạm được trên điện thoại). Ô số = tọa độ % theo ảnh áo.</p></div>`;
+      const names = ['Góc trên-trái (1)', 'Góc trên-phải (2)', 'Góc dưới-phải (3)', 'Góc dưới-trái (4)'];
+      for (let i = 0; i < 4; i++) h += `<div class="pf-quad-row"><span>${names[i]}</span><label>X% <input type="number" id="pf-q${i}x" value="${(cm.quad[i][0] * 100).toFixed(1)}" step="0.5" min="0" max="100"></label><label>Y% <input type="number" id="pf-q${i}y" value="${(cm.quad[i][1] * 100).toFixed(1)}" step="0.5" min="0" max="100"></label></div>`;
+      h += '<button id="pf-quad-preset">↺ Dùng quad mẫu của ảnh áo này</button>';
+      h += field('Cong theo nếp vải % (mô phỏng)', `<span class="pf-range"><input type="range" id="pf-wrinkle" min="0" max="100" value="${cm.wrinkle}"><output id="pf-wrinkle-v">${cm.wrinkle}%</output></span>`);
+      h += field('Bóng vải phủ lên hình in %', `<span class="pf-range"><input type="range" id="pf-shading" min="0" max="100" value="${cm.shading}"><output id="pf-shading-v">${cm.shading}%</output></span>`);
+      h += '<p class="hint">Khung đứt nét đỏ = vùng in an toàn. Cong nếp vải + bóng vải là MÔ PHỎNG thị giác theo độ sáng ảnh áo — không phải mô hình vải vật lý; ảnh ghép không phải ảnh sản phẩm thật. File hình in gốc không bị sửa.</p>';
+    } else {
+      h += field('Vị trí in X %', num('pf-printX', c.printX, 'min="5" max="95"')) + field('Vị trí in Y %', num('pf-printY', c.printY, 'min="5" max="95"')) + field('Rộng vùng in %', num('pf-printW', c.printW, 'min="5" max="80"')) + field('Xoay hình in (độ)', num('pf-rotation', c.rotation, 'min="-45" max="45"')) + '<p class="hint">Khung đứt nét đỏ = vùng in an toàn. File hình in gốc không bị sửa.</p>';
+    }
+  }
+  if (node.type === 'background') {
+    h += field('Kiểu nền', sel('pf-bg-mode', [['solid', 'Màu trơn'], ['gradient', 'Chuyển sắc (gradient)'], ['scene', 'Bối cảnh studio (tường + sàn)'], ['image', 'Ảnh nền riêng (tải lên)']], c.mode));
+    h += `<div class="pf-swatches"><span>Màu sẵn:</span>${[['#f5f1e6', 'Kem'], ['#ffffff', 'Trắng'], ['#2b2b2b', 'Charcoal'], ['#b6492f', 'Terracotta']].map(([col, nm]) => `<button class="pf-swatch" data-color="${col}" style="background:${col}" title="${nm}" aria-label="Màu ${nm}"></button>`).join('')}</div>`;
+    h += field('Màu chính', `<input type="color" id="pf-bg-color" value="${c.color}">`);
+    h += field('Màu phụ (gradient / tường dưới)', `<input type="color" id="pf-bg-color2" value="${c.color2}">`);
+    h += field('Hướng gradient', sel('pf-bg-dir', [['down', 'Trên xuống dưới'], ['diag', 'Chéo'], ['right', 'Trái sang phải']], c.dir));
+    h += field('Đường chân trời % (bối cảnh studio)', num('pf-bg-horizon', c.horizon, 'min="20" max="90"'));
+    h += field('Ảnh nền riêng (kiểu "Ảnh nền riêng")', '<input type="file" id="pf-bg-file" accept="image/png,image/jpeg,image/webp">') + (c.assetName ? `<p class="hint">Đang dùng: ${c.assetName}</p>` : '');
+    h += field('Ảnh nền: cách lấp khung', sel('pf-bg-fit', [['cover', 'Phủ khung (cắt)'], ['contain', 'Vừa khung (chừa trống)']], c.bgFit));
+    h += field('Làm mờ ảnh nền (px)', num('pf-bg-blur', c.bgBlur, 'min="0" max="20"'));
+    h += field('Kích thước chủ thể %', num('pf-bg-scale', c.scale, 'min="20" max="100"'));
+    h += field('Vị trí ngang %', num('pf-bg-posX', c.posX, 'min="0" max="100"')) + field('Vị trí dọc %', num('pf-bg-posY', c.posY, 'min="0" max="100"'));
+    h += field('Bóng đổ dưới chủ thể %', num('pf-bg-shadow', c.shadow, 'min="0" max="100"'));
+    h += field('Tối góc ảnh (vignette) %', num('pf-bg-vignette', c.vignette, 'min="0" max="100"'));
+    h += '<p class="hint">Ảnh đầu vào có nền trong suốt (PNG) sẽ được đặt trực tiếp lên nền. Ảnh KHÔNG trong suốt sẽ được đặt dạng KHUNG ẢNH — node không tách nền giả.</p>';
+  }
   if (node.type === 'imageEditor') { h += field('Cắt mỗi cạnh %', num('pf-crop', c.crop, 'min="0" max="40"')) + field('Xoay (độ: 0/90/180/270)', num('pf-rotate', c.rotate)) + field('Rộng đầu ra px (0 = giữ nguyên)', num('pf-resizeW', c.resizeW, 'min="0" max="2000"')) + field('Độ sáng %', num('pf-brightness', c.brightness, 'min="20" max="200"')) + field('Tương phản %', num('pf-contrast', c.contrast, 'min="20" max="200"')); }
   if (node.type === 'aiImageGen') { h += field('Tỉ lệ ảnh', sel('pf-ratio', [['4:5', '4:5'], ['1:1', '1:1'], ['9:16', '9:16 (TikTok)'], ['16:9', '16:9']], c.ratio)) + field('Số lượng (P1 demo tạo 1)', num('pf-count', c.count, 'min="1" max="4"')) + '<p class="hint warn">DEMO: chưa kết nối AI thật — kết quả là ảnh canvas có đóng dấu DEMO.</p>'; }
   if (node.type === 'aiVariation') { h += field('Kiểu biến thể', sel('pf-variant', [['boi-canh', 'Đổi bối cảnh (tông màu)'], ['goc-khac', 'Đổi góc (phóng 1.3×)'], ['can-canh', 'Cận cảnh (phóng 2×)']], c.variant)); }
   if (node.type === 'aiVideoGen') { h += field('Mô tả chuyển động', `<input type="text" id="pf-motion" value="${(c.motion || '').replace(/"/g, '&quot;')}">`) + field('Thời lượng (giây, demo tối đa 6)', num('pf-duration', c.duration, 'min="1" max="6"')) + field('Tỉ lệ', sel('pf-ratio', [['9:16', '9:16 dọc'], ['16:9', '16:9 ngang'], ['1:1', '1:1']], c.ratio)) + '<p class="hint warn">DEMO: video WebM ghi từ canvas bằng MediaRecorder — không phải MP4, không phải AI video thật.</p>'; }
-  if (node.type === 'exportNode') { h += field('Định dạng khi tải', sel('pf-format', [['png', 'PNG'], ['jpg', 'JPG'], ['svg', 'SVG (chỉ khi đầu vào là SVG thật)'], ['webm', 'Video WebM (chỉ khi đầu vào là video)']], c.format)) + '<button id="pf-download">⬇ Tải file kết quả của node này</button>'; }
+  if (node.type === 'exportNode') {
+    h += field('Định dạng khi tải', sel('pf-format', [['png', 'PNG'], ['jpg', 'JPG'], ['svg', 'SVG (chỉ khi đầu vào là SVG thật)'], ['webm', 'Video WebM (chỉ khi đầu vào là video)']], c.format));
+    h += `<fieldset class="pf-channels"><legend>Kích thước kênh bán hàng — chọn để tạo nhiều file cùng lúc</legend>${CHANNEL_PRESETS.map(p => `<label class="pf-ch"><input type="checkbox" data-channel="${p.id}" ${(c.channels || []).includes(p.id) ? 'checked' : ''}> ${p.label} <small>(${p.fit === 'cover' ? 'cắt phủ khung' : 'vừa khung'})</small></label>`).join('')}</fieldset>`;
+    h += field('Chất lượng JPG %', num('pf-jpgq', c.jpgQuality ?? 92, 'min="50" max="100"'));
+    h += field('Tiền tố tên file (để trống = theo tên kênh)', `<input type="text" id="pf-namepattern" value="${(c.namePattern || '').replace(/"/g, '&quot;')}">`);
+    h += '<button id="pf-download">⬇ Tải file kết quả của node này</button>';
+    if (out?.files?.length) h += `<div class="pf-files"><h4>File theo kênh (${out.files.length})</h4>${out.files.map((f, i) => `<div class="pf-file-row"><span>${f.name}</span><button data-file-dl="${i}">⬇ Tải</button></div>`).join('')}</div>`;
+  }
   if (out) { h += `<div class="pout" id="ais-prop-output"><h4>Kết quả</h4>${out.kind === 'image' || out.kind === 'design' ? `<img src="${out.url}" alt="Kết quả">` : ''}${out.kind === 'video' ? `<video src="${out.url}" controls playsinline></video>` : ''}${out.kind === 'prompt' ? `<p>${out.text}</p>` : ''}${out.label ? `<p class="hint">${out.label}</p>` : ''}</div>`; }
   h += `<div class="plogs"><h4>Nhật ký node</h4>${(node.logs || []).map(l => `<div>${l}</div>`).join('') || '<div>Chưa chạy.</div>'}</div>`;
   box.innerHTML = h; bindProperties(node);
@@ -310,11 +536,105 @@ function bindProperties(node) {
   ['fixture', 'base'].forEach(k => on('pf-' + k, 'change', e => upd(k, e.target.value)));
   on('pf-svg', 'change', e => { const v = e.target.value; if (v) { const chk = checkSvgSafety(v); if (!chk.ok) return message(chk.reason, true); } upd('svgText', v); });
   numBind('pf-printX', 'printX'); numBind('pf-printY', 'printY'); numBind('pf-printW', 'printW'); numBind('pf-rotation', 'rotation');
+  // ---- P3 composition: mode, quad editor, wrinkle/shading ----
+  if (node.type === 'composition') {
+    on('pf-comp-mode', 'change', e => { c.mode = e.target.value; if (c.mode === 'perspective') node.config = migrateCompositionConfig(node.config); pushHistory(); renderAll(); scheduleSave(); });
+    if (document.getElementById('ais-quad-canvas')) {
+      setupQuadEditor(node);
+      for (let i = 0; i < 4; i++) for (const ax of ['x', 'y']) on('pf-q' + i + ax, 'change', e => {
+        node.config = migrateCompositionConfig(node.config);
+        node.config.quad[i][ax === 'x' ? 0 : 1] = Math.min(100, Math.max(0, Number(e.target.value) || 0)) / 100;
+        drawQuadPreview(node); scheduleSave();
+      });
+      on('pf-quad-preset', 'click', () => { const q = presetQuadFor(c.base); if (q) { node.config.quad = q; pushHistory(); renderAll(); scheduleSave(); } else message('Ảnh áo này chưa có quad mẫu — hãy kéo tay 4 góc.', true); });
+      const range = (id, outId, key) => on(id, 'input', e => { c[key] = Number(e.target.value); const o = document.getElementById(outId); if (o) o.textContent = e.target.value + '%'; drawQuadPreview(node); scheduleSave(); });
+      range('pf-wrinkle', 'pf-wrinkle-v', 'wrinkle'); range('pf-shading', 'pf-shading-v', 'shading');
+    }
+  }
+  // ---- P3 background node ----
+  if (node.type === 'background') {
+    on('pf-bg-mode', 'change', e => upd('mode', e.target.value));
+    on('pf-bg-color', 'input', e => { c.color = e.target.value; scheduleSave(); });
+    on('pf-bg-color2', 'input', e => { c.color2 = e.target.value; scheduleSave(); });
+    on('pf-bg-dir', 'change', e => upd('dir', e.target.value));
+    on('pf-bg-fit', 'change', e => upd('bgFit', e.target.value));
+    numBind('pf-bg-horizon', 'horizon'); numBind('pf-bg-blur', 'bgBlur'); numBind('pf-bg-scale', 'scale');
+    numBind('pf-bg-posX', 'posX'); numBind('pf-bg-posY', 'posY'); numBind('pf-bg-shadow', 'shadow'); numBind('pf-bg-vignette', 'vignette');
+    document.querySelectorAll('.pf-swatch').forEach(b => b.addEventListener('click', () => { c.color = b.dataset.color; renderProperties(); scheduleSave(); }));
+    on('pf-bg-file', 'change', async (e) => {
+      const f = e.target.files[0]; if (!f) return;
+      if (!/^image\/(png|jpeg|webp)$/.test(f.type)) return message('Ảnh nền phải là PNG/JPG/WebP.', true);
+      const id = uid('asset'); await store.saveAsset({ id, blob: f, name: f.name, mime: f.type });
+      c.assetId = id; c.assetName = f.name; message('Đã lưu ảnh nền vào IndexedDB.'); pushHistory(); renderAll(); scheduleSave();
+    });
+  }
+  // ---- P3 export channels ----
+  if (node.type === 'exportNode') {
+    document.querySelectorAll('[data-channel]').forEach(cb => cb.addEventListener('change', () => {
+      const set = new Set(c.channels || []); cb.checked ? set.add(cb.dataset.channel) : set.delete(cb.dataset.channel);
+      c.channels = CHANNEL_PRESETS.map(p => p.id).filter(id => set.has(id)); scheduleSave(); renderNodes();
+    }));
+    numBind('pf-jpgq', 'jpgQuality');
+    on('pf-namepattern', 'input', e => { c.namePattern = e.target.value; scheduleSave(); });
+    document.querySelectorAll('[data-file-dl]').forEach(b => b.addEventListener('click', () => { const f = outputs.get(node.id)?.files?.[+b.dataset.fileDl]; if (f) saveBlob(f.blob, f.name); }));
+  }
   numBind('pf-crop', 'crop'); numBind('pf-rotate', 'rotate'); numBind('pf-resizeW', 'resizeW'); numBind('pf-brightness', 'brightness'); numBind('pf-contrast', 'contrast');
   numBind('pf-count', 'count'); numBind('pf-duration', 'duration');
   on('pf-ratio', 'change', e => upd('ratio', e.target.value)); on('pf-variant', 'change', e => upd('variant', e.target.value)); on('pf-format', 'change', e => upd('format', e.target.value));
   on('pf-motion', 'input', e => upd('motion', e.target.value));
   on('pf-download', 'click', async () => { const v = outputs.get(node.id); if (!v) return message('Hãy chạy workflow trước khi tải.', true); await downloadValue(v, node.config.format); });
+}
+
+// ---------- P3: quad editor (draggable corner handles in properties) ----------
+let quadDrawToken = 0;
+async function drawQuadPreview(node) {
+  const canvas = document.getElementById('ais-quad-canvas'); if (!canvas) return;
+  const token = ++quadDrawToken;
+  const cfg = migrateCompositionConfig(node.config);
+  const gEdge = graph.edges.find(e => e.to === node.id && e.toPort === 'garment');
+  const dEdge = graph.edges.find(e => e.to === node.id && e.toPort === 'design');
+  let gSrc = gEdge ? outputs.get(gEdge.from)?.url : null; if (!gSrc) gSrc = cfg.base;
+  let dSrc = dEdge ? outputs.get(dEdge.from)?.url : null;
+  if (!dSrc && dEdge) { const dn = findNode(graph, dEdge.from); if (dn?.config.svgText) dSrc = URL.createObjectURL(new Blob([dn.config.svgText], { type: 'image/svg+xml' })); }
+  try {
+    const g = await loadImg(gSrc); if (token !== quadDrawToken || !document.getElementById('ais-quad-canvas')) return;
+    const s = Math.min(300 / g.width, 380 / g.height);
+    canvas.width = Math.max(80, Math.round(g.width * s)); canvas.height = Math.max(80, Math.round(g.height * s));
+    const x = canvas.getContext('2d'); x.drawImage(g, 0, 0, canvas.width, canvas.height);
+    const quadPx = cfg.quad.map(([qx, qy]) => [qx * canvas.width, qy * canvas.height]);
+    if (dSrc) {
+      const d = await loadImg(dSrc); if (token !== quadDrawToken) return;
+      const { layer } = renderWarpedLayer(canvas, d, cfg.quad, { wrinkle: cfg.wrinkle || 0, shading: cfg.shading || 0 });
+      x.drawImage(layer, 0, 0);
+    } else {
+      x.save(); x.fillStyle = 'rgba(182,73,47,0.22)'; x.beginPath(); quadPx.forEach(([px, py], i) => i ? x.lineTo(px, py) : x.moveTo(px, py)); x.closePath(); x.fill(); x.restore();
+    }
+    strokeQuad(x, quadPx);
+    quadPx.forEach(([px, py], i) => { x.save(); x.beginPath(); x.arc(px, py, 11, 0, Math.PI * 2); x.fillStyle = '#fff'; x.fill(); x.lineWidth = 3; x.strokeStyle = '#b6492f'; x.stroke(); x.fillStyle = '#b6492f'; x.font = 'bold 12px Arial'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(String(i + 1), px, py + 1); x.restore(); });
+  } catch { /* the quad preview is best-effort; numeric inputs always work */ }
+}
+function setupQuadEditor(node) {
+  const canvas = document.getElementById('ais-quad-canvas'); if (!canvas) return;
+  node.config = migrateCompositionConfig(node.config);
+  drawQuadPreview(node);
+  let dragI = -1;
+  canvas.style.touchAction = 'none';
+  const pos = (e) => { const r = canvas.getBoundingClientRect(); return { x: (e.clientX - r.left) * canvas.width / r.width, y: (e.clientY - r.top) * canvas.height / r.height }; };
+  canvas.addEventListener('pointerdown', (e) => {
+    const p = pos(e); const quadPx = node.config.quad.map(([qx, qy]) => [qx * canvas.width, qy * canvas.height]);
+    dragI = quadPx.findIndex(([hx, hy]) => Math.hypot(hx - p.x, hy - p.y) <= 26); // ≥26px hit area for touch
+    if (dragI >= 0) { canvas.setPointerCapture(e.pointerId); e.preventDefault(); }
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (dragI < 0) return; const p = pos(e);
+    node.config.quad[dragI] = [Math.min(1, Math.max(0, p.x / canvas.width)), Math.min(1, Math.max(0, p.y / canvas.height))];
+    const ix = document.getElementById('pf-q' + dragI + 'x'), iy = document.getElementById('pf-q' + dragI + 'y');
+    if (ix) ix.value = (node.config.quad[dragI][0] * 100).toFixed(1);
+    if (iy) iy.value = (node.config.quad[dragI][1] * 100).toFixed(1);
+    drawQuadPreview(node);
+  });
+  const end = () => { if (dragI >= 0) { dragI = -1; pushHistory(); scheduleSave(); renderNodes(); } };
+  canvas.addEventListener('pointerup', end); canvas.addEventListener('pointercancel', end);
 }
 
 // ---------- downloads / export ----------
@@ -339,7 +659,10 @@ async function exportZip() {
   const assetIds = new Set(); for (const n of graph.nodes) { if (n.config.assetId) assetIds.add(n.config.assetId); for (const id of n.config.assetIds || []) assetIds.add(id); }
   for (const id of assetIds) { const a = await store.getAsset(id); if (a) entries.push({ name: `assets/${id}_${a.name}`, data: new Uint8Array(await a.blob.arrayBuffer()) }); }
   for (const n of graph.nodes) if (n.config.svgText) entries.push({ name: `designs/${n.id}.svg`, data: te.encode(n.config.svgText) });
-  for (const [id, v] of outputs) { if (v?.blob) entries.push({ name: `results/${id}.${v.kind === 'video' ? 'webm' : v.mime?.includes('jpeg') ? 'jpg' : v.mime?.includes('svg') ? 'svg' : 'png'}`, data: new Uint8Array(await v.blob.arrayBuffer()) }); }
+  for (const [id, v] of outputs) {
+    if (v?.files?.length) { for (const f of v.files) entries.push({ name: `results/${f.name}`, data: new Uint8Array(await f.blob.arrayBuffer()) }); }
+    else if (v?.blob) entries.push({ name: `results/${id}.${v.kind === 'video' ? 'webm' : v.mime?.includes('jpeg') ? 'jpg' : v.mime?.includes('svg') ? 'svg' : 'png'}`, data: new Uint8Array(await v.blob.arrayBuffer()) });
+  }
   saveBlob(new Blob([zipWrite(entries)], { type: 'application/zip' }), name.replace(/\s+/g, '-') + '.zip');
   message('Đã xuất ZIP dự án (không chứa API key).');
 }
@@ -357,6 +680,7 @@ function applyImported(wf) {
   const g = wf.graph || wf; if (!g.nodes || !g.edges) throw new Error('File không chứa workflow hợp lệ.');
   projectId = uid('project'); $('#ais-project-name').value = wf.name || 'Dự án nhập vào';
   graph = { nodes: g.nodes.map(n => ({ ...n, status: 'idle', logs: [], error: '' })), edges: g.edges };
+  migrateGraph(graph);
   outputs = new Map(); pushHistory(); renderAll(); scheduleSave(); message('Đã nhập workflow. Hãy bấm Lưu / chờ tự lưu.');
 }
 
@@ -463,7 +787,7 @@ async function renderVersions() {
   box.querySelectorAll('[data-restore-version]').forEach(b => b.addEventListener('click', async () => {
     const v = (await store.listVersions(projectId)).find(x => x.id === b.dataset.restoreVersion); if (!v) return;
     if (!confirm('Khôi phục phiên bản ' + new Date(v.createdAt).toLocaleString('vi-VN') + '? Trạng thái hiện tại sẽ được thay bằng phiên bản này (việc khôi phục cũng được ghi thành 1 phiên bản mới).')) return;
-    graph = { nodes: v.graph.nodes.map(n => ({ ...n, status: 'idle', logs: [], error: '' })), edges: v.graph.edges };
+    graph = { nodes: v.graph.nodes.map(n => ({ ...n, status: 'idle', logs: [], error: '' })), edges: v.graph.edges }; migrateGraph(graph);
     $('#ais-project-name').value = v.name || $('#ais-project-name').value;
     outputs = new Map(); selectedId = null; selectedEdgeId = null; history = []; historyIdx = -1; pushHistory(); renderAll();
     await saveProjectNow({ version: true, note: 'Khôi phục từ phiên bản ' + new Date(v.createdAt).toLocaleString('vi-VN') });
@@ -611,7 +935,7 @@ document.querySelectorAll('.ais-tabs [data-tab]').forEach(b => b.addEventListene
 $('#ais-recovery-restore').addEventListener('click', async () => {
   if (!pendingDraft) return;
   projectId = pendingDraft.projectId; $('#ais-project-name').value = pendingDraft.name;
-  graph = { nodes: pendingDraft.graph.nodes.map(n => ({ ...n, status: 'idle', logs: [], error: '' })), edges: pendingDraft.graph.edges };
+  graph = { nodes: pendingDraft.graph.nodes.map(n => ({ ...n, status: 'idle', logs: [], error: '' })), edges: pendingDraft.graph.edges }; migrateGraph(graph);
   outputs = new Map(); selectedId = null; history = []; historyIdx = -1; pushHistory(); renderAll();
   $('#ais-recovery').hidden = true; const d = pendingDraft; pendingDraft = null;
   await refreshProjectList(); await renderHistory(); await renderVersions();
@@ -632,5 +956,5 @@ $('#ais-run-mobile')?.addEventListener('click', () => runNodes('all'));
   await renderHistory(); await renderVersions(); await renderStoragePanel();
   await checkRecovery();
   document.body.dataset.ready = 'true'; document.documentElement.dataset.ready = 'true';
-  logLine('AI Studio P2 sẵn sàng: hàng đợi chạy + lịch sử, bộ nhớ đệm kết quả, phiên bản dự án, khôi phục bản nháp. Chế độ AI: DEMO (chưa kết nối provider thật).');
+  logLine('AI Studio P3 sẵn sàng: ghép hình in phối cảnh 4 điểm + cong theo nếp vải, node Nền & bối cảnh, xuất nhiều kích thước kênh (Website/Facebook/TikTok/Shopee). Hàng đợi + lịch sử + bộ nhớ đệm + phiên bản (P2) giữ nguyên. Chế độ AI: DEMO (chưa kết nối provider thật).');
 })();

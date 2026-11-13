@@ -12,8 +12,8 @@ function graphOf(defs, edges) {
   return { graph: { nodes, edges: edges.map(([f, t, p]) => ({ id: f + t + (p || ''), from: map[f].id, to: map[t].id, toPort: p || 'in' })) }, map };
 }
 
-test('all 12 brief node types exist with ports', () => {
-  assert.equal(NODE_TYPES.length, 12);
+test('all brief node types exist with ports (12 from P1 + background added in P3 = 13)', () => {
+  assert.equal(NODE_TYPES.length, 13);
   for (const t of NODE_TYPES) { assert.ok(NODE_DEFS[t].label); assert.equal(NODE_DEFS[t].outputs.length, 1); }
 });
 

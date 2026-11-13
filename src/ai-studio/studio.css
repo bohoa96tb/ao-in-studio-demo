@@ -91,3 +91,21 @@ input,select,textarea{font:inherit;border:1px solid var(--line);border-radius:8p
  .ais-logbar{max-height:168px}
  #ais-project-name{min-width:110px;flex:1}
 }
+
+/* ---- P3: quad editor, background swatches, channel export ---- */
+.pf-quad-wrap { margin: 6px 0; }
+#ais-quad-canvas { width: 100%; max-width: 300px; height: auto; border: 1px solid #d8d2c4; border-radius: 8px; background: #efe9db; display: block; cursor: grab; }
+.pf-quad-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: 12px; flex-wrap: wrap; }
+.pf-quad-row span { flex: 1 1 110px; color: #55503f; }
+.pf-quad-row label { display: flex; align-items: center; gap: 4px; }
+.pf-quad-row input { width: 64px; }
+.pf-range { display: flex; align-items: center; gap: 8px; }
+.pf-range input[type="range"] { flex: 1; min-width: 100px; }
+.pf-swatches { display: flex; align-items: center; gap: 6px; margin: 6px 0; font-size: 12px; }
+.pf-swatch { width: 26px; height: 26px; border-radius: 50%; border: 2px solid #c9c2b2; cursor: pointer; padding: 0; }
+.pf-channels { border: 1px solid #d8d2c4; border-radius: 8px; margin: 8px 0; padding: 6px 10px 8px; }
+.pf-channels legend { font-size: 12px; font-weight: 600; padding: 0 4px; }
+.pf-ch { display: block; font-size: 13px; margin: 5px 0; }
+.pf-ch small { color: #77705c; }
+.pf-files { margin-top: 8px; }
+.pf-file-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px dashed #ddd5c2; font-size: 12.5px; word-break: break-all; }
