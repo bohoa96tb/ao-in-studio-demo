@@ -8,7 +8,7 @@ export function publicFile(url,base=root){
   let pathname;try{pathname=decodeURIComponent(new URL(url,'http://localhost').pathname);}catch{return null;}
   if(pathname.includes('\\')||pathname.includes('\0')||pathname.split('/').includes('..'))return null;
   if(pathname==='/')pathname='/index.html';
-  const allowed=/^\/(index\.html|(?:README|START-HERE|AGENTS|CLAUDE|LICENSE-ASSETS|THIRD_PARTY_NOTICES)\.md|LICENSE|(?:docs|prompts)\/[a-z0-9-]+\.md|(?:config\/catalog|data\/[a-z0-9-]+)\.json|src\/(?:[a-z0-9-]+\.(?:js|css)|mockup-engine\/[a-z0-9-]+\.js)|scripts\/mockup\/harness\.html|public\/(curated\/[a-z0-9-]+\.png|artwork\/[a-z0-9-]+\.svg|hero\.webp|mockups\/(?:thumbs\/)?[a-z0-9_-]+\.webp|fixtures\/[a-z0-9/-]+\.(webp|json|jpg)|fonts\/[a-zA-Z0-9.-]+\.(ttf|txt)|vendor\/(?:ort|vtracer)\/[a-z0-9._-]+\.(?:mjs|js|wasm)|models\/[a-z0-9.-]+\.(?:onnx|txt)))$/;
+  const allowed=/^\/(index\.html|studio\.html|(?:README|START-HERE|AGENTS|CLAUDE|LICENSE-ASSETS|THIRD_PARTY_NOTICES)\.md|LICENSE|(?:docs|prompts)\/[a-z0-9-]+\.md|(?:config\/catalog|data\/[a-z0-9-]+)\.json|src\/(?:[a-z0-9-]+\.(?:js|css)|mockup-engine\/[a-z0-9-]+\.js|ai-studio\/[a-z0-9-]+\.(?:js|css))|scripts\/mockup\/harness\.html|public\/(curated\/[a-z0-9-]+\.png|artwork\/[a-z0-9-]+\.svg|hero\.webp|mockups\/(?:thumbs\/)?[a-z0-9_-]+\.webp|fixtures\/[a-z0-9/-]+\.(webp|json|jpg)|fonts\/[a-zA-Z0-9.-]+\.(ttf|txt)|vendor\/(?:ort|vtracer)\/[a-z0-9._-]+\.(?:mjs|js|wasm)|models\/[a-z0-9.-]+\.(?:onnx|txt)))$/;
   if(!allowed.test(pathname))return null;
   const file=path.resolve(base,'.'+pathname);if(!file.startsWith(base+path.sep))return null;return file;
 }
