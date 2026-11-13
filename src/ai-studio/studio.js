@@ -3,7 +3,8 @@
 // `ao-in-ai-studio`. AI nodes run the DEMO adapter until a real provider is
 // configured; every demo output is visibly labelled.
 import { NODE_DEFS, NODE_TYPES, TEMPLATES, emptyGraph, makeNode, findNode, validateConnection, buildPrompt, PROMPT_OPTIONS, PROMPT_TEMPLATES, checkSvgSafety, zipWrite, zipRead, uid, SAMPLE_DESIGN_SVG } from './core.js';
-import { Engine } from './engine.js';
+import { Engine, downstreamOf } from './engine.js';
+import { nodeCacheKey, isCacheable, RunQueue, validateWorkflow, collectReferencedAssetIds, findOrphanAssets, pruneOldest, formatDuration } from './p2.js';
 import { DemoAdapter, HttpAdapter, setSessionKey, BROWSER_KEY_WARNING, describeProvider } from './providers.js';
 import { store, storageEstimate } from './store.js';
 
@@ -22,6 +23,16 @@ let history = [], historyIdx = -1;
 let engine = null, outputs = new Map();
 let providerKind = 'demo';
 const runtime = { previewValue: null };
+// ---- P2 state: run queue, run settings, failure/resume, progress timer ----
+const RUN_HISTORY_CAP = 50, VERSION_CAP = 20;
+const runSettings = { retriesAi: 1, timeoutSec: 60 };
+let lastFailedNodeId = null, lastRunProjectId = null;
+let runTimer = null, runStartedAt = 0;
+const runQueue = new RunQueue(({ busy, waiting }) => {
+  const el = $('#ais-run-progress');
+  if (el && !busy && !waiting) return;
+  if (el && (busy || waiting)) el.textContent = `Hàng đợi chạy: ${busy ? 'đang chạy 1 lượt' : 'đang chờ'}${waiting ? ` · ${waiting} lượt đang chờ` : ''}`;
+});
 
 function message(msg, isError = false) { const el = $('#ais-message'); el.textContent = msg; el.classList.toggle('err', isError); logLine(msg); }
 function logLine(msg) { const li = document.createElement('li'); li.textContent = `${new Date().toLocaleTimeString('vi-VN')} — ${msg}`; const ul = $('#ais-log'); ul.prepend(li); while (ul.children.length > 60) ul.lastChild.remove(); }
@@ -71,6 +82,32 @@ const demoImpl = {
     return valueFromBlob(blob, 'video', { demo: true, name: 'video-demo.webm', label: 'Video DEMO định dạng WebM (ghi từ canvas) — không phải MP4, chưa kết nối AI video' });
   },
 };
+// ---------- P2: node output cache (persisted in IndexedDB 'cache' store) ----------
+// Cached values go through the exact same value shape as live outputs: the
+// blob (or prompt text / SVG text) is stored, and a fresh object URL is made
+// when the value is served back. API keys are never part of a cache record.
+async function cachePutRecord(key, node, value) {
+  if (!value || (value.kind !== 'prompt' && !(value.blob instanceof Blob))) return;
+  await store.putCache({ key, projectId, nodeId: node.id, nodeType: node.type, createdAt: Date.now(), kind: value.kind, label: value.label || '', demo: !!value.demo, name: value.name || '', mime: value.mime || '', svgText: value.svgText || '', text: value.text || '', blob: value.blob instanceof Blob ? value.blob : null });
+}
+async function cacheGetRecord(key) {
+  const r = await store.getCache(key); if (!r) return null;
+  if (r.kind === 'prompt') return { kind: 'prompt', text: r.text };
+  if (r.blob) return valueFromBlob(r.blob, r.kind, { name: r.name, demo: r.demo, label: r.label, svgText: r.svgText });
+  return null;
+}
+/** Latest cached output per node id for this project (used to seed a resumed run). */
+async function latestCacheByNode() {
+  const byNode = new Map();
+  for (const r of (await store.listCache()).filter(c => c.projectId === projectId)) {
+    const cur = byNode.get(r.nodeId);
+    if (!cur || (r.createdAt || 0) > (cur.createdAt || 0)) byNode.set(r.nodeId, r);
+  }
+  const seeds = new Map(), seedKeys = new Map();
+  for (const [nodeId, r] of byNode) { const v = await cacheGetRecord(r.key); if (v) { seeds.set(nodeId, v); seedKeys.set(nodeId, r.key); } }
+  return { seeds, seedKeys };
+}
+
 function currentProvider() {
   if (providerKind === 'http') return new HttpAdapter({ name: $('#ais-provider-name').value || 'HTTP Provider', endpoint: $('#ais-provider-endpoint').value.trim() });
   return new DemoAdapter(demoImpl);
@@ -161,14 +198,34 @@ function pushHistory() { history = history.slice(0, historyIdx + 1); history.pus
 function restore(s) { const g = JSON.parse(s); graph = { nodes: g.nodes.map(n => ({ ...n, status: 'idle', logs: [], error: '' })), edges: g.edges }; selectedId = null; selectedEdgeId = null; outputs = new Map(); renderAll(); scheduleSave(); }
 function updateUndoBtns() { $('#ais-undo').disabled = historyIdx <= 0; $('#ais-redo').disabled = historyIdx >= history.length - 1; }
 let saveTimer = null;
-function scheduleSave() { $('#ais-save-status').textContent = 'Có thay đổi chưa lưu…'; clearTimeout(saveTimer); saveTimer = setTimeout(() => saveProjectNow().catch(e => message('Lỗi tự lưu: ' + e.message, true)), 800); }
-async function saveProjectNow() {
+// P2 draft semantics: AUTOSAVE writes only a draft record (store 'drafts').
+// The project record itself is written by an EXPLICIT save, which also
+// creates a version snapshot and clears the draft. That split is what makes
+// crash recovery detectable: a draft newer than the saved project = unsaved work.
+function scheduleSave() { $('#ais-save-status').textContent = 'Có thay đổi chưa lưu…'; clearTimeout(saveTimer); saveTimer = setTimeout(() => writeDraft().catch(e => message('Lỗi tự lưu bản nháp: ' + e.message, true)), 800); }
+async function writeDraft() {
+  const draft = { projectId, name: $('#ais-project-name').value.trim() || 'Dự án chưa đặt tên', graph: JSON.parse(snapshot()), updatedAt: Date.now() };
+  await store.saveDraft(draft);
+  $('#ais-save-status').textContent = 'Đã tự lưu bản nháp ' + new Date().toLocaleTimeString('vi-VN') + ' (chưa bấm Lưu)';
+}
+async function createVersion(note) {
+  const v = { id: uid('ver'), projectId, name: $('#ais-project-name').value.trim() || 'Dự án chưa đặt tên', graph: JSON.parse(snapshot()), note: note || 'Lưu thủ công', createdAt: Date.now() };
+  await store.saveVersion(v);
+  const all = await store.listVersions(projectId);
+  for (const old of pruneOldest(all, VERSION_CAP, 'createdAt')) await store.deleteVersion(old.id);
+  return v;
+}
+async function saveProjectNow(opts = {}) {
   const data = { id: projectId, name: $('#ais-project-name').value.trim() || 'Dự án chưa đặt tên', graph: JSON.parse(snapshot()), updatedAt: Date.now() };
-  await store.saveProject(data); $('#ais-save-status').textContent = 'Đã lưu ' + new Date().toLocaleTimeString('vi-VN'); await refreshProjectList(); await refreshStorage();
+  await store.saveProject(data);
+  if (opts.version) await createVersion(opts.note);
+  await store.deleteDraft(projectId).catch(() => {});
+  $('#ais-save-status').textContent = 'Đã lưu ' + new Date().toLocaleTimeString('vi-VN');
+  await refreshProjectList(); await refreshStorage(); await renderVersions(); await renderStoragePanel();
 }
 async function refreshProjectList() { const list = (await store.listProjects()).sort((a, b) => b.updatedAt - a.updatedAt); const sel = $('#ais-project-select'); sel.innerHTML = list.map(p => `<option value="${p.id}" ${p.id === projectId ? 'selected' : ''}>${p.name} — ${new Date(p.updatedAt).toLocaleDateString('vi-VN')}</option>`).join('') || '<option value="">(chưa có dự án)</option>'; }
 async function refreshStorage() { const e = await storageEstimate(); const assets = await store.listAssets(); const el = $('#ais-storage-info'); if (el) el.textContent = `Dung lượng trình duyệt đã dùng: ${(e.usage / 1048576).toFixed(1)} MB${e.quota ? ' / ' + (e.quota / 1073741824).toFixed(1) + ' GB' : ''} · ${assets.length} file đã lưu trong AI Studio`; }
-async function openProject(id) { const p = await store.getProject(id); if (!p) return message('Không tìm thấy dự án.', true); projectId = p.id; $('#ais-project-name').value = p.name; graph = { nodes: p.graph.nodes.map(n => ({ ...n, status: 'idle', logs: [], error: '' })), edges: p.graph.edges }; outputs = new Map(); history = []; historyIdx = -1; pushHistory(); selectedId = null; renderAll(); message('Đã mở dự án "' + p.name + '"'); }
+async function openProject(id) { const p = await store.getProject(id); if (!p) return message('Không tìm thấy dự án.', true); projectId = p.id; $('#ais-project-name').value = p.name; graph = { nodes: p.graph.nodes.map(n => ({ ...n, status: 'idle', logs: [], error: '' })), edges: p.graph.edges }; outputs = new Map(); lastFailedNodeId = null; updateResumeBtn(); history = []; historyIdx = -1; pushHistory(); selectedId = null; renderAll(); await renderHistory(); await renderVersions(); await renderStoragePanel(); message('Đã mở dự án "' + p.name + '"'); }
 
 // ---------- properties panel ----------
 function field(label, inner) { return `<label class="pf"><span>${label}</span>${inner}</label>`; }
@@ -177,10 +234,10 @@ function sel(id, opts, val) { return `<select id="${id}">${opts.map(([v, l]) => 
 function renderProperties() {
   const box = $('#ais-properties'); const node = findNode(graph, selectedId);
   box.classList.toggle('open', !!node);
-  if (!node) { box.innerHTML = `<h3>Thuộc tính</h3><p class="hint">Chọn một node để xem cấu hình, chạy riêng node đó và xem kết quả. Kéo từ cổng tròn bên phải của node này sang cổng bên trái của node khác để nối dây.</p>${providerHtml()}${storageHtml()}`; bindProvider(box); return; }
+  if (!node) { box.innerHTML = `<h3>Thuộc tính</h3><p class="hint">Chọn một node để xem cấu hình, chạy riêng node đó và xem kết quả. Kéo từ cổng tròn bên phải của node này sang cổng bên trái của node khác để nối dây.</p>${runSettingsHtml()}${providerHtml()}${storageHtml()}`; bindProvider(box); bindRunSettings(box); return; }
   const def = NODE_DEFS[node.type]; const c = node.config; const out = outputs.get(node.id);
   let h = `<div class="ph"><h3 style="--nc:${def.color}">${def.label}</h3><button id="ais-prop-close" aria-label="Đóng">×</button></div>
-  <p class="pstatus">Trạng thái: <strong>${node.status}</strong>${node.error ? ` — <span class="err">${node.error}</span>` : ''}</p><div class="prow">
+  <p class="pstatus">Trạng thái: <strong>${node.status === 'cached' ? '<span class="st-cached-t">cached — dùng kết quả bộ nhớ đệm</span>' : node.status}</strong>${node.durationMs != null && node.status !== 'idle' ? ` · chạy trong ${formatDuration(node.durationMs)}` : ''}${node.error ? ` — <span class="err">${node.error}</span>` : ''}</p><div class="prow">
   <button id="ais-p-run">▶ Chạy node này</button><button id="ais-p-runfrom">Chạy từ node này</button><button id="ais-p-dup">Nhân bản</button><button id="ais-p-del">Xóa node</button></div>`;
   if (node.type === 'imageInput') { h += field('Ảnh áo có sẵn (ảnh thật)', sel('pf-fixture', FIXTURES, c.fixture)) + field('Hoặc tải ảnh lên (PNG/JPG/WebP, lưu IndexedDB)', '<input type="file" id="pf-file" accept="image/png,image/jpeg,image/webp" multiple>') + (c.assetName ? `<p class="hint">Đang dùng: ${c.assetName}${c.width ? ` (${c.width}×${c.height})` : ''}</p>` : ''); }
   if (node.type === 'designInput') { h += field('Tải hình in (PNG trong suốt / SVG an toàn)', '<input type="file" id="pf-file" accept="image/png,image/svg+xml">') + '<button id="pf-sample">Dùng hình in mẫu (SVG thật)</button>' + field('Nội dung SVG (nếu có)', `<textarea id="pf-svg" rows="4">${(c.svgText || '').replace(/</g, '&lt;')}</textarea>`) + (c.assetName ? `<p class="hint">Đang dùng: ${c.assetName}</p>` : ''); }
@@ -196,7 +253,17 @@ function renderProperties() {
   h += `<div class="plogs"><h4>Nhật ký node</h4>${(node.logs || []).map(l => `<div>${l}</div>`).join('') || '<div>Chưa chạy.</div>'}</div>`;
   box.innerHTML = h; bindProperties(node);
 }
-function storageHtml() { return `<div class="psec"><h4>Lưu trữ</h4><p class="hint" id="ais-storage-info">…</p></div>`; }
+function storageHtml() { return `<div class="psec"><h4>Lưu trữ</h4><p class="hint" id="ais-storage-info">…</p><p class="hint">Chi tiết dung lượng, dọn file rác và xóa bộ nhớ đệm: tab "Lưu trữ" ở thanh dưới cùng.</p></div>`; }
+function runSettingsHtml() { return `<div class="psec"><h4>Cài đặt chạy (P2)</h4>
+  ${field('Số lần thử lại cho node tạo nội dung (nhóm AI)', `<input type="number" id="ais-set-retries" min="0" max="5" value="${runSettings.retriesAi}">`)}
+  ${field('Thời gian chờ tối đa mỗi node (giây)', `<input type="number" id="ais-set-timeout" min="5" max="600" value="${runSettings.timeoutSec}">`)}
+  <button id="ais-clear-cache-2">Xóa bộ nhớ đệm kết quả node</button>
+  <p class="hint">Node có cấu hình + đầu vào không đổi sẽ được phục vụ từ bộ nhớ đệm (trạng thái "cached") thay vì chạy lại. Sửa cấu hình 1 node chỉ làm mất hiệu lực đệm của node đó và các node phía sau nó. Cài đặt này áp dụng cho phiên làm việc hiện tại.</p></div>`; }
+function bindRunSettings(scope) {
+  scope.querySelector('#ais-set-retries')?.addEventListener('change', e => { runSettings.retriesAi = Math.min(5, Math.max(0, Number(e.target.value) || 0)); });
+  scope.querySelector('#ais-set-timeout')?.addEventListener('change', e => { runSettings.timeoutSec = Math.min(600, Math.max(5, Number(e.target.value) || 60)); });
+  scope.querySelector('#ais-clear-cache-2')?.addEventListener('click', async () => { await store.clearCache(); message('Đã xóa bộ nhớ đệm kết quả node.'); await renderStoragePanel(); });
+}
 function providerHtml() { return `<div class="psec"><h4>Nhà cung cấp AI</h4>
   ${field('Loại', sel('ais-provider-kind', [['demo', 'Demo — không kết nối AI'], ['http', 'HTTP provider / proxy (nâng cao)']], providerKind))}
   ${field('Tên nhà cung cấp', '<input type="text" id="ais-provider-name" value="HTTP Provider">')}
@@ -293,15 +360,175 @@ function applyImported(wf) {
   outputs = new Map(); pushHistory(); renderAll(); scheduleSave(); message('Đã nhập workflow. Hãy bấm Lưu / chờ tự lưu.');
 }
 
-// ---------- run ----------
-async function runNodes(mode, id) {
-  engine = new Engine(graph, handlers, { onNode: (n) => { renderNodes(); if (n.id === selectedId) renderProperties(); }, onLog: (n, m) => logLine((n ? NODE_DEFS[n.type].label + ': ' : '') + m) });
+// ---------- run (P2: queue + validation + cache + retry/timeout + history) ----------
+const TRIGGER_LABELS = { all: 'Chạy toàn bộ', single: 'Chạy 1 node', from: 'Chạy từ node', resume: 'Chạy tiếp từ node lỗi' };
+function setRunProgress(text) { const el = $('#ais-run-progress'); if (el) el.textContent = text; }
+function startRunTimer(total) {
+  runStartedAt = Date.now(); stopRunTimer();
+  runTimer = setInterval(() => { const s = ((Date.now() - runStartedAt) / 1000).toFixed(1).replace('.', ','); setRunProgress(`Đang chạy… đã ${s} s`); }, 250);
+}
+function stopRunTimer() { if (runTimer) { clearInterval(runTimer); runTimer = null; } }
+function updateResumeBtn() { const b = $('#ais-resume'); if (b) b.hidden = !(lastFailedNodeId && lastRunProjectId === projectId); }
+
+async function recordRun(rec) {
+  try {
+    await store.saveRun(rec);
+    const all = await store.listRuns(projectId);
+    for (const old of pruneOldest(all, RUN_HISTORY_CAP, 'startedAt')) await store.deleteRun(old.id);
+  } catch { /* history is best-effort; never fail a run over it */ }
+  await renderHistory(); await renderStoragePanel();
+}
+
+/** All run requests go through the queue: one active run at a time. */
+function runNodes(mode, id) {
+  return runQueue.enqueue(TRIGGER_LABELS[mode] || mode, () => executeRun(mode, id));
+}
+async function executeRun(mode, id) {
+  // Pre-run validation report: block with a Vietnamese problem list.
+  const problems = validateWorkflow(graph);
+  if (problems.length) {
+    message('Không thể chạy — workflow còn ' + problems.length + ' vấn đề cần sửa:', true);
+    const ul = document.createElement('ul'); ul.className = 'validation-list';
+    for (const p of problems) { const li = document.createElement('li'); li.textContent = p.message; ul.appendChild(li); logLine('⚠ ' + p.message); }
+    $('#ais-message').appendChild(ul);
+    return { blocked: true, problems };
+  }
+  lastFailedNodeId = null; updateResumeBtn();
+  const startedAt = Date.now();
+  let seedOutputs = outputs, seedKeys = new Map();
+  if (mode === 'resume') {
+    // Reuse successful upstream results: in-memory outputs first, and the
+    // persisted cache (survives reload) for everything else.
+    const { seeds, seedKeys: sk } = await latestCacheByNode();
+    seedOutputs = new Map([...seeds, ...outputs]); seedKeys = sk;
+  }
+  engine = new Engine(graph, handlers, {
+    seedOutputs, seedKeys,
+    keyFor: (node, inputKeys) => nodeCacheKey(node, inputKeys),
+    cacheable: (node) => isCacheable(node),
+    cacheGet: cacheGetRecord,
+    cachePut: cachePutRecord,
+    retriesFor: (node) => NODE_DEFS[node.type]?.category === 'ai' ? runSettings.retriesAi : 0,
+    timeoutFor: () => runSettings.timeoutSec * 1000,
+    onNode: (n) => { renderNodes(); if (n.id === selectedId) renderProperties(); },
+    onLog: (n, m) => logLine((n ? NODE_DEFS[n.type].label + ': ' : '') + m),
+    onProgress: (doneCount, total) => setRunProgress(`Đang chạy: ${doneCount}/${total} node · ${formatDuration(Date.now() - startedAt)}`),
+  });
   outputs = engine.outputs;
   message('Đang chạy workflow (chế độ ' + (providerKind === 'demo' ? 'DEMO' : 'HTTP') + ')…');
-  try { const r = mode === 'all' ? await engine.runAll() : mode === 'single' ? await engine.runSingle(id) : await engine.runFrom(id);
-    message(r.failed.length ? `Chạy xong: ${r.done.length} node thành công, ${r.failed.length} node lỗi.` : `Chạy xong: ${r.done.length} node thành công.`, r.failed.length > 0);
-  } catch (e) { message('Lỗi workflow: ' + e.message, true); }
+  startRunTimer();
+  let r = { done: [], failed: [], stopped: false };
+  try {
+    if (mode === 'all') r = await engine.runAll();
+    else if (mode === 'single') r = await engine.runSingle(id);
+    else if (mode === 'from') r = await engine.runFrom(id);
+    else if (mode === 'resume') r = await engine.run([id, ...downstreamOf(graph, id).filter(x => x !== id)]);
+    const cachedCount = [...engine.records.values()].filter(x => x.cached).length;
+    message(r.failed.length ? `Chạy xong: ${r.done.length} node xong (${cachedCount} dùng bộ nhớ đệm), ${r.failed.length} node lỗi.` : `Chạy xong: ${r.done.length} node xong (${cachedCount} dùng bộ nhớ đệm).`, r.failed.length > 0);
+    lastFailedNodeId = r.failed.length ? r.failed[0] : null;
+    lastRunProjectId = projectId; updateResumeBtn();
+  } catch (e) { message('Lỗi workflow: ' + e.message, true); lastFailedNodeId = null; updateResumeBtn(); }
+  finally { stopRunTimer(); }
+  const finishedAt = Date.now();
+  setRunProgress(`Lượt chạy gần nhất: ${r.done.length} node xong, ${r.failed.length} lỗi · tổng ${formatDuration(finishedAt - startedAt)}`);
+  await recordRun({
+    id: uid('run'), projectId, startedAt, finishedAt, trigger: mode,
+    result: r.failed.length ? 'failed' : r.stopped ? 'stopped' : 'success',
+    nodes: [...engine.records.entries()].map(([nodeId, rec]) => { const n = findNode(graph, nodeId); return { nodeId, type: n?.type || '', label: n ? NODE_DEFS[n.type].label : nodeId, status: rec.status, durationMs: rec.durationMs, attempts: rec.attempts, error: rec.error || '' }; }),
+  });
   renderAll();
+  return r;
+}
+
+// ---------- P2 panels: run history / versions / storage / recovery ----------
+const esc = (s) => String(s ?? '').replace(/</g, '&lt;');
+async function renderHistory() {
+  const box = $('#ais-history-list'); if (!box) return;
+  const runs = (await store.listRuns(projectId)).sort((a, b) => b.startedAt - a.startedAt);
+  if (!runs.length) { box.innerHTML = '<p class="hint light">Chưa có lượt chạy nào được ghi cho dự án này.</p>'; return; }
+  box.innerHTML = runs.map(r => {
+    const total = r.finishedAt - r.startedAt;
+    const cached = r.nodes.filter(n => n.status === 'cached').length;
+    return `<details class="ais-run-item"><summary><span class="badge ${r.result}">${r.result === 'success' ? 'Thành công' : r.result === 'stopped' ? 'Đã dừng' : 'Có lỗi'}</span>
+    ${new Date(r.startedAt).toLocaleString('vi-VN')} — ${esc(TRIGGER_LABELS[r.trigger] || r.trigger)} · ${r.nodes.length} node (${cached} đệm) · ${formatDuration(total)}</summary>
+    <table class="ais-run-nodes"><tr><th>Node</th><th>Trạng thái</th><th>Thời gian</th><th>Lần thử</th><th>Lỗi</th></tr>
+    ${r.nodes.map(n => `<tr><td>${esc(n.label)}</td><td>${n.status === 'cached' ? '<span class="st-cached-t">cached (đệm)</span>' : esc(n.status)}</td><td>${formatDuration(n.durationMs)}</td><td>${n.attempts || 1}</td><td>${esc(n.error || '')}</td></tr>`).join('')}</table></details>`;
+  }).join('');
+}
+async function renderVersions() {
+  const box = $('#ais-versions-list'); if (!box) return;
+  const versions = (await store.listVersions(projectId)).sort((a, b) => b.createdAt - a.createdAt);
+  if (!versions.length) { box.innerHTML = '<p class="hint light">Chưa có phiên bản nào. Bấm Lưu để tạo phiên bản đầu tiên.</p>'; return; }
+  box.innerHTML = versions.map(v => `<div class="ais-ver-item"><span>🕘 ${new Date(v.createdAt).toLocaleString('vi-VN')} — ${esc(v.note || 'Lưu')} · ${v.graph.nodes.length} node</span><button data-restore-version="${v.id}">Khôi phục phiên bản này</button></div>`).join('');
+  box.querySelectorAll('[data-restore-version]').forEach(b => b.addEventListener('click', async () => {
+    const v = (await store.listVersions(projectId)).find(x => x.id === b.dataset.restoreVersion); if (!v) return;
+    if (!confirm('Khôi phục phiên bản ' + new Date(v.createdAt).toLocaleString('vi-VN') + '? Trạng thái hiện tại sẽ được thay bằng phiên bản này (việc khôi phục cũng được ghi thành 1 phiên bản mới).')) return;
+    graph = { nodes: v.graph.nodes.map(n => ({ ...n, status: 'idle', logs: [], error: '' })), edges: v.graph.edges };
+    $('#ais-project-name').value = v.name || $('#ais-project-name').value;
+    outputs = new Map(); selectedId = null; selectedEdgeId = null; history = []; historyIdx = -1; pushHistory(); renderAll();
+    await saveProjectNow({ version: true, note: 'Khôi phục từ phiên bản ' + new Date(v.createdAt).toLocaleString('vi-VN') });
+    message('Đã khôi phục phiên bản ' + new Date(v.createdAt).toLocaleString('vi-VN') + ' và ghi lại thành phiên bản mới.');
+  }));
+}
+const fmtMB = (b) => (b / 1048576).toFixed(2) + ' MB';
+async function renderStoragePanel() {
+  const box = $('#ais-storage-panel'); if (!box) return;
+  const [est, projects, assets, versions, runs, cache] = await Promise.all([storageEstimate(), store.listProjects(), store.listAssets(), store.listVersions(), store.listRuns(), store.listCache()]);
+  const drafts = await store.listDrafts();
+  const blobSize = (a) => a?.blob?.size || 0;
+  const assetBytes = assets.reduce((s, a) => s + blobSize(a), 0);
+  const cacheBytes = cache.reduce((s, c) => s + blobSize(c), 0);
+  const runsBytes = runs.reduce((s, r) => s + JSON.stringify(r).length, 0);
+  const versionsBytes = versions.reduce((s, v) => s + JSON.stringify(v).length, 0);
+  const keep = collectReferencedAssetIds({ projects, versions, drafts });
+  const orphans = findOrphanAssets(assets, keep);
+  const orphanBytes = orphans.reduce((s, a) => s + blobSize(a), 0);
+  const quotaPct = est.quota ? Math.round(est.usage / est.quota * 100) : 0;
+  const perProject = projects.map(p => {
+    const pAssets = assets.filter(a => [...collectReferencedAssetIds({ projects: [p] })].includes(a.id));
+    const size = JSON.stringify(p).length + pAssets.reduce((s, a) => s + blobSize(a), 0);
+    return { name: p.name, nodes: p.graph?.nodes?.length || 0, size, runs: runs.filter(r => r.projectId === p.id).length, versions: versions.filter(v => v.projectId === p.id).length };
+  }).sort((a, b) => b.size - a.size);
+  box.innerHTML = `
+    ${est.quota && quotaPct >= 80 ? `<p class="ais-quota-warn">⚠ Dung lượng trình duyệt đã dùng ${quotaPct}% hạn mức — hãy dọn dẹp file rác hoặc xóa dự án cũ.</p>` : ''}
+    <table class="ais-store-table">
+      <tr><th>Hạng mục</th><th>Số lượng</th><th>Dung lượng</th></tr>
+      <tr><td>Toàn bộ trình duyệt (ước tính${est.quota ? ', đã dùng ' + quotaPct + '% hạn mức' : ''})</td><td>—</td><td>${fmtMB(est.usage)}${est.quota ? ' / ' + fmtMB(est.quota) : ''}</td></tr>
+      <tr><td>File tài sản (assets)</td><td>${assets.length} file</td><td>${fmtMB(assetBytes)}</td></tr>
+      <tr><td>Bộ nhớ đệm kết quả node (cache)</td><td>${cache.length} mục</td><td>${fmtMB(cacheBytes)}</td></tr>
+      <tr><td>Lịch sử chạy (mọi dự án)</td><td>${runs.length} lượt</td><td>${fmtMB(runsBytes)}</td></tr>
+      <tr><td>Phiên bản dự án (mọi dự án)</td><td>${versions.length} bản</td><td>${fmtMB(versionsBytes)}</td></tr>
+      <tr><td>File rác (không dự án/phiên bản/nháp nào tham chiếu)</td><td>${orphans.length} file</td><td>${fmtMB(orphanBytes)}</td></tr>
+    </table>
+    <h4 style="margin:10px 0 4px">Theo dự án</h4>
+    ${perProject.map(p => `<div class="ais-store-row"><span>${esc(p.name)} — ${p.nodes} node · ${p.runs} lượt chạy · ${p.versions} phiên bản · ~${fmtMB(p.size)}</span></div>`).join('') || '<p class="hint light">Chưa có dự án nào được lưu.</p>'}
+    <div class="ais-pane-tools" style="margin-top:8px">
+      <button id="ais-gc">🧹 Dọn dẹp file rác (${orphans.length} file, ${fmtMB(orphanBytes)})</button>
+      <button id="ais-clear-cache">Xóa bộ nhớ đệm kết quả</button>
+      <span class="hint light" id="ais-gc-result"></span>
+    </div>`;
+  box.querySelector('#ais-gc')?.addEventListener('click', async () => {
+    const [ps, vs, ds, as] = await Promise.all([store.listProjects(), store.listVersions(), store.listDrafts(), store.listAssets()]);
+    const orph = findOrphanAssets(as, collectReferencedAssetIds({ projects: ps, versions: vs, drafts: ds }));
+    let freed = 0; for (const a of orph) { freed += a?.blob?.size || 0; await store.deleteAsset(a.id); }
+    await renderStoragePanel(); await refreshStorage();
+    const el = $('#ais-gc-result'); if (el) el.textContent = `Đã xóa ${orph.length} file rác, giải phóng ${fmtMB(freed)}.`;
+    message(`Dọn dẹp xong: đã xóa ${orph.length} file rác, giải phóng ${fmtMB(freed)}.`);
+  });
+  box.querySelector('#ais-clear-cache')?.addEventListener('click', async () => { await store.clearCache(); await renderStoragePanel(); message('Đã xóa toàn bộ bộ nhớ đệm kết quả node. Lần chạy tới mọi node sẽ chạy thật lại.'); });
+}
+let pendingDraft = null;
+async function checkRecovery() {
+  const drafts = (await store.listDrafts()).sort((a, b) => b.updatedAt - a.updatedAt);
+  for (const d of drafts) {
+    const p = await store.getProject(d.projectId);
+    if (!p || d.updatedAt > (p.updatedAt || 0)) {
+      pendingDraft = d;
+      $('#ais-recovery-text').textContent = `Có bản nháp chưa lưu của dự án "${d.name}" (${new Date(d.updatedAt).toLocaleString('vi-VN')}) — có thể do trình duyệt đóng giữa chừng. Khôi phục?`;
+      $('#ais-recovery').hidden = false;
+      return;
+    }
+  }
 }
 
 // ---------- canvas interactions ----------
@@ -366,12 +593,31 @@ $('#ais-zoom-out').addEventListener('click', () => { view.k = Math.max(0.25, vie
 $('#ais-fit').addEventListener('click', fitView);
 $('#ais-delete-edge').addEventListener('click', () => { if (!selectedEdgeId) return message('Hãy bấm vào một đường dây trên canvas trước.', true); graph.edges = graph.edges.filter(e => e.id !== selectedEdgeId); selectedEdgeId = null; pushHistory(); renderAll(); scheduleSave(); });
 document.addEventListener('keydown', (e) => { if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) { graph.nodes = graph.nodes.filter(n => n.id !== selectedId); graph.edges = graph.edges.filter(x => x.from !== selectedId && x.to !== selectedId); selectedId = null; pushHistory(); renderAll(); scheduleSave(); } });
-$('#ais-save').addEventListener('click', () => saveProjectNow().then(() => message('Đã lưu dự án vào IndexedDB.')));
-$('#ais-new').addEventListener('click', () => { if (!confirm('Tạo dự án mới? Dự án hiện tại đã được tự lưu trong danh sách dự án.')) return; projectId = uid('project'); $('#ais-project-name').value = 'Dự án mới'; graph = emptyGraph(); outputs = new Map(); history = []; historyIdx = -1; pushHistory(); renderAll(); scheduleSave(); });
+$('#ais-save').addEventListener('click', () => saveProjectNow({ version: true, note: 'Lưu thủ công' }).then(() => message('Đã lưu dự án vào IndexedDB và tạo 1 phiên bản mới.')));
+$('#ais-new').addEventListener('click', async () => { if (!confirm('Tạo dự án mới? Thay đổi chưa bấm Lưu của dự án hiện tại vẫn còn trong bản nháp và sẽ được đề nghị khôi phục.')) return; projectId = uid('project'); $('#ais-project-name').value = 'Dự án mới'; graph = emptyGraph(); outputs = new Map(); lastFailedNodeId = null; updateResumeBtn(); history = []; historyIdx = -1; pushHistory(); renderAll(); scheduleSave(); await renderHistory(); await renderVersions(); });
 $('#ais-project-select').addEventListener('change', (e) => { if (e.target.value) openProject(e.target.value); });
 $('#ais-project-name').addEventListener('change', scheduleSave);
 $('#ais-duplicate').addEventListener('click', async () => { await saveProjectNow(); const p = await store.getProject(projectId); const copy = { ...p, id: uid('project'), name: p.name + ' (bản sao)', updatedAt: Date.now() }; await store.saveProject(copy); projectId = copy.id; $('#ais-project-name').value = copy.name; await refreshProjectList(); message('Đã nhân bản dự án.'); });
-$('#ais-delete-project').addEventListener('click', async () => { if (!confirm('Xóa dự án hiện tại khỏi IndexedDB? Không thể hoàn tác.')) return; await store.deleteProject(projectId); projectId = uid('project'); $('#ais-project-name').value = 'Dự án mới'; graph = emptyGraph(); outputs = new Map(); pushHistory(); renderAll(); await refreshProjectList(); message('Đã xóa dự án.'); });
+$('#ais-delete-project').addEventListener('click', async () => { if (!confirm('Xóa dự án hiện tại khỏi IndexedDB (kèm lịch sử chạy, phiên bản và bộ nhớ đệm của dự án)? Không thể hoàn tác.')) return; await store.deleteProjectCascade(projectId); projectId = uid('project'); $('#ais-project-name').value = 'Dự án mới'; graph = emptyGraph(); outputs = new Map(); lastFailedNodeId = null; updateResumeBtn(); pushHistory(); renderAll(); await refreshProjectList(); await renderHistory(); await renderVersions(); await renderStoragePanel(); message('Đã xóa dự án.'); });
+$('#ais-resume').addEventListener('click', () => { if (lastFailedNodeId) runNodes('resume', lastFailedNodeId); });
+$('#ais-clear-history').addEventListener('click', async () => { if (!confirm('Xóa toàn bộ lịch sử chạy của dự án hiện tại?')) return; await store.clearRuns(projectId); await renderHistory(); await renderStoragePanel(); message('Đã xóa lịch sử chạy của dự án.'); });
+document.querySelectorAll('.ais-tabs [data-tab]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.ais-tabs [data-tab]').forEach(x => x.classList.toggle('active', x === b));
+  for (const name of ['log', 'history', 'versions', 'storage']) { const pane = $('#ais-pane-' + name); if (pane) pane.hidden = name !== b.dataset.tab; }
+  if (b.dataset.tab === 'history') renderHistory();
+  if (b.dataset.tab === 'versions') renderVersions();
+  if (b.dataset.tab === 'storage') renderStoragePanel();
+}));
+$('#ais-recovery-restore').addEventListener('click', async () => {
+  if (!pendingDraft) return;
+  projectId = pendingDraft.projectId; $('#ais-project-name').value = pendingDraft.name;
+  graph = { nodes: pendingDraft.graph.nodes.map(n => ({ ...n, status: 'idle', logs: [], error: '' })), edges: pendingDraft.graph.edges };
+  outputs = new Map(); selectedId = null; history = []; historyIdx = -1; pushHistory(); renderAll();
+  $('#ais-recovery').hidden = true; const d = pendingDraft; pendingDraft = null;
+  await refreshProjectList(); await renderHistory(); await renderVersions();
+  message('Đã khôi phục bản nháp chưa lưu của "' + d.name + '". Bấm Lưu để biến thành bản chính thức + phiên bản.');
+});
+$('#ais-recovery-discard').addEventListener('click', async () => { if (pendingDraft) await store.deleteDraft(pendingDraft.projectId); pendingDraft = null; $('#ais-recovery').hidden = true; message('Đã bỏ qua bản nháp chưa lưu.'); });
 $('#ais-export-zip-btn').addEventListener('click', exportZip);
 $('#ais-export-workflow-btn').addEventListener('click', () => { saveBlob(new Blob([JSON.stringify({ app: 'AO IN STUDIO — AI CREATIVE WORKFLOW', version: 1, name: $('#ais-project-name').value, graph: JSON.parse(snapshot()) }, null, 2)], { type: 'application/json' }), 'workflow.json'); message('Đã xuất workflow.json (chỉ cấu trúc, không kèm ảnh, không API key).'); });
 $('#ais-import').addEventListener('change', (e) => { if (e.target.files[0]) importFile(e.target.files[0]); });
@@ -383,6 +629,8 @@ $('#ais-run-mobile')?.addEventListener('click', () => runNodes('all'));
   pushHistory(); renderAll(); await refreshProjectList(); await refreshStorage();
   const list = (await store.listProjects()).sort((a, b) => b.updatedAt - a.updatedAt);
   if (list.length) await openProject(list[0].id);
+  await renderHistory(); await renderVersions(); await renderStoragePanel();
+  await checkRecovery();
   document.body.dataset.ready = 'true'; document.documentElement.dataset.ready = 'true';
-  logLine('AI Studio P1 sẵn sàng. Chế độ AI: DEMO (chưa kết nối provider thật).');
+  logLine('AI Studio P2 sẵn sàng: hàng đợi chạy + lịch sử, bộ nhớ đệm kết quả, phiên bản dự án, khôi phục bản nháp. Chế độ AI: DEMO (chưa kết nối provider thật).');
 })();

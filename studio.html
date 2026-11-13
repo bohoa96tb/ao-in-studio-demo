@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="description" content="ÁO IN STUDIO — AI Creative Workflow: trình dựng workflow node để tạo ảnh/video quảng cáo áo in. Chế độ AI hiện là DEMO.">
 <meta name="theme-color" content="#2b2b2b">
-<title>ÁO IN STUDIO — AI Creative Workflow (P1)</title>
-<link rel="stylesheet" href="src/ai-studio/studio.css?v=aistudio1">
-<script type="module" src="src/ai-studio/studio.js?v=aistudio1"></script>
+<title>ÁO IN STUDIO — AI Creative Workflow (P2)</title>
+<link rel="stylesheet" href="src/ai-studio/studio.css?v=aistudio2">
+<script type="module" src="src/ai-studio/studio.js?v=aistudio2"></script>
 </head>
 <body>
 <header class="ais-topbar">
@@ -31,6 +31,15 @@
   <label class="ais-import-label">Nhập JSON/ZIP <input type="file" id="ais-import" accept=".json,.zip" hidden></label>
   <span class="ais-templates-label">Mẫu có sẵn:</span>
   <span id="ais-templates"></span>
+</div>
+<div id="ais-recovery" class="ais-recovery" hidden>
+  <span id="ais-recovery-text">Có bản nháp chưa lưu.</span>
+  <button id="ais-recovery-restore">↩ Khôi phục bản nháp</button>
+  <button id="ais-recovery-discard">Bỏ qua</button>
+</div>
+<div id="ais-runbar" class="ais-runbar">
+  <span id="ais-run-progress">Chưa chạy.</span>
+  <button id="ais-resume" hidden>⏵ Chạy tiếp từ node lỗi</button>
 </div>
 <main class="ais-main">
   <aside id="ais-library" aria-label="Thư viện node">
@@ -58,8 +67,22 @@
   <aside id="ais-properties" aria-label="Thuộc tính node"></aside>
 </main>
 <footer class="ais-logbar">
-  <strong>Tiến trình &amp; nhật ký</strong>
-  <ul id="ais-log"></ul>
+  <div class="ais-tabs" role="tablist" aria-label="Bảng thông tin chạy và lưu trữ">
+    <button data-tab="log" class="active">Tiến trình &amp; nhật ký</button>
+    <button data-tab="history">Lịch sử chạy</button>
+    <button data-tab="versions">Phiên bản dự án</button>
+    <button data-tab="storage">Lưu trữ</button>
+  </div>
+  <div id="ais-pane-log" class="ais-tabpane"><ul id="ais-log"></ul></div>
+  <div id="ais-pane-history" class="ais-tabpane" hidden>
+    <div class="ais-pane-tools"><span class="hint light">Mỗi lượt chạy của dự án hiện tại (tối đa 50, giữ trong IndexedDB — còn sau khi tải lại trang).</span><button id="ais-clear-history">Xóa lịch sử</button></div>
+    <div id="ais-history-list"><p class="hint light">Chưa có lượt chạy nào được ghi.</p></div>
+  </div>
+  <div id="ais-pane-versions" class="ais-tabpane" hidden>
+    <div class="ais-pane-tools"><span class="hint light">Mỗi lần bấm Lưu sẽ tạo 1 phiên bản (tối đa 20/dự án). Tự lưu chỉ ghi bản nháp, không tạo phiên bản. Khôi phục 1 phiên bản sẽ được ghi lại thành phiên bản mới.</span></div>
+    <div id="ais-versions-list"><p class="hint light">Chưa có phiên bản nào. Bấm Lưu để tạo phiên bản đầu tiên.</p></div>
+  </div>
+  <div id="ais-pane-storage" class="ais-tabpane" hidden><div id="ais-storage-panel"><p class="hint light">Đang tính dung lượng…</p></div></div>
 </footer>
 </body>
 </html>

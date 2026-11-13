@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "node scripts/build.mjs",
-    "test": "node --test tests/runtime.test.mjs tests/server.test.mjs tests/ltx.test.mjs tests/cart.test.mjs tests/catalog-filter.test.mjs tests/media-manifest.test.mjs tests/mockup-engine.test.mjs tests/print-core.test.mjs tests/ai-studio.test.mjs",
+    "test": "node --test tests/runtime.test.mjs tests/server.test.mjs tests/ltx.test.mjs tests/cart.test.mjs tests/catalog-filter.test.mjs tests/media-manifest.test.mjs tests/mockup-engine.test.mjs tests/print-core.test.mjs tests/ai-studio.test.mjs tests/ai-studio-p2.test.mjs",
     "lint": "node --check src/app.js",
     "test:browser": "node tests/browser.mjs"
   },

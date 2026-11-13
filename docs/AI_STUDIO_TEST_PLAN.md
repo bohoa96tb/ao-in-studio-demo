@@ -26,6 +26,21 @@
 - Smoke trang chủ sau thay đổi: `#product-catalog`, `#design-collection`, `#studio`, `#print-workspace` còn đủ, link "AI Studio" có mặt, 0 lỗi trang.
 - `npm run build`: `dist/studio.html` + `dist/src/ai-studio/*` có mặt.
 
+## P2 (bổ sung)
+### Unit (`tests/ai-studio-p2.test.mjs`, chạy trong `npm test`)
+- Hash ổn định (thứ tự khóa không ảnh hưởng); khóa đệm bỏ qua trường suy biến `composed`; sửa 1 node → khóa của node đó + phía sau đổi, nhánh không liên quan giữ nguyên.
+- Engine: lần chạy 2 phục vụ từ đệm (handler không bị gọi lại); thử lại tới khi thành công / cạn lượt; node treo bị timeout với thông báo rõ ràng; ghi thời lượng + callback tiến trình; seed outputs cho chạy tiếp.
+- Hàng đợi: chạy tuần tự, đúng thứ tự enqueue, tối đa 1 tác vụ đồng thời.
+- Validator: báo cáo cả lỗi nối dây lẫn lỗi nội dung (chưa có hình in, prompt trống); đồ thị hợp lệ không có vấn đề.
+- GC: asset được dự án / phiên bản / bản nháp tham chiếu đều được giữ; chỉ asset không ai tham chiếu là rác. Cắt danh sách lịch sử/phiên bản theo cap giữ bản mới nhất.
+
+### Browser (`tests/ai-studio-p2.mjs`, Playwright, server :5264)
+- Pha A (430 + 1366): lịch sử chạy ghi + còn sau reload; chạy lại không đổi → node `cached`; sửa prompt → chỉ chuỗi prompt chạy lại; 2 lần Lưu → 2 phiên bản, khôi phục về trạng thái cũ; tab Lưu trữ + dọn file rác.
+- Pha B (430): lỗi runtime (provider stub) → lịch sử "Có lỗi" → nút chạy tiếp → chạy tiếp thành công từ node lỗi.
+- Pha C (430): bản nháp chưa lưu → reload → đề nghị khôi phục → khôi phục đúng workflow + tên.
+- Pha D (1366): DB v1 (kiểu P1, tạo tay) → migration lên v2, dự án cũ mở đúng.
+- Pha E (390 + 1920): khói — Mẫu 1 chạy + lịch sử + không tràn ngang/lỗi trang.
+
 ## Chưa kiểm tra (không được báo PASS)
 - Cảm ứng kéo/nối trên **điện thoại Android thật** (mới kiểm bằng Playwright hasTouch + Pointer Events).
 - Pinch-zoom 2 ngón thật (có code, chưa có thiết bị kiểm chứng).

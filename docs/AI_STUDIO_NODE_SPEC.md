@@ -18,4 +18,5 @@ Cổng vào nhận tối đa 1 dây. Tương thích kiểu: giống nhau, hoặc
 | 12 | Lưu dự án `saveProject` | any? → any | — | Gọi lưu dự án vào IndexedDB khi workflow chạy tới |
 
 Trạng thái node: `idle/running/success/error` + log tối đa 30 dòng/node + thông báo lỗi tiếng Việt.
+**P2 bổ sung:** trạng thái `cached` (kết quả lấy từ bộ nhớ đệm vì cấu hình + đầu vào không đổi — mọi node trừ `preview`/`exportNode`/`saveProject`); thời lượng chạy + số lần thử ghi cho từng node; node nhóm AI được thử lại mặc định 1 lần khi lỗi; mọi node có timeout mặc định 60s (cấu hình ở "Cài đặt chạy" trong bảng thuộc tính khi chưa chọn node). Trước mỗi lượt chạy, toàn bộ workflow được kiểm tra (nối dây + nội dung) — có vấn đề thì không chạy và hiện danh sách.
 Thao tác canvas: kéo node, kéo dây cổng→cổng, pan, zoom (bánh xe/nút/pinch), fit, nhân bản, xóa node/dây (phím Delete hoặc nút), undo/redo snapshot (tối đa 60).
