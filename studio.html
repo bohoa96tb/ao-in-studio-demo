@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="description" content="ÁO IN STUDIO — AI Creative Workflow: trình dựng workflow node để tạo ảnh/video quảng cáo áo in. Chế độ AI hiện là DEMO.">
+<meta name="theme-color" content="#2b2b2b">
+<title>ÁO IN STUDIO — AI Creative Workflow (P1)</title>
+<link rel="stylesheet" href="src/ai-studio/studio.css?v=aistudio1">
+<script type="module" src="src/ai-studio/studio.js?v=aistudio1"></script>
+</head>
+<body>
+<header class="ais-topbar">
+  <a class="ais-back" href="index.html">← Cửa hàng</a>
+  <input id="ais-project-name" value="Dự án mới" aria-label="Tên dự án">
+  <span id="ais-save-status" role="status">Chưa lưu</span>
+  <span class="ais-demo-badge" title="Chưa kết nối provider AI thật">AI: DEMO</span>
+  <div class="ais-top-actions">
+    <button id="ais-save">💾 Lưu</button>
+    <button id="ais-run" class="primary">▶ Chạy workflow</button>
+    <button id="ais-stop">■ Dừng</button>
+    <button id="ais-export-zip-btn">⬇ Xuất ZIP</button>
+    <button id="ais-export-workflow-btn">Xuất workflow.json</button>
+  </div>
+</header>
+<div class="ais-projectbar">
+  <button id="ais-new">+ Dự án mới</button>
+  <label>Dự án đã lưu <select id="ais-project-select" aria-label="Mở dự án đã lưu"><option value="">(chưa có dự án)</option></select></label>
+  <button id="ais-duplicate">Nhân bản</button>
+  <button id="ais-delete-project">Xóa dự án</button>
+  <label class="ais-import-label">Nhập JSON/ZIP <input type="file" id="ais-import" accept=".json,.zip" hidden></label>
+  <span class="ais-templates-label">Mẫu có sẵn:</span>
+  <span id="ais-templates"></span>
+</div>
+<main class="ais-main">
+  <aside id="ais-library" aria-label="Thư viện node">
+    <h3>Thư viện node</h3>
+    <div id="ais-node-library"></div>
+    <p class="hint">Bấm để thêm node. Kéo node để di chuyển, kéo từ cổng phải sang cổng trái của node khác để nối dây.</p>
+  </aside>
+  <section class="ais-canvas-wrap">
+    <div class="ais-canvas-tools">
+      <button id="ais-toggle-library">＋ Node</button>
+      <button id="ais-undo">↩ Hoàn tác</button>
+      <button id="ais-redo">↪ Làm lại</button>
+      <button id="ais-zoom-out">−</button><span id="ais-zoom-label">90%</span><button id="ais-zoom-in">+</button>
+      <button id="ais-fit">Vừa màn hình</button>
+      <button id="ais-delete-edge">Xóa dây đã chọn</button>
+      <button id="ais-run-mobile" class="primary">▶ Chạy</button>
+    </div>
+    <div id="ais-canvas" aria-label="Canvas workflow">
+      <div id="ais-world">
+        <svg id="ais-edges" width="4000" height="3000" aria-hidden="true"></svg>
+      </div>
+    </div>
+    <p id="ais-message" role="status">Sẵn sàng. Tải một mẫu có sẵn hoặc thêm node để bắt đầu.</p>
+  </section>
+  <aside id="ais-properties" aria-label="Thuộc tính node"></aside>
+</main>
+<footer class="ais-logbar">
+  <strong>Tiến trình &amp; nhật ký</strong>
+  <ul id="ais-log"></ul>
+</footer>
+</body>
+</html>

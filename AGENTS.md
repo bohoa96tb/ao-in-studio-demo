@@ -68,3 +68,15 @@ effective DPI (PNG pHYs); originals live untouched in IndexedDB
 `ao-in-print` — never overwrite them and never touch Studio's v1 DB;
 ORT/VTracer/model payloads under public/vendor + public/models are
 lazy-loaded only. Print-core stays DOM-free and unit-tested.
+
+## AI Studio — Creative Workflow (P1, 2026-11-13, branch feature/ai-studio-p1)
+Read docs/AI_STUDIO_ARCHITECTURE.md + AI_STUDIO_QA_REPORT.md before touching it.
+Standalone page `studio.html` + code under `src/ai-studio/` (vanilla JS — the repo
+has no bundler; do NOT add React/@xyflow). Own IndexedDB `ao-in-ai-studio`; never
+touch the shop/print DBs. Honesty rules: AI nodes are DEMO until a real provider
+is connected via a backend proxy and verified — demo outputs are labelled in the
+pixels, never call them AI-generated or real product photos; never fake MP4
+(demo video is WebM via MediaRecorder); an exported SVG must be a real vector;
+API keys live only in page-session memory — never in Git/IndexedDB/localStorage/
+exports. Design originals stay untouched; composition overlays the original
+pixels post-hoc. Prompt Assistant is rule-based, not AI — label it as such.
