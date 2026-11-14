@@ -2,7 +2,7 @@
 // workflow execution via engine.js, project persistence in IndexedDB
 // `ao-in-ai-studio`. AI nodes run the DEMO adapter until a real provider is
 // configured; every demo output is visibly labelled.
-import { NODE_DEFS, NODE_TYPES, TEMPLATES, emptyGraph, makeNode, findNode, validateConnection, buildPrompt, PROMPT_OPTIONS, PROMPT_TEMPLATES, checkSvgSafety, zipWrite, zipRead, uid, SAMPLE_DESIGN_SVG } from './core.js';
+import { NODE_DEFS, NODE_TYPES, TEMPLATES, emptyGraph, makeNode, findNode, validateConnection, buildPrompt, garmentParams, garmentSummaryVi, GARMENT_OPTIONS, DEMO_FIGURE, PROMPT_OPTIONS, PROMPT_TEMPLATES, checkSvgSafety, zipWrite, zipRead, uid, SAMPLE_DESIGN_SVG } from './core.js';
 import { Engine, downstreamOf, upstreamOf } from './engine.js';
 import { nodeCacheKey, isCacheable, RunQueue, validateWorkflow, collectReferencedAssetIds, findOrphanAssets, pruneOldest, formatDuration } from './p2.js';
 import { DemoAdapter, HttpAdapter, PollinationsClassicAdapter, PollinationsKeyedAdapter, setSessionKey, hasSessionKey, BROWSER_KEY_WARNING, POLLINATIONS_KEY_WARNING, AUTO_TOPUP_WARNING, COMMERCIAL_USE_NOTE, PROVIDERS, providerById, modelOf, isRunnableModel, resolveGenerationMode, suppressRetryForMode, sizeForRatio, estimateGenerationCost, describePlannedCalls, describeProvider } from './providers.js';
@@ -55,10 +55,86 @@ function wrapText(ctx, text, x, y, maxW, lh) { const words = String(text).split(
 function drawDemoBanner(ctx, w, text = 'ẢNH DEMO — chưa kết nối AI') { ctx.save(); ctx.fillStyle = 'rgba(32,32,32,0.88)'; ctx.fillRect(0, 0, w, 54); ctx.fillStyle = '#ffb59d'; ctx.font = 'bold 26px Arial'; ctx.textAlign = 'center'; ctx.fillText(text, w / 2, 37); ctx.restore(); }
 
 // ---------- demo provider implementation (canvas-derived, honestly labelled) ----------
+/**
+ * P4.1 DEMO model figure: a simple stylised model (head / shoulders / torso)
+ * wearing a PLAIN t-shirt in the garment params' colour and fit (oversize =
+ * visibly wider + longer silhouette). Fully deterministic — geometry comes
+ * from DEMO_FIGURE (core.js), so Template 1's composition chest quad matches
+ * the figure exactly and the original design lands on the chest in tests.
+ */
+function drawDemoFigure(x, W, H, garment) {
+  const fit = garment.style === 'oversize' ? DEMO_FIGURE.torso.oversize : DEMO_FIGURE.torso.regular;
+  const [tx0, tx1] = fit.span;
+  const shY = fit.shoulderY * H, hemY = fit.hemY * H;
+  const X = (f) => f * W, Y = (f) => f * H;
+  // clean studio-ish background + floor band
+  const bg = x.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#f2ecdf'); bg.addColorStop(0.78, '#e0d2b6'); bg.addColorStop(1, '#c9b48d');
+  x.fillStyle = bg; x.fillRect(0, 0, W, H);
+  x.fillStyle = 'rgba(120,95,60,0.16)'; x.fillRect(0, Y(0.9), W, H - Y(0.9));
+  const skin = '#eec39f', skinDark = '#c98f5f', hair = '#3a2a20';
+  // arms (skin) behind the sleeves
+  x.fillStyle = skin;
+  const armW = 0.045 * W;
+  x.fillRect(X(tx0) + 2, shY + 0.16 * H, armW, 0.3 * H);
+  x.fillRect(X(tx1) - armW - 2, shY + 0.16 * H, armW, 0.3 * H);
+  // trousers below the hem
+  x.fillStyle = '#45454e'; x.fillRect(X(tx0 + 0.07), hemY, X(tx1 - 0.07) - X(tx0 + 0.07), H - hemY);
+  // neck + head + simple face
+  x.fillStyle = skin; x.fillRect(X(0.468), Y(0.185), X(0.532) - X(0.468), Y(0.3) - Y(0.185));
+  x.beginPath(); x.arc(X(0.5), Y(0.148), 0.072 * H, 0, Math.PI * 2); x.fillStyle = skin; x.fill();
+  x.fillStyle = '#2b2b2b';
+  for (const sgn of [-1, 1]) { x.beginPath(); x.arc(X(0.5) + sgn * 0.026 * H, Y(0.15), 0.006 * H, 0, Math.PI * 2); x.fill(); }
+  x.beginPath(); x.arc(X(0.5), Y(0.166), 0.02 * H, Math.PI * 0.15, Math.PI * 0.85); x.strokeStyle = skinDark; x.lineWidth = Math.max(2, 0.004 * H); x.stroke();
+  // hair: cap + side locks
+  x.fillStyle = hair;
+  x.beginPath(); x.arc(X(0.5), Y(0.14), 0.074 * H, Math.PI * 1.03, Math.PI * 1.97); x.lineTo(X(0.5) + 0.074 * H, Y(0.128)); x.lineTo(X(0.5) - 0.074 * H, Y(0.128)); x.closePath(); x.fill();
+  x.fillRect(X(0.5) - 0.076 * H, Y(0.125), 0.018 * H, 0.085 * H);
+  x.fillRect(X(0.5) + 0.058 * H, Y(0.125), 0.018 * H, 0.085 * H);
+  // the PLAIN t-shirt silhouette
+  const sx0 = X(tx0), sx1 = X(tx1);
+  const tee = new Path2D();
+  tee.moveTo(X(0.455), shY - 0.012 * H);
+  tee.lineTo(sx0 + 0.028 * W, shY);
+  tee.lineTo(sx0 - 0.018 * W, shY + 0.035 * H);
+  tee.lineTo(sx0 + 0.018 * W, shY + 0.185 * H);
+  tee.lineTo(sx0 + 0.03 * W, shY + 0.17 * H);
+  tee.lineTo(sx0 + 0.005 * W, hemY);
+  tee.lineTo(sx1 - 0.005 * W, hemY);
+  tee.lineTo(sx1 - 0.03 * W, shY + 0.17 * H);
+  tee.lineTo(sx1 - 0.018 * W, shY + 0.185 * H);
+  tee.lineTo(sx1 + 0.018 * W, shY + 0.035 * H);
+  tee.lineTo(sx1 - 0.028 * W, shY);
+  tee.lineTo(X(0.545), shY - 0.012 * H);
+  tee.quadraticCurveTo(X(0.5), shY + 0.045 * H, X(0.455), shY - 0.012 * H);
+  tee.closePath();
+  x.fillStyle = garment.colorHex || '#f4f4f2'; x.fill(tee);
+  // soft side shading + gentle fold strokes, clipped to the tee
+  x.save(); x.clip(tee);
+  const sh = x.createLinearGradient(sx0, 0, sx1, 0);
+  sh.addColorStop(0, 'rgba(0,0,0,0.13)'); sh.addColorStop(0.18, 'rgba(0,0,0,0)');
+  sh.addColorStop(0.5, 'rgba(255,255,255,0.05)'); sh.addColorStop(0.82, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(0,0,0,0.13)');
+  x.fillStyle = sh; x.fillRect(0, 0, W, H);
+  x.strokeStyle = 'rgba(0,0,0,0.05)'; x.lineWidth = Math.max(2, 0.006 * H);
+  for (const fy of [0.52, 0.63, 0.74]) { x.beginPath(); x.moveTo(sx0 + 0.05 * W, Y(fy)); x.quadraticCurveTo(X(0.5), Y(fy) + 0.012 * H, sx1 - 0.05 * W, Y(fy)); x.stroke(); }
+  x.restore();
+  // crew-neck collar band
+  x.beginPath(); x.moveTo(X(0.455), shY - 0.012 * H); x.quadraticCurveTo(X(0.5), shY + 0.045 * H, X(0.545), shY - 0.012 * H);
+  x.strokeStyle = 'rgba(0,0,0,0.28)'; x.lineWidth = Math.max(3, 0.009 * H); x.stroke();
+}
 const demoImpl = {
   async demoImage({ prompt, image }) {
     const [rw, rh] = { '4:5': [768, 960], '1:1': [864, 864], '9:16': [720, 1280], '16:9': [1280, 720] }[prompt?.ratio || '4:5'] || [768, 960];
     const c = makeCanvas(rw, rh), x = c.getContext('2d');
+    // P4.1: garment params + NO reference image → the deterministic demo
+    // figure in a PLAIN tee. A wired reference image keeps the legacy
+    // P1–P4 wash behaviour (templates 2–4 unchanged).
+    if (prompt?.garment && !image?.blob) {
+      drawDemoFigure(x, rw, rh, prompt.garment);
+      drawDemoBanner(x, rw);
+      x.strokeStyle = '#b6492f'; x.lineWidth = 10; x.strokeRect(5, 5, rw - 10, rh - 10);
+      return valueFromBlob(await canvasBlob(c), 'image', { demo: true, label: 'Ảnh DEMO mô phỏng — người mẫu vẽ bằng canvas mặc áo thun TRƠN đúng màu/phom đã chọn; hình in gốc được ghép hậu kỳ, đây không phải ảnh sản phẩm thật' });
+    }
     const g = x.createLinearGradient(0, 0, 0, rh); g.addColorStop(0, '#f3ead9'); g.addColorStop(1, '#d9c6a5'); x.fillStyle = g; x.fillRect(0, 0, rw, rh);
     if (image?.blob) { const img = await blobToImg(image.blob); const s = Math.max(rw / img.width, rh / img.height); x.drawImage(img, (rw - img.width * s) / 2, (rh - img.height * s) / 2, img.width * s, img.height * s); x.fillStyle = 'rgba(243,234,217,0.18)'; x.fillRect(0, 0, rw, rh); }
     drawDemoBanner(x, rw);
@@ -95,11 +171,11 @@ const demoImpl = {
 // when the value is served back. API keys are never part of a cache record.
 async function cachePutRecord(key, node, value) {
   if (!value || (value.kind !== 'prompt' && !(value.blob instanceof Blob))) return;
-  await store.putCache({ key, projectId, nodeId: node.id, nodeType: node.type, createdAt: Date.now(), kind: value.kind, label: value.label || '', demo: !!value.demo, name: value.name || '', mime: value.mime || '', svgText: value.svgText || '', text: value.text || '', blob: value.blob instanceof Blob ? value.blob : null });
+  await store.putCache({ key, projectId, nodeId: node.id, nodeType: node.type, createdAt: Date.now(), kind: value.kind, label: value.label || '', demo: !!value.demo, name: value.name || '', mime: value.mime || '', svgText: value.svgText || '', text: value.text || '', garment: value.garment || null, blob: value.blob instanceof Blob ? value.blob : null });
 }
 async function cacheGetRecord(key) {
   const r = await store.getCache(key); if (!r) return null;
-  if (r.kind === 'prompt') return { kind: 'prompt', text: r.text };
+  if (r.kind === 'prompt') return { kind: 'prompt', text: r.text, garment: r.garment || null };
   if (r.blob) return valueFromBlob(r.blob, r.kind, { name: r.name, demo: r.demo, label: r.label, svgText: r.svgText });
   return null;
 }
@@ -258,11 +334,34 @@ const handlers = {
     throw new Error('Chưa có hình in. Tải PNG trong suốt / SVG an toàn, hoặc dùng hình in mẫu.');
   },
   async promptInput(node) { if (!node.config.text.trim()) throw new Error('Prompt đang trống.'); return { kind: 'prompt', text: node.config.text.trim() }; },
-  async promptAssistant(node, { inputs }) { const composed = buildPrompt(node.config, inputs.in?.text || ''); node.config.composed = composed; return { kind: 'prompt', text: composed }; },
-  async composition(node, { inputs, log }) {
+  // P4.1: the prompt value carries the structured garment params alongside
+  // the EN text, so aiImageGen (and the DEMO figure) get machine-readable
+  // style/colour/view — not just prose. Legacy string prompts still work:
+  // consumers read .text and treat a missing .garment as "no params".
+  async promptAssistant(node, { inputs }) { const text = buildPrompt(node.config, inputs.in?.text || ''); node.config.composed = text; return { kind: 'prompt', text, garment: garmentParams(node.config) }; },
+  async composition(node, { inputs, log, engine }) {
     const design = inputs.design; if (!design) throw new Error('Thiếu hình in.');
     const cfg = migrateCompositionConfig(node.config); node.config = cfg;
-    let garmentBlob = inputs.garment?.blob; if (!garmentBlob) garmentBlob = await fetchBlob(cfg.base);
+    // P4.1 garment source: 'ai' = the wired garment photo (AI plain-tee
+    // photo in Template 1); 'real' = ignore that input and composite onto
+    // the real fixture photo `realBase` with its calibrated preset quad —
+    // the owner's fallback when the AI garment is wrong.
+    const useReal = cfg.garmentSource === 'real';
+    let garmentBlob, quadOverride = null;
+    if (useReal) {
+      const rb = cfg.realBase || cfg.base;
+      garmentBlob = await fetchBlob(rb);
+      quadOverride = presetQuadFor(rb);
+      log(`Nguồn ảnh áo: ẢNH MẪU THẬT (${rb.split('/').pop()}) — bỏ qua ảnh AI, ghép file hình in GỐC lên ảnh áo thật bằng quad đã hiệu chuẩn của ảnh mẫu.`);
+    } else {
+      garmentBlob = inputs.garment?.blob;
+      if (!garmentBlob) {
+        const hasGarmentEdge = !!engine?.graph?.edges?.some(e => e.to === node.id && e.toPort === 'garment');
+        if (hasGarmentEdge) throw new Error('Chưa có ảnh áo từ node phía trước (ảnh AI chưa tạo được hoặc chưa chạy). Nếu ảnh AI sai kiểu áo/màu áo → mở node Ghép hình in này, chuyển "Nguồn ảnh áo" sang "Ảnh mẫu thật" để ghép lên ảnh áo thật.');
+        garmentBlob = await fetchBlob(cfg.base);
+      }
+    }
+    const srcNote = useReal ? ' · ghép lên ẢNH MẪU THẬT' : '';
     const g = await blobToImg(garmentBlob);
     const scale = Math.min(1, 900 / g.width); const W = Math.round(g.width * scale), H = Math.round(g.height * scale);
     const c = makeCanvas(W, H), x = c.getContext('2d'); x.drawImage(g, 0, 0, W, H);
@@ -273,16 +372,16 @@ const handlers = {
       x.save(); x.translate(px + pw / 2, py + pw / 2); x.rotate((cfg.rotation || 0) * Math.PI / 180); const ds = Math.min(pw / dImg.width, pw / dImg.height); x.drawImage(dImg, -dImg.width * ds / 2, -dImg.height * ds / 2, dImg.width * ds, dImg.height * ds); x.restore();
       x.save(); x.strokeStyle = 'rgba(182,73,47,0.9)'; x.setLineDash([8, 6]); x.lineWidth = 2; x.strokeRect(px, py, pw, pw); x.restore();
       log('Đã ghép file hình in GỐC lên ảnh áo (chế độ đơn giản P1) — nội dung hình in không bị AI vẽ lại.');
-      return valueFromBlob(await canvasBlob(c), 'image', { label: cfg.label });
+      return valueFromBlob(await canvasBlob(c), 'image', { label: cfg.label + srcNote });
     }
     // P3 perspective mode: homography warp onto the 4-point quad + wrinkle
     // displacement + garment shading. The design drawn is the ORIGINAL file.
-    const quad = (Array.isArray(cfg.quad) && cfg.quad.length === 4) ? cfg.quad : (presetQuadFor(cfg.base) || rectToQuad(cfg.printX, cfg.printY, cfg.printW));
+    const quad = quadOverride || ((Array.isArray(cfg.quad) && cfg.quad.length === 4) ? cfg.quad : (presetQuadFor(cfg.base) || rectToQuad(cfg.printX, cfg.printY, cfg.printW)));
     const { layer, quadPx } = renderWarpedLayer(c, dImg, quad, { wrinkle: cfg.wrinkle || 0, shading: cfg.shading || 0 });
     x.drawImage(layer, 0, 0);
     strokeQuad(x, quadPx);
     log(`Đã ghép file hình in GỐC theo phối cảnh 4 điểm (cong nếp vải ${cfg.wrinkle || 0}%, bóng vải ${cfg.shading || 0}%) — mô phỏng bằng hình học, không phải ảnh sản phẩm thật.`);
-    return valueFromBlob(await canvasBlob(c), 'image', { label: cfg.label + ' · phối cảnh 4 điểm + cong theo nếp vải (mô phỏng)' });
+    return valueFromBlob(await canvasBlob(c), 'image', { label: cfg.label + ' · phối cảnh 4 điểm + cong theo nếp vải (mô phỏng)' + srcNote });
   },
   async background(node, { inputs, log }) {
     const v = inputs.in; if (!v?.blob) throw new Error('Thiếu ảnh đầu vào.');
@@ -354,7 +453,12 @@ const handlers = {
   },
   async aiImageGen(node, { inputs, log }) {
     const p = currentProvider();
-    if (p.isDemo || p.kind === 'http') return p.generateImage({ prompt: { text: inputs.prompt?.text || '', ratio: node.config.ratio }, image: inputs.image });
+    // P4.1: this node generates the PLAIN garment photo ONLY (garment params
+    // travel with the prompt value). The customer's design is composited
+    // afterwards by the composition node from the original file — the AI
+    // never draws the print.
+    if (inputs.prompt?.garment) { const g = inputs.prompt.garment; log(`Thông số áo: ${g.styleEn} · màu ${g.colorEn} · ${g.viewEn} — AI tạo ảnh áo TRƠN; hình in sẽ được ghép hậu kỳ bằng file gốc.`); }
+    if (p.isDemo || p.kind === 'http') return p.generateImage({ prompt: { text: inputs.prompt?.text || '', ratio: node.config.ratio, garment: inputs.prompt?.garment || null }, image: inputs.image });
     // ---- P4 real generation (classic free / keyed Pollen) ----
     const gm = generationMode();
     if (gm.mode === 'blocked') throw new Error(gm.reason);
@@ -511,9 +615,21 @@ function renderProperties() {
   if (node.type === 'imageInput') { h += field('Ảnh áo có sẵn (ảnh thật)', sel('pf-fixture', FIXTURES, c.fixture)) + field('Hoặc tải ảnh lên (PNG/JPG/WebP, lưu IndexedDB)', '<input type="file" id="pf-file" accept="image/png,image/jpeg,image/webp" multiple>') + (c.assetName ? `<p class="hint">Đang dùng: ${c.assetName}${c.width ? ` (${c.width}×${c.height})` : ''}</p>` : ''); }
   if (node.type === 'designInput') { h += field('Tải hình in (PNG trong suốt / SVG an toàn)', '<input type="file" id="pf-file" accept="image/png,image/svg+xml">') + '<button id="pf-sample">Dùng hình in mẫu (SVG thật)</button>' + field('Nội dung SVG (nếu có)', `<textarea id="pf-svg" rows="4">${(c.svgText || '').replace(/</g, '&lt;')}</textarea>`) + (c.assetName ? `<p class="hint">Đang dùng: ${c.assetName}</p>` : ''); }
   if (node.type === 'promptInput') { h += field('Nội dung prompt (tiếng Việt)', `<textarea id="pf-text" rows="4">${c.text}</textarea>`) + '<p class="hint">Mẫu prompt:</p>' + PROMPT_TEMPLATES.map((t, i) => `<button class="pf-tpl" data-tpl="${i}">${t}</button>`).join(''); }
-  if (node.type === 'promptAssistant') { for (const gName of Object.keys(PROMPT_OPTIONS)) h += field({ style: 'Phong cách chụp', model: 'Người mẫu', background: 'Bối cảnh', lighting: 'Ánh sáng', angle: 'Góc chụp' }[gName], sel('pf-' + gName, Object.entries(PROMPT_OPTIONS[gName]), c[gName])); h += field('Bổ sung', `<input type="text" id="pf-extra" value="${(c.extra || '').replace(/"/g, '&quot;')}">`) + field('Prompt đã soạn (sửa được)', `<textarea id="pf-composed" rows="4">${c.composed || ''}</textarea>`) + '<p class="hint">Trợ lý này ghép prompt bằng QUY TẮC có sẵn — không phải AI.</p>'; }
+  if (node.type === 'promptAssistant') {
+    h += field('Kiểu áo', sel('pf-kieuAo', Object.entries(GARMENT_OPTIONS.kieuAo).map(([v, o]) => [v, o.label]), c.kieuAo || 'co-tron'));
+    h += field('Màu áo', sel('pf-mauAo', Object.entries(GARMENT_OPTIONS.mauAo).map(([v, o]) => [v, o.label]), c.mauAo || 'trang'));
+    h += field('Góc chụp', sel('pf-gocChup', Object.entries(GARMENT_OPTIONS.gocChup).map(([v, o]) => [v, o.label]), c.gocChup || garmentParams(c).view));
+    for (const gName of ['style', 'model', 'background', 'lighting']) h += field({ style: 'Phong cách chụp', model: 'Người mẫu', background: 'Bối cảnh', lighting: 'Ánh sáng' }[gName], sel('pf-' + gName, Object.entries(PROMPT_OPTIONS[gName]), c[gName]));
+    h += field('Bổ sung', `<input type="text" id="pf-extra" value="${(c.extra || '').replace(/"/g, '&quot;')}">`);
+    h += `<div class="pf-summary"><h4>Tóm tắt thông số sẽ gửi</h4><p>${garmentSummaryVi(c)}</p></div>`;
+    h += field('Prompt gửi cho AI (EN)', `<textarea id="pf-composed" rows="6" readonly>${(c.composed || buildPrompt(c, '')).replace(/</g, '&lt;')}</textarea>`);
+    h += '<p class="hint">Trợ lý này ghép prompt bằng QUY TẮC có sẵn — không phải AI. Prompt tạo ảnh viết bằng tiếng Anh (model theo tiếng Anh tốt hơn) và yêu cầu áo TRƠN tuyệt đối; khi chạy, câu prompt gốc của bạn được chèn thêm vào giữa. Hình in KHÔNG nằm trong prompt này.</p>';
+  }
   if (node.type === 'composition') {
     const cm = migrateCompositionConfig(c);
+    h += field('Nguồn ảnh áo', sel('pf-garment-source', [['ai', 'Ảnh từ node Tạo ảnh AI (áo trơn do AI tạo)'], ['real', 'Ảnh mẫu thật — bỏ qua ảnh AI']], cm.garmentSource));
+    if (cm.garmentSource === 'real') h += field('Ảnh mẫu thật dùng làm nền ghép', sel('pf-real-base', FIXTURES, cm.realBase));
+    h += '<p class="hint">Nếu ảnh AI sai kiểu áo/màu áo → chuyển Nguồn ảnh áo sang \'Ảnh mẫu thật\' để ghép lên ảnh áo thật. Ở chế độ Ảnh mẫu thật, vùng in dùng quad đã hiệu chuẩn sẵn của ảnh mẫu đó và node này vẫn chạy được kể cả khi node AI bị lỗi.</p>';
     h += field('Ảnh áo nền (khi không có dây vào)', sel('pf-base', FIXTURES, c.base));
     h += field('Chế độ ghép', sel('pf-comp-mode', [['perspective', 'Phối cảnh 4 điểm (P3)'], ['simple', 'Đơn giản — chữ nhật (P1)']], cm.mode));
     if (cm.mode === 'perspective') {
@@ -545,7 +661,7 @@ function renderProperties() {
     h += '<p class="hint">Ảnh đầu vào có nền trong suốt (PNG) sẽ được đặt trực tiếp lên nền. Ảnh KHÔNG trong suốt sẽ được đặt dạng KHUNG ẢNH — node không tách nền giả.</p>';
   }
   if (node.type === 'imageEditor') { h += field('Cắt mỗi cạnh %', num('pf-crop', c.crop, 'min="0" max="40"')) + field('Xoay (độ: 0/90/180/270)', num('pf-rotate', c.rotate)) + field('Rộng đầu ra px (0 = giữ nguyên)', num('pf-resizeW', c.resizeW, 'min="0" max="2000"')) + field('Độ sáng %', num('pf-brightness', c.brightness, 'min="20" max="200"')) + field('Tương phản %', num('pf-contrast', c.contrast, 'min="20" max="200"')); }
-  if (node.type === 'aiImageGen') { h += field('Tỉ lệ ảnh', sel('pf-ratio', [['4:5', '4:5'], ['1:1', '1:1'], ['9:16', '9:16 (TikTok)'], ['16:9', '16:9']], c.ratio)) + field('Số lượng (DEMO tạo 1; AI thật P4 luôn 1)', num('pf-count', c.count, 'min="1" max="4"')) + aiModeHint(); }
+  if (node.type === 'aiImageGen') { h += field('Tỉ lệ ảnh', sel('pf-ratio', [['4:5', '4:5'], ['1:1', '1:1'], ['9:16', '9:16 (TikTok)'], ['16:9', '16:9']], c.ratio)) + field('Số lượng (DEMO tạo 1; AI thật P4 luôn 1)', num('pf-count', c.count, 'min="1" max="4"')) + '<p class="hint">Node này tạo ảnh người mẫu mặc áo thun TRƠN đúng kiểu/màu đã chọn ở node Trợ lý prompt. Hình in KHÔNG do AI vẽ — node "Ghép hình in lên áo" sẽ ghép file thiết kế GỐC lên ảnh này ở bước sau.</p>' + aiModeHint(); }
   if (node.type === 'aiVariation') { h += field('Kiểu biến thể', sel('pf-variant', [['boi-canh', 'Đổi bối cảnh (tông màu)'], ['goc-khac', 'Đổi góc (phóng 1.3×)'], ['can-canh', 'Cận cảnh (phóng 2×)']], c.variant)) + aiModeHint() + '<p class="hint">Ở chế độ AI thật với model chỉ-tạo-từ-chữ, biến thể = tạo ảnh MỚI từ prompt biến thể (không phải img2img); với model img2img (klein/kontext) node sẽ báo rõ giới hạn URL tham chiếu của P4.</p>'; }
   if (node.type === 'aiVideoGen') { h += field('Mô tả chuyển động', `<input type="text" id="pf-motion" value="${(c.motion || '').replace(/"/g, '&quot;')}">`) + field('Thời lượng (giây, demo tối đa 6)', num('pf-duration', c.duration, 'min="1" max="6"')) + field('Tỉ lệ', sel('pf-ratio', [['9:16', '9:16 dọc'], ['16:9', '16:9 ngang'], ['1:1', '1:1']], c.ratio)) + '<p class="hint warn">DEMO: video WebM ghi từ canvas bằng MediaRecorder — không phải MP4, không phải AI video thật.</p>'; }
   if (node.type === 'exportNode') {
@@ -658,14 +774,19 @@ function bindProperties(node) {
   on('pf-text', 'input', e => upd('text', e.target.value));
   document.querySelectorAll('.pf-tpl').forEach(b => b.addEventListener('click', () => { upd('text', PROMPT_TEMPLATES[+b.dataset.tpl]); renderProperties(); }));
   for (const gName of Object.keys(PROMPT_OPTIONS)) on('pf-' + gName, 'change', e => { upd(gName, e.target.value); c.composed = buildPrompt(c, ''); renderProperties(); });
+  for (const gk of ['kieuAo', 'mauAo', 'gocChup']) on('pf-' + gk, 'change', e => { upd(gk, e.target.value); c.composed = buildPrompt(c, ''); renderProperties(); });
   on('pf-extra', 'input', e => upd('extra', e.target.value));
-  on('pf-composed', 'input', e => { c.composed = e.target.value; });
   const numBind = (id, key) => on(id, 'change', e => upd(key, Number(e.target.value)));
   ['fixture', 'base'].forEach(k => on('pf-' + k, 'change', e => upd(k, e.target.value)));
   on('pf-svg', 'change', e => { const v = e.target.value; if (v) { const chk = checkSvgSafety(v); if (!chk.ok) return message(chk.reason, true); } upd('svgText', v); });
   numBind('pf-printX', 'printX'); numBind('pf-printY', 'printY'); numBind('pf-printW', 'printW'); numBind('pf-rotation', 'rotation');
   // ---- P3 composition: mode, quad editor, wrinkle/shading ----
   if (node.type === 'composition') {
+    // NOTE: write through node.config, NOT the captured `c` — setupQuadEditor
+    // (called just below) replaces node.config with a migrated copy, which
+    // would orphan any writes made through the older object reference.
+    on('pf-garment-source', 'change', e => { node.config.garmentSource = e.target.value; node.config = migrateCompositionConfig(node.config); pushHistory(); renderAll(); scheduleSave(); });
+    on('pf-real-base', 'change', e => { node.config.realBase = e.target.value; renderNodes(); scheduleSave(); });
     on('pf-comp-mode', 'change', e => { c.mode = e.target.value; if (c.mode === 'perspective') node.config = migrateCompositionConfig(node.config); pushHistory(); renderAll(); scheduleSave(); });
     if (document.getElementById('ais-quad-canvas')) {
       setupQuadEditor(node);
@@ -721,7 +842,11 @@ async function drawQuadPreview(node) {
   const cfg = migrateCompositionConfig(node.config);
   const gEdge = graph.edges.find(e => e.to === node.id && e.toPort === 'garment');
   const dEdge = graph.edges.find(e => e.to === node.id && e.toPort === 'design');
-  let gSrc = gEdge ? outputs.get(gEdge.from)?.url : null; if (!gSrc) gSrc = cfg.base;
+  // P4.1: in 'real' source mode the preview shows the real fixture photo and
+  // its calibrated preset quad (the quad the handler will actually use).
+  let gSrc, quadUsed = cfg.quad;
+  if (cfg.garmentSource === 'real') { gSrc = cfg.realBase || cfg.base; quadUsed = presetQuadFor(gSrc) || cfg.quad; }
+  else { gSrc = gEdge ? outputs.get(gEdge.from)?.url : null; if (!gSrc) gSrc = cfg.base; }
   let dSrc = dEdge ? outputs.get(dEdge.from)?.url : null;
   if (!dSrc && dEdge) { const dn = findNode(graph, dEdge.from); if (dn?.config.svgText) dSrc = URL.createObjectURL(new Blob([dn.config.svgText], { type: 'image/svg+xml' })); }
   try {
@@ -729,10 +854,10 @@ async function drawQuadPreview(node) {
     const s = Math.min(300 / g.width, 380 / g.height);
     canvas.width = Math.max(80, Math.round(g.width * s)); canvas.height = Math.max(80, Math.round(g.height * s));
     const x = canvas.getContext('2d'); x.drawImage(g, 0, 0, canvas.width, canvas.height);
-    const quadPx = cfg.quad.map(([qx, qy]) => [qx * canvas.width, qy * canvas.height]);
+    const quadPx = quadUsed.map(([qx, qy]) => [qx * canvas.width, qy * canvas.height]);
     if (dSrc) {
       const d = await loadImg(dSrc); if (token !== quadDrawToken) return;
-      const { layer } = renderWarpedLayer(canvas, d, cfg.quad, { wrinkle: cfg.wrinkle || 0, shading: cfg.shading || 0 });
+      const { layer } = renderWarpedLayer(canvas, d, quadUsed, { wrinkle: cfg.wrinkle || 0, shading: cfg.shading || 0 });
       x.drawImage(layer, 0, 0);
     } else {
       x.save(); x.fillStyle = 'rgba(182,73,47,0.22)'; x.beginPath(); quadPx.forEach(([px, py], i) => i ? x.lineTo(px, py) : x.moveTo(px, py)); x.closePath(); x.fill(); x.restore();
@@ -900,6 +1025,9 @@ async function executeRun(mode, id) {
   }
   engine = new Engine(graph, handlers, {
     seedOutputs, seedKeys,
+    // P4.1: a composition node in 'real' garment-source mode does not
+    // consume the AI photo, so an aiImageGen failure must not skip it.
+    ignoreFailedUpstream: (node) => node.type === 'composition' && node.config?.garmentSource === 'real',
     keyFor: (node, inputKeys) => nodeCacheKey(node, inputKeys),
     cacheable: (node) => isCacheable(node),
     cacheGet: cacheGetRecord,
@@ -920,6 +1048,15 @@ async function executeRun(mode, id) {
     else if (mode === 'from') r = await engine.runFrom(id);
     else if (mode === 'resume') r = await engine.run([id, ...downstreamOf(graph, id).filter(x => x !== id)]);
     const cachedCount = [...engine.records.values()].filter(x => x.cached).length;
+    // P4.1: a composition node skipped because the AI garment failed gets a
+    // clear, actionable error pointing at the real-photo fallback — never a
+    // silent wrong image.
+    for (const n of graph.nodes) {
+      if (n.type === 'composition' && n.status === 'error' && /phía trước bị lỗi/.test(n.error || '') && n.config?.garmentSource !== 'real') {
+        n.error += ' Gợi ý: nếu node Tạo ảnh AI bị lỗi hoặc ảnh AI sai kiểu áo/màu áo, hãy mở node Ghép hình in và chuyển "Nguồn ảnh áo" sang "Ảnh mẫu thật" để ghép hình in lên ảnh áo thật.';
+        logLine('Ghép hình in lên áo: ' + n.error);
+      }
+    }
     message(r.failed.length ? `Chạy xong: ${r.done.length} node xong (${cachedCount} dùng bộ nhớ đệm), ${r.failed.length} node lỗi.` : `Chạy xong: ${r.done.length} node xong (${cachedCount} dùng bộ nhớ đệm).`, r.failed.length > 0);
     lastFailedNodeId = r.failed.length ? r.failed[0] : null;
     lastRunProjectId = projectId; updateResumeBtn();
@@ -1132,5 +1269,5 @@ $('#ais-run-mobile')?.addEventListener('click', () => runNodes('all'));
   await checkRecovery();
   updateModeBadge();
   document.body.dataset.ready = 'true'; document.documentElement.dataset.ready = 'true';
-  logLine('AI Studio P4 sẵn sàng: Provider Adapter + AI thật qua Pollinations (Classic miễn phí / key + Pollen trả trước) sau công tắc "Chế độ AI thật" — mặc định TẮT, đang ở DEMO. Ghép phối cảnh + nếp vải, nền & bối cảnh, xuất đa kênh (P3) và hàng đợi + lịch sử + bộ nhớ đệm + phiên bản (P2) giữ nguyên.');
+  logLine('AI Studio P4.1 sẵn sàng: Mẫu 1 đã thiết kế lại — AI tạo ảnh người mẫu mặc áo thun TRƠN (đúng kiểu/màu ở Trợ lý prompt) TRƯỚC, node Ghép hình in ghép file hình in GỐC lên sau; nếu ảnh AI sai kiểu/màu, chuyển node Ghép hình sang nguồn "Ảnh mẫu thật". AI thật qua Pollinations (P4) sau công tắc "Chế độ AI thật" — mặc định TẮT, đang ở DEMO.');
 })();

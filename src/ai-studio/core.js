@@ -24,11 +24,11 @@ export const NODE_DEFS = {
   designInput: { label: 'Hình in (thiết kế)', category: 'input', color: '#7a4a9e', inputs: [], outputs: [{ id: 'out', type: 'design', label: 'Hình in' }],
     defaults: { assetId: '', assetName: '', svgText: '', width: 0, height: 0 } },
   promptInput: { label: 'Prompt', category: 'input', color: '#38618c', inputs: [], outputs: [{ id: 'out', type: 'prompt', label: 'Prompt' }],
-    defaults: { text: 'Người mẫu trẻ mặc áo thun in hình nổi bật, chụp trong studio sáng, nền kem, ánh sáng mềm, góc chụp thẳng.' } },
+    defaults: { text: 'Người mẫu trẻ, thần thái tự nhiên, mỉm cười nhẹ, tóc gọn gàng.' } },
   promptAssistant: { label: 'Trợ lý prompt (quy tắc)', category: 'process', color: '#38618c', inputs: [{ id: 'in', type: 'prompt', label: 'Prompt gốc', required: false }], outputs: [{ id: 'out', type: 'prompt', label: 'Prompt' }],
-    defaults: { style: 'studio', model: 'nu-tre', background: 'studio-kem', lighting: 'mem', angle: 'thang', extra: '', composed: '' } },
+    defaults: { style: 'studio', model: 'nu-tre', background: 'studio-kem', lighting: 'mem', angle: 'thang', kieuAo: 'co-tron', mauAo: 'trang', gocChup: 'chinh-dien', extra: '', composed: '' } },
   composition: { label: 'Ghép hình in lên áo', category: 'process', color: '#b6492f', inputs: [{ id: 'garment', type: 'image', label: 'Ảnh áo', required: false }, { id: 'design', type: 'design', label: 'Hình in', required: true }], outputs: [{ id: 'out', type: 'image', label: 'Ảnh ghép' }],
-    defaults: { base: 'public/fixtures/real-tee/crew-white-hanger.webp', printX: 50, printY: 42, printW: 34, rotation: 0, mode: 'perspective', quad: [[0.315, 0.375], [0.515, 0.375], [0.52, 0.585], [0.31, 0.585]], wrinkle: 35, shading: 45, label: 'Ảnh ghép hậu kỳ — hình in là file gốc, không phải AI vẽ lại' } },
+    defaults: { base: 'public/fixtures/real-tee/crew-white-hanger.webp', garmentSource: 'ai', realBase: 'public/fixtures/real-tee/crew-white-hanger.webp', printX: 50, printY: 42, printW: 34, rotation: 0, mode: 'perspective', quad: [[0.315, 0.375], [0.515, 0.375], [0.52, 0.585], [0.31, 0.585]], wrinkle: 35, shading: 45, label: 'Ảnh ghép hậu kỳ — hình in là file gốc, không phải AI vẽ lại' } },
   background: { label: 'Nền & bối cảnh', category: 'process', color: '#2f6f6f', inputs: [{ id: 'in', type: 'image', label: 'Ảnh sản phẩm', required: true }], outputs: [{ id: 'out', type: 'image', label: 'Ảnh có nền' }],
     defaults: { mode: 'solid', color: '#f5f1e6', color2: '#d9c6a5', dir: 'down', horizon: 62, shadow: 55, vignette: 25, assetId: '', assetName: '', bgFit: 'cover', bgBlur: 0, scale: 82, posX: 50, posY: 50, framePad: 7 } },
   imageEditor: { label: 'Chỉnh sửa ảnh', category: 'process', color: '#8c6d1f', inputs: [{ id: 'in', type: 'image', label: 'Ảnh', required: true }], outputs: [{ id: 'out', type: 'image', label: 'Ảnh' }],
@@ -78,7 +78,15 @@ export function validateConnection(graph, fromId, toId, toPort) {
   return { ok: true };
 }
 
-// ---------- Rule-based Vietnamese prompt assistant (NOT AI) ----------
+// ---------- Rule-based prompt assistant (NOT AI) ----------
+// P4.1 redesign: the assistant now carries structured GARMENT parameters and
+// builds the GENERATION prompt in ENGLISH (sana/flux follow English far
+// better than Vietnamese). The generation prompt asks for a PLAIN t-shirt
+// only — the customer's design is NEVER part of it: compositing the original
+// design file onto the generated photo is the composition node's job. (The
+// pre-P4.1 builder did the opposite — it told the model to draw a printed
+// tee and "keep the original print", which a text-to-image model cannot do;
+// that was root cause #3 of the wrong Template 1 output.)
 export const PROMPT_OPTIONS = {
   style: { 'studio': 'chụp studio chuyên nghiệp', 'duong-pho': 'phong cách đường phố năng động', 'thien-nhien': 'ngoài trời tự nhiên', 'toi-gian': 'tối giản, nền trơn' },
   model: { 'nu-tre': 'người mẫu nữ trẻ', 'nam-tre': 'người mẫu nam trẻ', 'cap-doi': 'cặp đôi trẻ', 'khong-nguoi': 'không người mẫu, chỉ sản phẩm áo' },
@@ -86,18 +94,84 @@ export const PROMPT_OPTIONS = {
   lighting: { 'mem': 'ánh sáng mềm dịu', 'nang': 'ánh nắng tự nhiên rực rỡ', 'toi-am': 'ánh sáng ấm, hơi tối' },
   angle: { 'thang': 'góc chụp thẳng chính diện', 'nghieng': 'góc chụp nghiêng 45 độ', 'can-canh': 'cận cảnh hình in trên ngực áo', 'toan-than': 'chụp toàn thân' },
 };
+const PROMPT_OPTIONS_EN = {
+  style: { 'studio': 'professional studio photoshoot', 'duong-pho': 'dynamic street-style look', 'thien-nhien': 'natural outdoor setting', 'toi-gian': 'minimalist plain backdrop' },
+  model: { 'nu-tre': 'a young female model', 'nam-tre': 'a young male model', 'cap-doi': 'a young couple, both wearing the same plain t-shirt', 'khong-nguoi': '' },
+  background: { 'studio-kem': 'clean light-cream studio background', 'quan-cafe': 'warm cosy café background', 'pho-co': 'Vietnamese old-town street background', 'bien': 'soft sunny beach background' },
+  lighting: { 'mem': 'soft diffused studio lighting', 'nang': 'bright natural sunlight', 'toi-am': 'warm, slightly dim lighting' },
+};
 export const PROMPT_TEMPLATES = [
   'Người mẫu mặc áo thun in hình của tôi, chụp quảng cáo cho shop online.',
   'Ảnh sản phẩm áo thun trắng, nền sạch, dùng cho trang bán hàng.',
   'Video ngắn giới thiệu áo in mới cho TikTok, trẻ trung, năng động.',
 ];
-export function buildPrompt(cfg = {}, basePrompt = '') {
+// ---------- Garment parameters (P4.1) ----------
+// kieuAo: garment style/fit. mauAo: preset tee colours (hex drives the DEMO
+// figure). gocChup: camera view — supersedes the legacy free-text `angle`
+// field (an old config with angle='nghieng' migrates to the 3/4 view).
+export const GARMENT_OPTIONS = {
+  kieuAo: {
+    'co-tron': { label: 'Cổ tròn — regular fit', en: 'classic crew-neck regular-fit' },
+    'oversize': { label: 'Oversize — phom rộng boxy', en: 'oversized boxy-fit with dropped shoulders' },
+  },
+  mauAo: {
+    'trang': { label: 'Trắng', en: 'white', hex: '#f4f4f2' },
+    'den': { label: 'Đen', en: 'black', hex: '#232326' },
+    'be': { label: 'Be', en: 'beige', hex: '#d8c3a5' },
+    'xam': { label: 'Xám', en: 'grey', hex: '#8f959b' },
+    'navy': { label: 'Xanh navy', en: 'navy blue', hex: '#2b3a55' },
+  },
+  gocChup: {
+    'chinh-dien': { label: 'Chính diện', en: 'front view' },
+    'ba-phan-tu': { label: 'Góc 3/4', en: 'three-quarter view' },
+  },
+};
+/** Structured garment params for a promptAssistant config (defaults +
+ * legacy `angle` migration applied). Consumed by aiImageGen (DEMO figure +
+ * real-mode logging), the cache/payload round-trip and the UI summary. */
+export function garmentParams(cfg = {}) {
+  const style = GARMENT_OPTIONS.kieuAo[cfg.kieuAo] ? cfg.kieuAo : 'co-tron';
+  const colorKey = GARMENT_OPTIONS.mauAo[cfg.mauAo] ? cfg.mauAo : 'trang';
+  let view = GARMENT_OPTIONS.gocChup[cfg.gocChup] ? cfg.gocChup : null;
+  if (!view) view = cfg.angle === 'nghieng' ? 'ba-phan-tu' : 'chinh-dien';
+  return {
+    style, styleEn: GARMENT_OPTIONS.kieuAo[style].en,
+    colorKey, colorEn: GARMENT_OPTIONS.mauAo[colorKey].en, colorHex: GARMENT_OPTIONS.mauAo[colorKey].hex,
+    view, viewEn: GARMENT_OPTIONS.gocChup[view].en,
+  };
+}
+/** Read-only Vietnamese summary of what will be sent (shown in the panel). */
+export function garmentSummaryVi(cfg = {}) {
+  const g = garmentParams(cfg);
   const pick = (group, key) => PROMPT_OPTIONS[group]?.[key] || '';
-  const parts = [basePrompt?.trim(), pick('model', cfg.model), 'mặc áo thun in theo yêu cầu', pick('style', cfg.style), pick('background', cfg.background), pick('lighting', cfg.lighting), pick('angle', cfg.angle), cfg.extra?.trim()].filter(Boolean);
-  let text = parts.join(', ');
-  text = text.charAt(0).toUpperCase() + text.slice(1);
-  if (!/[.!?]$/.test(text)) text += '.';
-  return text + ' Giữ nguyên chính xác hình in gốc trên áo (chữ, logo, màu sắc) — hình in sẽ được ghép hậu kỳ bằng file gốc.';
+  const who = cfg.model === 'khong-nguoi' ? 'chỉ áo (không người mẫu)' : (pick('model', cfg.model) || 'người mẫu');
+  const parts = [
+    who + ` mặc áo thun ${cfg.kieuAo === 'oversize' ? 'oversize phom rộng boxy' : 'cổ tròn regular-fit'} màu ${GARMENT_OPTIONS.mauAo[g.colorKey].label.toLowerCase()} — áo TRƠN, tuyệt đối không hình in/logo/chữ`,
+    g.view === 'ba-phan-tu' ? 'góc chụp 3/4' : 'chụp chính diện, vùng ngực rõ và không bị che',
+    pick('style', cfg.style), pick('background', cfg.background), pick('lighting', cfg.lighting),
+  ].filter(Boolean);
+  return parts.join(', ') + '. Hình in của khách được ghép HẬU KỲ bằng file gốc ở node Ghép hình in — AI không vẽ hình in.';
+}
+/**
+ * Build the ENGLISH generation prompt for a PLAIN garment photo.
+ * Driven by the garment params; ends with the strict prohibitions (no
+ * print/logo/text, garment-type lock, no accessory over the chest).
+ */
+export function buildPrompt(cfg = {}, basePrompt = '') {
+  const g = garmentParams(cfg);
+  const pickEn = (group, key) => PROMPT_OPTIONS_EN[group]?.[key] || '';
+  const garmentSentence = cfg.model === 'khong-nguoi'
+    ? `a PLAIN ${g.colorEn} ${g.styleEn} cotton t-shirt on a clean display, completely blank`
+    : `${pickEn('model', cfg.model) || 'a young model'} wearing a PLAIN ${g.colorEn} ${g.styleEn} cotton t-shirt, completely blank`;
+  const parts = [
+    'Professional commercial fashion photography',
+    garmentSentence,
+    `${g.view === 'ba-phan-tu' ? 'Three-quarter view' : 'Front view'} — the chest area of the t-shirt is clearly visible, large, flat and completely unobstructed`,
+    pickEn('style', cfg.style), pickEn('background', cfg.background), pickEn('lighting', cfg.lighting),
+    String(basePrompt || '').trim(), String(cfg.extra || '').trim(),
+    'Strict requirements: the t-shirt has absolutely NO print, NO logo, NO text, NO letters and NO graphics anywhere on it. Do NOT change the garment into a jacket, coat, hoodie, traditional clothing, dress or any other type of clothing — it must remain a plain cotton t-shirt. NO accessories (necklace, bag, strap, scarf, open jacket) may cover the chest/print area. Realistic cotton fabric texture, sharp focus',
+  ].filter(Boolean).map(s => s.replace(/[.\s]+$/, ''));
+  return parts.join('. ') + '.';
 }
 
 // ---------- SVG safety ----------
@@ -154,6 +228,21 @@ export function zipRead(bytes) {
   return entries;
 }
 
+// ---------- DEMO model figure geometry (P4.1) ----------
+// Deterministic geometry of the canvas-drawn DEMO model figure (drawn in
+// studio.js): torso spans per fit + the chest/print quads. Template 1's
+// composition node defaults to `chestQuad`, so in DEMO mode the original
+// design lands exactly on the figure's chest. The same quads are a sensible
+// worn-front chest quad for real 4:5 model photos.
+export const DEMO_FIGURE = {
+  chestQuad: [[0.315, 0.375], [0.685, 0.375], [0.695, 0.6], [0.305, 0.6]],
+  chestQuadOversize: [[0.29, 0.38], [0.71, 0.38], [0.73, 0.7], [0.27, 0.7]],
+  torso: {
+    regular: { span: [0.27, 0.73], shoulderY: 0.295, hemY: 0.88 },
+    oversize: { span: [0.2, 0.8], shoulderY: 0.315, hemY: 0.95 },
+  },
+};
+
 // ---------- Templates (brief §7) ----------
 function tpl(defs, edges) {
   const nodes = defs.map(([type, x, y, cfg]) => { const n = makeNode(type, x, y); if (cfg) Object.assign(n.config, cfg); return n; });
@@ -164,16 +253,27 @@ function tpl(defs, edges) {
   return { nodes, edges: es };
 }
 export const TEMPLATES = [
+  // P4.1 flow (owner's order): reference photo + customer design + garment
+  // params/prompt → aiImageGen creates a model wearing a PLAIN t-shirt →
+  // composition composites the EXACT original design onto that photo →
+  // preview → export. (Pre-P4.1 the composition ran BEFORE aiImageGen and
+  // its pixel-accurate result was fed into a text-to-image node and thrown
+  // away — root cause #1 of the wrong output.)
+  // The imageInput node is a standalone reference/sample photo: it is NOT
+  // wired into aiImageGen, because every real generation mode here is
+  // text-to-image and cannot use a reference photo. To composite onto a
+  // real photo instead of the AI photo, set the composition node's
+  // garmentSource to 'real' — its realBase defaults to this same fixture.
   { id: 'tpl1', name: 'Mẫu 1 — Ảnh người mẫu mặc áo', make() { return tpl([
     ['imageInput', 40, 60, { fixture: 'public/fixtures/real-tee/crew-white-hanger.webp' }, 'img'],
     ['designInput', 40, 300, { svgText: SAMPLE_DESIGN_SVG, assetName: 'hinh-in-mau.svg' }, 'des'],
     ['promptInput', 40, 520, {}, 'pin'],
-    ['promptAssistant', 330, 520, {}, 'pa'],
-    ['composition', 330, 140, { mode: 'perspective', quad: [[0.315, 0.375], [0.515, 0.375], [0.52, 0.585], [0.31, 0.585]], wrinkle: 35, shading: 45 }, 'comp'],
-    ['aiImageGen', 620, 300, {}, 'gen'],
-    ['preview', 900, 300, {}, 'prev'],
-    ['exportNode', 1150, 300, {}, 'exp'],
-  ], [['img', 'comp', 'garment'], ['des', 'comp', 'design'], ['pin', 'pa', 'in'], ['pa', 'gen', 'prompt'], ['comp', 'gen', 'image'], ['gen', 'prev', 'in'], ['prev', 'exp', 'in']]); } },
+    ['promptAssistant', 330, 520, { kieuAo: 'co-tron', mauAo: 'trang', gocChup: 'chinh-dien' }, 'pa'],
+    ['aiImageGen', 620, 430, { ratio: '4:5' }, 'gen'],
+    ['composition', 620, 140, { mode: 'perspective', quad: DEMO_FIGURE.chestQuad.map(p => [...p]), wrinkle: 35, shading: 45, garmentSource: 'ai', realBase: 'public/fixtures/real-tee/crew-white-hanger.webp' }, 'comp'],
+    ['preview', 900, 140, {}, 'prev'],
+    ['exportNode', 1160, 140, { format: 'png', channels: ['website'] }, 'exp'],
+  ], [['pin', 'pa', 'in'], ['pa', 'gen', 'prompt'], ['gen', 'comp', 'garment'], ['des', 'comp', 'design'], ['comp', 'prev', 'in'], ['prev', 'exp', 'in']]); } },
   { id: 'tpl2', name: 'Mẫu 2 — Bộ ảnh sản phẩm', make() { return tpl([
     ['imageInput', 40, 200, { fixture: 'public/fixtures/real-tee/crew-white-flatlay.webp' }, 'img'],
     ['aiVariation', 320, 200, { variant: 'boi-canh' }, 'var'],

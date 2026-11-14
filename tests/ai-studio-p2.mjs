@@ -59,15 +59,25 @@ for (const width of [430, 1366]) {
   const cc = await cachedCount(p);
   if (cc < 5) fail('expected >=5 cached nodes on unchanged re-run @' + width + ', got ' + cc);
   if (!/st-cached/.test(await nodeClass(p, 'Ghép hình in lên áo'))) fail('composition not cached @' + width);
-  // Edit the prompt -> prompt chain re-runs, composition stays cached
+  // Edit the prompt -> the prompt chain re-runs. P4.1 topology note: the
+  // composition node now sits DOWNSTREAM of aiImageGen (gen -> comp.garment),
+  // so a prompt edit correctly invalidates promptAssistant + aiImageGen +
+  // composition (the plain-garment photo is regenerated and the design is
+  // re-composited onto it). In the pre-P4.1 topology composition was upstream
+  // of the generator and stayed cached here; that assertion encoded the old
+  // (buggy) flow the owner ordered removed. The truly unrelated inputs
+  // (reference photo, design file) must stay cached.
   await p.locator('.ais-node header strong:text-is("Prompt")').click();
   await p.fill('#pf-text', 'Prompt da sua cho kiem thu P2');
   if (width < 700) await p.click('#ais-prop-close');
   await runBtn(p, width); await waitHistoryCount(p, 3);
   if (/st-cached/.test(await nodeClass(p, 'Trợ lý prompt (quy tắc)'))) fail('promptAssistant should have re-run after prompt edit @' + width);
   if (!/st-success/.test(await nodeClass(p, 'Trợ lý prompt (quy tắc)'))) fail('promptAssistant not success after re-run @' + width);
-  if (!/st-cached/.test(await nodeClass(p, 'Ghép hình in lên áo'))) fail('composition should stay cached after unrelated prompt edit @' + width);
+  if (/st-cached/.test(await nodeClass(p, 'Tạo ảnh AI (DEMO)'))) fail('aiImageGen should have re-run after prompt edit @' + width);
+  if (/st-cached/.test(await nodeClass(p, 'Ghép hình in lên áo'))) fail('composition should re-run after prompt edit (P4.1: it composites onto the regenerated AI garment) @' + width);
+  if (!/st-success/.test(await nodeClass(p, 'Ghép hình in lên áo'))) fail('composition not success after prompt edit @' + width);
   if (!/st-cached/.test(await nodeClass(p, 'Ảnh đầu vào'))) fail('imageInput should stay cached @' + width);
+  if (!/st-cached/.test(await nodeClass(p, 'Hình in (thiết kế)'))) fail('designInput should stay cached @' + width);
   // Versions: two explicit saves -> two versions; add a node; restore v1 -> back to 8 nodes
   await p.click('#ais-save'); await p.waitForFunction(() => document.querySelector('#ais-save-status').textContent.includes('Đã lưu'));
   await p.click('#ais-save');
@@ -105,7 +115,14 @@ for (const width of [430, 1366]) {
   await p.fill('#ais-provider-endpoint', 'https://example.invalid/ai');
   await runBtn(p, width);
   await p.waitForFunction(() => { const nodes = [...document.querySelectorAll('.ais-node')]; const gen = nodes.find(e => e.querySelector('header strong')?.textContent === 'Tạo ảnh AI (DEMO)'); return gen && gen.className.includes('st-error') && !nodes.some(e => e.className.includes('st-running')); }, null, { timeout: 60000 }).catch(() => fail('aiImageGen did not fail as expected'));
-  if (!/st-success|st-cached/.test(await nodeClass(p, 'Ghép hình in lên áo'))) fail('composition should have succeeded before the failure');
+  // P4.1 topology: composition is DOWNSTREAM of aiImageGen now, so when the
+  // generator fails the composition is skipped (error) — the nodes that must
+  // have succeeded before the failure are the generator's own upstream
+  // (prompt chain + design). (Pre-P4.1 the composition ran before the
+  // generator and was already successful at this point.)
+  if (!/st-success|st-cached/.test(await nodeClass(p, 'Trợ lý prompt (quy tắc)'))) fail('promptAssistant should have succeeded before the failure');
+  if (!/st-success|st-cached/.test(await nodeClass(p, 'Hình in (thiết kế)'))) fail('designInput should have succeeded before the failure');
+  if (!/st-error/.test(await nodeClass(p, 'Ghép hình in lên áo'))) fail('composition should be skipped (error) downstream of the failed generator (P4.1 topology)');
   if (await p.locator('#ais-resume').isHidden()) fail('resume button not offered after failure');
   await openTab(p, 'history');
   const hb = await p.locator('#ais-history-list .ais-run-item').first().textContent();

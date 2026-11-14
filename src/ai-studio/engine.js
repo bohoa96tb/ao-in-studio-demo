@@ -133,9 +133,13 @@ export class Engine {
       for (const id of order) {
         if (this.stopped) { this.hooks.onLog?.(null, 'Đã dừng theo yêu cầu người dùng.'); break; }
         const node = findNode(this.graph, id);
-        // skip nodes whose required upstream (inside this run) failed
+        // skip nodes whose required upstream (inside this run) failed —
+        // unless the host app marks this node as independent of the failed
+        // input (P4.1: a composition node in 'real' garment-source mode does
+        // not consume the AI garment photo, so an AI failure must not block
+        // the real-photo fallback). Default (no hook) = P1–P4 behaviour.
         const upstreamFailed = this.graph.edges.some(e => e.to === id && failed.includes(e.from));
-        if (upstreamFailed) {
+        if (upstreamFailed && !(this.hooks.ignoreFailedUpstream && this.hooks.ignoreFailedUpstream(node))) {
           node.status = 'error'; node.error = 'Bỏ qua vì node phía trước bị lỗi.';
           this.records.set(id, { status: 'error', durationMs: 0, attempts: 0, error: node.error, cached: false });
           failed.push(id); this.hooks.onNode?.(node);

@@ -3,7 +3,7 @@
 // template upgrades (Template 1 perspective, Template 2 background + channels).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { NODE_DEFS, NODE_TYPES, TEMPLATES, makeNode } from '../src/ai-studio/core.js';
+import { NODE_DEFS, NODE_TYPES, TEMPLATES, makeNode, DEMO_FIGURE } from '../src/ai-studio/core.js';
 import {
   solveHomography, applyHomography, UNIT_SQUARE, rectToQuad, presetQuadFor,
   migrateCompositionConfig, fieldMean, sampleField, displacementAt,
@@ -140,7 +140,11 @@ test('templates: T1 uses perspective composition; T2 has background + channel ex
   const t1 = TEMPLATES.find(t => t.id === 'tpl1').make();
   const comp = t1.nodes.find(n => n.type === 'composition');
   assert.equal(comp.config.mode, 'perspective');
-  assert.deepEqual(comp.config.quad, presetQuadFor('public/fixtures/real-tee/crew-white-hanger.webp'));
+  // P4.1 (owner-mandated): Template 1's composition now targets the AI/demo
+  // model photo, so its default quad is the DEMO figure chest quad — the
+  // hanger preset quad remains the calibrated quad of the real-photo
+  // fallback (garmentSource 'real'), asserted in the P4.1 unit tests.
+  assert.deepEqual(comp.config.quad, DEMO_FIGURE.chestQuad);
   const t2 = TEMPLATES.find(t => t.id === 'tpl2').make();
   const bg = t2.nodes.find(n => n.type === 'background');
   assert.ok(bg, 'tpl2 contains the background node');

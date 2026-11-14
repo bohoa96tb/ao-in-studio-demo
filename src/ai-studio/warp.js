@@ -78,6 +78,12 @@ export function migrateCompositionConfig(cfg = {}) {
   const out = { ...cfg };
   if (out.wrinkle === undefined) out.wrinkle = 35;
   if (out.shading === undefined) out.shading = 45;
+  // P4.1: garment source for the composition base. 'ai' (default, = the
+  // pre-P4.1 behaviour) uses the wired garment input / `base` fallback;
+  // 'real' ignores the AI garment input and composites onto the real
+  // fixture photo `realBase` with that fixture's calibrated preset quad.
+  if (out.garmentSource === undefined) out.garmentSource = 'ai';
+  if (out.realBase === undefined) out.realBase = 'public/fixtures/real-tee/crew-white-hanger.webp';
   if (out.mode === undefined) {
     if ((out.rotation || 0) !== 0) { out.mode = 'simple'; return out; }
     out.mode = 'perspective';
