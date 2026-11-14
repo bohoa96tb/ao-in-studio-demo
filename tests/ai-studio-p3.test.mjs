@@ -8,6 +8,8 @@ import {
   solveHomography, applyHomography, UNIT_SQUARE, rectToQuad, presetQuadFor,
   migrateCompositionConfig, fieldMean, sampleField, displacementAt,
   buildWarpGrid, fitInto, CHANNEL_PRESETS, channelPreset, channelFileName,
+  channelFitMode, coverRetainedFraction, COVER_MIN_RETAINED,
+  chestQuadFor, GARMENT_QUADS, torsoQuadFor, FIXTURE_LANDMARKS, AI_MODEL_QUADS,
 } from '../src/ai-studio/warp.js';
 
 const near = (a, b, eps = 1e-6) => Math.abs(a - b) <= eps;
@@ -97,6 +99,24 @@ test('channel presets: the 6 sales channels, unique ids, positive dims', () => {
   assert.equal(channelFileName(channelPreset('shopee'), 'png', 'ao-xuan'), 'ao-xuan-shopee-1024x1024.png');
 });
 
+test('channelFitMode (P4.2 round-4 correction): extreme-aspect cover falls back to contain', () => {
+  const website = channelPreset('website'); // 1200x1500 cover
+  // The AI oversize base 1040x2352: cover would keep 1500/2714 ≈ 55% of
+  // the height — head and hem cut — so it must fall back to contain.
+  assert.ok(coverRetainedFraction(1040, 2352, website.w, website.h) < COVER_MIN_RETAINED);
+  assert.equal(channelFitMode(1040, 2352, website), 'contain');
+  // The crew bases 1280x1920 keep 83% under website cover — unchanged.
+  assert.ok(near(coverRetainedFraction(1280, 1920, website.w, website.h), 1500 / 1800, 1e-9));
+  assert.equal(channelFitMode(1280, 1920, website), 'cover');
+  // Ordinary sources on other cover channels stay cover.
+  assert.equal(channelFitMode(900, 1125, channelPreset('tiktok')), 'cover');
+  assert.equal(channelFitMode(900, 1125, channelPreset('facebook')), 'cover');
+  assert.equal(channelFitMode(800, 1200, channelPreset('shopee')), 'cover');
+  // Preset contain channels are never rewritten.
+  assert.equal(channelFitMode(1040, 2352, channelPreset('website-vuong')), 'contain');
+  assert.equal(channelFitMode(1040, 2352, channelPreset('facebook-ngang')), 'contain');
+});
+
 test('rectToQuad equals the P1 rectangle corners', () => {
   assert.deepEqual(rectToQuad(50, 42, 34), [[0.33, 0.25], [0.67, 0.25], [0.67, 0.59], [0.33, 0.59]]);
   assert.deepEqual(rectToQuad(), rectToQuad(50, 42, 34)); // P1 defaults
@@ -119,9 +139,17 @@ test('P1 config with a rotation keeps simple mode (exact P1 rendering preserved)
 });
 
 test('garment preset quads exist for the calibrated hanger fixtures', () => {
-  assert.deepEqual(presetQuadFor('public/fixtures/real-tee/crew-white-hanger.webp'), [[0.315, 0.375], [0.515, 0.375], [0.52, 0.585], [0.31, 0.585]]);
+  // P4.2 round 3: preset quads are derived with torsoQuadFor from the
+  // fixtures' measured LANDMARKS (owner's torso rule — gap 12–15% of
+  // torso length below the collar, width 35–45% of torso width). This
+  // supersedes the round-1 chestQuadFor collar calibration (whose
+  // white-hanger quad the owner still found wrongly placed) and the
+  // P3-era quad (top 0.375, ~4.5% below the collar — print on the neck).
+  const hp = 'public/fixtures/real-tee/crew-white-hanger.webp';
+  assert.deepEqual(presetQuadFor(hp), torsoQuadFor(FIXTURE_LANDMARKS[hp], { imgW: 800, imgH: 1200 }));
   assert.ok(presetQuadFor('public/fixtures/real-tee/crew-black-hanger.webp'));
   assert.equal(presetQuadFor('khong-co.webp'), null);
+  assert.ok(chestQuadFor, 'legacy chestQuadFor remains exported for P1-era callers');
 });
 
 test('node registry: 13 node types including background; defaults carry P3 fields', () => {
@@ -140,11 +168,14 @@ test('templates: T1 uses perspective composition; T2 has background + channel ex
   const t1 = TEMPLATES.find(t => t.id === 'tpl1').make();
   const comp = t1.nodes.find(n => n.type === 'composition');
   assert.equal(comp.config.mode, 'perspective');
-  // P4.1 (owner-mandated): Template 1's composition now targets the AI/demo
-  // model photo, so its default quad is the DEMO figure chest quad — the
-  // hanger preset quad remains the calibrated quad of the real-photo
-  // fallback (garmentSource 'real'), asserted in the P4.1 unit tests.
-  assert.deepEqual(comp.config.quad, DEMO_FIGURE.chestQuad);
+  // P4.1 (owner-mandated): Template 1's composition targets the AI/demo
+  // model photo. P4.2 ROUND 4 (R1): its stored default quad is the
+  // torso-rule quad of the DEFAULT garment case's base — white crew →
+  // the owner-approved AI model base (AI_MODEL_QUADS) — while the
+  // generated value's own calibrated baseQuad still wins at run time,
+  // and the hanger preset quad remains the calibrated quad of the
+  // real-photo fallback (garmentSource 'real').
+  assert.deepEqual(comp.config.quad, AI_MODEL_QUADS['public/fixtures/ai-model/model-white-crew.webp']);
   const t2 = TEMPLATES.find(t => t.id === 'tpl2').make();
   const bg = t2.nodes.find(n => n.type === 'background');
   assert.ok(bg, 'tpl2 contains the background node');

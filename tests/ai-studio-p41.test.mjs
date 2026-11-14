@@ -14,7 +14,7 @@ import assert from 'node:assert/strict';
 import { NODE_DEFS, TEMPLATES, makeNode, buildPrompt, garmentParams, garmentSummaryVi, GARMENT_OPTIONS, DEMO_FIGURE } from '../src/ai-studio/core.js';
 import { Engine } from '../src/ai-studio/engine.js';
 import { nodeCacheKey, stableStringify, hashOf } from '../src/ai-studio/p2.js';
-import { migrateCompositionConfig, presetQuadFor } from '../src/ai-studio/warp.js';
+import { migrateCompositionConfig, presetQuadFor, AI_MODEL_QUADS } from '../src/ai-studio/warp.js';
 
 test('P4.1 buildPrompt: white crew-neck front view — exact garment terms + prohibitions', () => {
   const out = buildPrompt({ kieuAo: 'co-tron', mauAo: 'trang', gocChup: 'chinh-dien', style: 'studio', model: 'nu-tre', background: 'studio-kem', lighting: 'mem' }, '');
@@ -70,10 +70,17 @@ test('P4.1 Template 1 structure: generate plain garment FIRST, composite origina
   assert.ok(has(prev, exp, 'in'), 'preview -> export');
   assert.ok(!t1.edges.some(e => e.from === comp.id && e.to === gen.id), 'NO composition -> aiImageGen edge (the P4.1 root-cause fix)');
   assert.ok(!t1.edges.some(e => e.from === img.id), 'reference photo is standalone — NOT wired into the text-to-image node');
-  // garment params present on the assistant; composition targets the demo
-  // figure chest quad; fallback defaults to the real crew-white hanger photo.
+  // garment params present on the assistant; the real-photo fallback
+  // defaults to a real photo base (P4.1: the crew-white hanger; P4.2
+  // round 2: the white crew MODEL photo; P4.2 ROUND 3: back to the
+  // crew-white HANGER garment photo — the owner rejected the model
+  // photo under the e-commerce standard and removed it as a base).
+  // P4.2 ROUND 4 (R1): the composition's stored default quad is the
+  // torso-rule quad of the owner-approved AI model base for the
+  // template's default garment case (white crew); at run time the
+  // generated base's own calibrated quad wins over the stored one.
   assert.equal(pa.config.kieuAo, 'co-tron'); assert.equal(pa.config.mauAo, 'trang'); assert.equal(pa.config.gocChup, 'chinh-dien');
-  assert.deepEqual(comp.config.quad, DEMO_FIGURE.chestQuad);
+  assert.deepEqual(comp.config.quad, AI_MODEL_QUADS['public/fixtures/ai-model/model-white-crew.webp']);
   assert.equal(comp.config.garmentSource, 'ai');
   assert.equal(comp.config.realBase, 'public/fixtures/real-tee/crew-white-hanger.webp');
   assert.deepEqual(exp.config.channels, ['website'], 'website channel preset = 1200x1500 export');
@@ -88,7 +95,7 @@ test('P4.1 templates 2-4 unchanged in flow (tpl4 keeps its comp -> gen chain)', 
 
 test('P4.1 composition migration: garmentSource/realBase defaults, explicit values preserved', () => {
   const m = migrateCompositionConfig({ printX: 50, printY: 42, printW: 34, rotation: 0 });
-  assert.equal(m.garmentSource, 'ai'); assert.equal(m.realBase, 'public/fixtures/real-tee/crew-white-hanger.webp');
+  assert.equal(m.garmentSource, 'ai'); assert.equal(m.realBase, 'public/fixtures/real-tee/crew-white-hanger.webp'); // P4.2 round 3 default real base (hanger garment photo)
   const r = migrateCompositionConfig({ garmentSource: 'real', realBase: 'public/fixtures/real-tee/crew-black-hanger.webp' });
   assert.equal(r.garmentSource, 'real'); assert.equal(r.realBase, 'public/fixtures/real-tee/crew-black-hanger.webp');
   assert.ok(presetQuadFor(r.realBase), 'real fallback base has a calibrated preset quad');

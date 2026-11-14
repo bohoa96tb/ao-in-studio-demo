@@ -1,6 +1,7 @@
 // AI Studio — DOM-free core: node definitions, type/cycle rules, rule-based
 // Vietnamese prompt builder, SVG safety check, minimal store-only ZIP writer
 // + reader. Node-testable; no browser APIs used here.
+import { GARMENT_QUADS, FIXTURE_LANDMARKS, AI_MODEL_LANDMARKS, AI_MODEL_QUADS, torsoQuadFor } from './warp.js';
 
 export const DATA_TYPES = ['image', 'design', 'prompt', 'video', 'any'];
 
@@ -15,7 +16,11 @@ export function typesCompatible(outType, inType) {
 let counter = 0;
 export function uid(prefix = 'n') { counter += 1; return `${prefix}-${Date.now().toString(36)}-${counter.toString(36)}-${Math.floor(Math.random() * 1e6).toString(36)}`; }
 
-export const SAMPLE_DESIGN_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600"><circle cx="300" cy="270" r="150" fill="#b6492f"/><text x="300" y="295" font-family="Arial, sans-serif" font-size="64" font-weight="bold" fill="#ffffff" text-anchor="middle">ÁO IN</text><text x="300" y="480" font-family="Arial, sans-serif" font-size="44" font-weight="bold" fill="#293e35" text-anchor="middle">STUDIO</text></svg>`;
+// P4.2 supplementary fix (owner): the old sample logo put "STUDIO" in dark
+// teal (#293e35) BELOW the badge — invisible on black tees. Both words now
+// sit in WHITE inside the terracotta badge (badge grew to an ellipse), so
+// every letter reads on white AND black garments.
+export const SAMPLE_DESIGN_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600"><ellipse cx="300" cy="300" rx="228" ry="192" fill="#b6492f" stroke="#ffffff" stroke-opacity="0.85" stroke-width="6"/><text x="300" y="292" font-family="Arial, sans-serif" font-size="74" font-weight="bold" fill="#ffffff" text-anchor="middle">ÁO IN</text><rect x="238" y="318" width="124" height="5" fill="#ffffff" opacity="0.75"/><text x="300" y="382" font-family="Arial, sans-serif" font-size="47" font-weight="bold" letter-spacing="6" fill="#ffffff" text-anchor="middle">STUDIO</text></svg>`;
 
 // category: input | process | ai | output ; colour per brief §4 (colour-coded nodes)
 export const NODE_DEFS = {
@@ -26,9 +31,9 @@ export const NODE_DEFS = {
   promptInput: { label: 'Prompt', category: 'input', color: '#38618c', inputs: [], outputs: [{ id: 'out', type: 'prompt', label: 'Prompt' }],
     defaults: { text: 'Người mẫu trẻ, thần thái tự nhiên, mỉm cười nhẹ, tóc gọn gàng.' } },
   promptAssistant: { label: 'Trợ lý prompt (quy tắc)', category: 'process', color: '#38618c', inputs: [{ id: 'in', type: 'prompt', label: 'Prompt gốc', required: false }], outputs: [{ id: 'out', type: 'prompt', label: 'Prompt' }],
-    defaults: { style: 'studio', model: 'nu-tre', background: 'studio-kem', lighting: 'mem', angle: 'thang', kieuAo: 'co-tron', mauAo: 'trang', gocChup: 'chinh-dien', extra: '', composed: '' } },
+    defaults: { style: 'studio', model: 'nu-viet', background: 'studio-kem', lighting: 'mem', angle: 'thang', kieuAo: 'co-tron', mauAo: 'trang', gocChup: 'chinh-dien', extra: '', composed: '', catalogPrompt: false } },
   composition: { label: 'Ghép hình in lên áo', category: 'process', color: '#b6492f', inputs: [{ id: 'garment', type: 'image', label: 'Ảnh áo', required: false }, { id: 'design', type: 'design', label: 'Hình in', required: true }], outputs: [{ id: 'out', type: 'image', label: 'Ảnh ghép' }],
-    defaults: { base: 'public/fixtures/real-tee/crew-white-hanger.webp', garmentSource: 'ai', realBase: 'public/fixtures/real-tee/crew-white-hanger.webp', printX: 50, printY: 42, printW: 34, rotation: 0, mode: 'perspective', quad: [[0.315, 0.375], [0.515, 0.375], [0.52, 0.585], [0.31, 0.585]], wrinkle: 35, shading: 45, label: 'Ảnh ghép hậu kỳ — hình in là file gốc, không phải AI vẽ lại' } },
+    defaults: { base: 'public/fixtures/real-tee/crew-white-hanger.webp', garmentSource: 'ai', realBase: 'public/fixtures/real-tee/crew-white-hanger.webp', printX: 50, printY: 55, printW: 30, rotation: 0, mode: 'perspective', quad: GARMENT_QUADS['public/fixtures/real-tee/crew-white-hanger.webp'].map(p => [...p]), wrinkle: 35, shading: 45, inkOpacity: 95, label: 'Ảnh ghép hậu kỳ — hình in là file gốc, không phải AI vẽ lại' } },
   background: { label: 'Nền & bối cảnh', category: 'process', color: '#2f6f6f', inputs: [{ id: 'in', type: 'image', label: 'Ảnh sản phẩm', required: true }], outputs: [{ id: 'out', type: 'image', label: 'Ảnh có nền' }],
     defaults: { mode: 'solid', color: '#f5f1e6', color2: '#d9c6a5', dir: 'down', horizon: 62, shadow: 55, vignette: 25, assetId: '', assetName: '', bgFit: 'cover', bgBlur: 0, scale: 82, posX: 50, posY: 50, framePad: 7 } },
   imageEditor: { label: 'Chỉnh sửa ảnh', category: 'process', color: '#8c6d1f', inputs: [{ id: 'in', type: 'image', label: 'Ảnh', required: true }], outputs: [{ id: 'out', type: 'image', label: 'Ảnh' }],
@@ -89,14 +94,14 @@ export function validateConnection(graph, fromId, toId, toPort) {
 // that was root cause #3 of the wrong Template 1 output.)
 export const PROMPT_OPTIONS = {
   style: { 'studio': 'chụp studio chuyên nghiệp', 'duong-pho': 'phong cách đường phố năng động', 'thien-nhien': 'ngoài trời tự nhiên', 'toi-gian': 'tối giản, nền trơn' },
-  model: { 'nu-tre': 'người mẫu nữ trẻ', 'nam-tre': 'người mẫu nam trẻ', 'cap-doi': 'cặp đôi trẻ', 'khong-nguoi': 'không người mẫu, chỉ sản phẩm áo' },
+  model: { 'nu-viet': 'người mẫu Việt Nam (nữ)', 'nam-viet': 'người mẫu Việt Nam (nam)', 'nu-tre': 'người mẫu nữ trẻ', 'nam-tre': 'người mẫu nam trẻ', 'cap-doi': 'cặp đôi trẻ', 'khong-nguoi': 'không người mẫu, chỉ sản phẩm áo' },
   background: { 'studio-kem': 'nền studio màu kem', 'quan-cafe': 'quán cà phê ấm cúng', 'pho-co': 'phố cổ Việt Nam', 'bien': 'bãi biển nắng nhẹ' },
   lighting: { 'mem': 'ánh sáng mềm dịu', 'nang': 'ánh nắng tự nhiên rực rỡ', 'toi-am': 'ánh sáng ấm, hơi tối' },
   angle: { 'thang': 'góc chụp thẳng chính diện', 'nghieng': 'góc chụp nghiêng 45 độ', 'can-canh': 'cận cảnh hình in trên ngực áo', 'toan-than': 'chụp toàn thân' },
 };
 const PROMPT_OPTIONS_EN = {
   style: { 'studio': 'professional studio photoshoot', 'duong-pho': 'dynamic street-style look', 'thien-nhien': 'natural outdoor setting', 'toi-gian': 'minimalist plain backdrop' },
-  model: { 'nu-tre': 'a young female model', 'nam-tre': 'a young male model', 'cap-doi': 'a young couple, both wearing the same plain t-shirt', 'khong-nguoi': '' },
+  model: { 'nu-viet': 'a young Vietnamese female model', 'nam-viet': 'a young Vietnamese male model', 'nu-tre': 'a young female model', 'nam-tre': 'a young male model', 'cap-doi': 'a young couple, both wearing the same plain t-shirt', 'khong-nguoi': '' },
   background: { 'studio-kem': 'clean light-cream studio background', 'quan-cafe': 'warm cosy café background', 'pho-co': 'Vietnamese old-town street background', 'bien': 'soft sunny beach background' },
   lighting: { 'mem': 'soft diffused studio lighting', 'nang': 'bright natural sunlight', 'toi-am': 'warm, slightly dim lighting' },
 };
@@ -111,8 +116,8 @@ export const PROMPT_TEMPLATES = [
 // field (an old config with angle='nghieng' migrates to the 3/4 view).
 export const GARMENT_OPTIONS = {
   kieuAo: {
-    'co-tron': { label: 'Cổ tròn — regular fit', en: 'classic crew-neck regular-fit' },
-    'oversize': { label: 'Oversize — phom rộng boxy', en: 'oversized boxy-fit with dropped shoulders' },
+    'co-tron': { label: 'Cổ tròn — regular fit', en: 'classic crew-neck regular-fit', fitEn: 'regular-fit' },
+    'oversize': { label: 'Oversize — phom rộng boxy', en: 'oversized boxy-fit with dropped shoulders', fitEn: 'oversized boxy-fit' },
   },
   mauAo: {
     'trang': { label: 'Trắng', en: 'white', hex: '#f4f4f2' },
@@ -135,7 +140,7 @@ export function garmentParams(cfg = {}) {
   let view = GARMENT_OPTIONS.gocChup[cfg.gocChup] ? cfg.gocChup : null;
   if (!view) view = cfg.angle === 'nghieng' ? 'ba-phan-tu' : 'chinh-dien';
   return {
-    style, styleEn: GARMENT_OPTIONS.kieuAo[style].en,
+    style, styleEn: GARMENT_OPTIONS.kieuAo[style].en, fitEn: GARMENT_OPTIONS.kieuAo[style].fitEn,
     colorKey, colorEn: GARMENT_OPTIONS.mauAo[colorKey].en, colorHex: GARMENT_OPTIONS.mauAo[colorKey].hex,
     view, viewEn: GARMENT_OPTIONS.gocChup[view].en,
   };
@@ -143,6 +148,12 @@ export function garmentParams(cfg = {}) {
 /** Read-only Vietnamese summary of what will be sent (shown in the panel). */
 export function garmentSummaryVi(cfg = {}) {
   const g = garmentParams(cfg);
+  // P4.2 round 3: Template 1 sends the owner's VERBATIM e-commerce catalog
+  // template (see CATALOG_PROMPT_TEMPLATE) — the summary must describe
+  // THAT framing, not the legacy composed prompt.
+  if (cfg.catalogPrompt) {
+    return `Ảnh catalogue thương mại điện tử (mẫu prompt chuẩn của chủ shop): mẫu Việt Nam trẻ, chụp NỬA NGƯỜI từ đầu tới hông, đứng thẳng nhìn thẳng vào máy ảnh, tay đút túi thư giãn; mặc áo thun cotton cổ tròn TRƠN màu ${GARMENT_OPTIONS.mauAo[g.colorKey].label.toLowerCase()}, phom ${g.fitEn === 'oversized boxy-fit' ? 'oversize rộng boxy' : 'regular-fit'} — thấy TOÀN BỘ áo: cổ, hai vai, hai tay áo và gấu áo; vùng ngực phẳng, TUYỆT ĐỐI không hình in/logo/chữ; nền studio xám sáng liền mạch, ánh sáng thương mại đều, chất vải cotton sắc nét. Hình in của khách được ghép HẬU KỲ bằng file gốc ở node Ghép hình in — AI không vẽ hình in.`;
+  }
   const pick = (group, key) => PROMPT_OPTIONS[group]?.[key] || '';
   const who = cfg.model === 'khong-nguoi' ? 'chỉ áo (không người mẫu)' : (pick('model', cfg.model) || 'người mẫu');
   const parts = [
@@ -153,12 +164,29 @@ export function garmentSummaryVi(cfg = {}) {
   return parts.join(', ') + '. Hình in của khách được ghép HẬU KỲ bằng file gốc ở node Ghép hình in — AI không vẽ hình in.';
 }
 /**
+ * P4.2 ROUND 3 — the owner's VERBATIM e-commerce catalog prompt template
+ * (Uniqlo / Coolmate / Printful mockup style), ordered word-for-word.
+ * Only [COLOR] (the garment colour's EN name) and [FIT_TYPE] ('regular-fit'
+ * / 'oversized boxy-fit') are substituted from the garment params. Used
+ * ONLY when the promptAssistant config carries catalogPrompt: true —
+ * which only Template 1 sets. Every other config keeps the composed
+ * legacy prompt below, so Templates 2–4 and old projects are untouched.
+ */
+export const CATALOG_PROMPT_TEMPLATE = 'Commercial e-commerce apparel catalog photo, medium half-body shot from head to hip of a young Vietnamese model standing upright facing camera, wearing a PLAIN [COLOR] [FIT_TYPE] cotton crew-neck t-shirt, full t-shirt torso, sleeves and bottom hem clearly visible in frame, hands relaxed in pockets, flat smooth chest fabric area, NO print, NO logo, NO text, clean light grey seamless studio backdrop, soft even commercial studio lighting, sharp fabric texture, 85mm lens, photorealistic lookbook quality.';
+export function catalogPromptFor(cfg = {}) {
+  const g = garmentParams(cfg);
+  return CATALOG_PROMPT_TEMPLATE.replace('[COLOR]', g.colorEn).replace('[FIT_TYPE]', g.fitEn);
+}
+/**
  * Build the ENGLISH generation prompt for a PLAIN garment photo.
  * Driven by the garment params; ends with the strict prohibitions (no
  * print/logo/text, garment-type lock, no accessory over the chest).
+ * Template 1 (catalogPrompt: true) returns the owner's verbatim catalog
+ * template instead — see CATALOG_PROMPT_TEMPLATE.
  */
 export function buildPrompt(cfg = {}, basePrompt = '') {
   const g = garmentParams(cfg);
+  if (cfg.catalogPrompt) return catalogPromptFor(cfg);
   const pickEn = (group, key) => PROMPT_OPTIONS_EN[group]?.[key] || '';
   const garmentSentence = cfg.model === 'khong-nguoi'
     ? `a PLAIN ${g.colorEn} ${g.styleEn} cotton t-shirt on a clean display, completely blank`
@@ -228,20 +256,225 @@ export function zipRead(bytes) {
   return entries;
 }
 
-// ---------- DEMO model figure geometry (P4.1) ----------
+// ---------- DEMO model figure geometry (P4.1 → P4.2 → P4.2 round 3) ----------
 // Deterministic geometry of the canvas-drawn DEMO model figure (drawn in
-// studio.js): torso spans per fit + the chest/print quads. Template 1's
-// composition node defaults to `chestQuad`, so in DEMO mode the original
-// design lands exactly on the figure's chest. The same quads are a sensible
-// worn-front chest quad for real 4:5 model photos.
+// studio.js). Template 1's composition node defaults to `chestQuad`, so
+// in DEMO mode the original design lands exactly on the figure's chest.
+//
+// ROUND 3 (owner's e-commerce framing standard): the figure is redrawn
+// as a MEDIUM HALF-BODY (top of head → past the hips, camera at chest
+// height, light-grey studio backdrop) — the same framing the owner
+// mandates for real model photos — and its geometry is expressed as
+// LANDMARKS, with the print quads DERIVED via torsoQuadFor (warp.js):
+// gap 13.5% of torso length below the collar's lower edge, print width
+// 40% of torso width, centred on the torso. ONE rule for every base.
+// The collar lower edge follows from the drawing: shoulderY + neckline
+// curve dip 0.02 + collar stroke ≈ +0.025 (see drawDemoFigure).
+//   regular:  collar 0.275, hem 0.760 → torso 0.485; quad top 0.341,
+//             width 0.176 (= 40% of torso width 0.44), height 0.141.
+//   oversize: collar 0.290, hem 0.840 → torso 0.550; quad top 0.364,
+//             width 0.232 (= 40% of torso width 0.58), height 0.186 —
+//             a genuinely wider AND longer garment, never a regular tee
+//             with a bigger print.
+// (History: P4.1's quad top sat at y=0.375 with the collar at 0.316 — the
+// print rode onto the neck; round 1 fixed it with the collar rule, which
+// round 3's torso rule now supersedes.)
 export const DEMO_FIGURE = {
-  chestQuad: [[0.315, 0.375], [0.685, 0.375], [0.695, 0.6], [0.305, 0.6]],
-  chestQuadOversize: [[0.29, 0.38], [0.71, 0.38], [0.73, 0.7], [0.27, 0.7]],
+  landmarks: {
+    regular: { collarBottomY: 0.275, hemY: 0.76, torsoCenterX: 0.5, torsoWidth: 0.44 },
+    oversize: { collarBottomY: 0.29, hemY: 0.84, torsoCenterX: 0.5, torsoWidth: 0.58 },
+  },
+  collarBottomY: { regular: 0.275, oversize: 0.29 },
+  chestQuad: torsoQuadFor({ collarBottomY: 0.275, hemY: 0.76, torsoCenterX: 0.5, torsoWidth: 0.44 }, { imgW: 4, imgH: 5 }),
+  chestQuadOversize: torsoQuadFor({ collarBottomY: 0.29, hemY: 0.84, torsoCenterX: 0.5, torsoWidth: 0.58 }, { imgW: 4, imgH: 5 }),
   torso: {
-    regular: { span: [0.27, 0.73], shoulderY: 0.295, hemY: 0.88 },
-    oversize: { span: [0.2, 0.8], shoulderY: 0.315, hemY: 0.95 },
+    regular: { span: [0.28, 0.72], shoulderY: 0.25, hemY: 0.76 },
+    oversize: { span: [0.21, 0.79], shoulderY: 0.265, hemY: 0.84 },
   },
 };
+
+// ---------- Real photo bases (P4.2 → round 3) ----------
+// ROUND 3 STATE (owner's e-commerce framing standard): there is NO model
+// photo base at all. A model base must now pass the FULL commercial
+// checklist — medium half-body (top of head → past hips), the ENTIRE
+// plain garment visible (collar, both shoulders, both sleeves, bottom
+// hem + trousers waistband), camera at chest height, model upright and
+// facing camera, arms relaxed or hands in pockets, no leaning / crossed
+// arms / hair over the chest, plain bright neutral studio background,
+// Vietnamese/Asian adult model, verified licence. The round-2 white base
+// (Pexels 25471921) was REJECTED by the owner under this standard (close
+// head-and-shoulders portrait, torso cut off, leaning in, dark room) and
+// is REMOVED as a base (fixture deleted; licence record kept in
+// docs/P2_ASSET_LICENSES.md, marked superseded). A fresh round-3 search
+// (8 query angles, 26 candidates downloaded and viewed — rejection list
+// in docs/AI_STUDIO_QA_REPORT.md) found NO compliant photo for white,
+// black or oversize, so photoBaseFor returns null for every garment
+// combo and DEMO honestly uses the drawn figure (itself redrawn to the
+// half-body framing) with the "chưa có ảnh chụp thật đã kiểm chứng"
+// label. NEVER relax a checklist item to fill a slot (owner's rule).
+// What remains below are GARMENT reference photos (kind: 'garment') —
+// hanger / back-view shots used by the composition node's "Ảnh mẫu thật"
+// source and the AI-failure fallback. They are not model bases and are
+// never presented as models. Every entry carries its measured landmarks
+// (FIXTURE_LANDMARKS in warp.js); quads come from GARMENT_QUADS, derived
+// via torsoQuadFor — one placement rule for all bases.
+export const PHOTO_BASES = [
+  {
+    id: 'hanger-white', name: 'Áo trắng trên móc (ảnh chụp thật)',
+    path: 'public/fixtures/real-tee/crew-white-hanger.webp', style: 'co-tron', colorKey: 'trang', demoPhoto: false, kind: 'garment',
+    collarBottomY: 0.33, landmarks: FIXTURE_LANDMARKS['public/fixtures/real-tee/crew-white-hanger.webp'],
+    source: { platform: 'Pexels', photoId: '20669538', author: 'Dmitriy Steinke', sourceUrl: 'https://www.pexels.com/photo/hand-holds-hanger-with-t-shirt-20669538/', license: 'Pexels License — free commercial use, attribution not required (given anyway)', note: 'Ảnh có sẵn trong repo từ P2 (GAR-CREW-WHT-HANGER-01).' },
+  },
+  {
+    id: 'hanger-black', name: 'Áo đen trên móc (ảnh chụp thật)',
+    path: 'public/fixtures/real-tee/crew-black-hanger.webp', style: 'co-tron', colorKey: 'den', demoPhoto: false, kind: 'garment',
+    collarBottomY: 0.26, landmarks: FIXTURE_LANDMARKS['public/fixtures/real-tee/crew-black-hanger.webp'],
+    source: { platform: 'Pexels', photoId: '8532616', author: 'Hanna Pad', sourceUrl: 'https://www.pexels.com/photo/a-black-shirt-hanging-on-the-wall-8532616/', license: 'Pexels License — free commercial use, attribution not required (given anyway)', note: 'Ảnh có sẵn trong repo từ P3 (GAR-CREW-BLK-HANGER-01).' },
+  },
+  {
+    id: 'back-white', name: 'Áo trắng mặt sau, người mẫu mặc (ảnh chụp thật)',
+    path: 'public/fixtures/real-tee/crew-white-back-worn.webp', style: 'co-tron', colorKey: 'trang', demoPhoto: false, kind: 'garment',
+    collarBottomY: 0.445, landmarks: FIXTURE_LANDMARKS['public/fixtures/real-tee/crew-white-back-worn.webp'],
+    source: { platform: 'Pexels', photoId: '17515211', author: 'NJH STUDIO', sourceUrl: 'https://www.pexels.com/photo/back-view-of-man-in-t-shirt-and-hat-17515211/', license: 'Pexels License — free commercial use, attribution not required (given anyway)', note: 'Ảnh có sẵn trong repo từ P2 (GAR-CREW-WHT-BACKWORN-01) — chỉ dùng cho hình in mặt sau.' },
+  },
+];
+export function photoBaseByPath(path) { return PHOTO_BASES.find(b => b.path === path) || null; }
+/**
+ * The DEMO MODEL photo base for structured garment params, or null when
+ * no verified photo exists for them (caller falls back to the drawn
+ * figure). Only entries with kind: 'model' qualify — garment reference
+ * photos (hangers) NEVER pose as model bases. ROUND 3: the registry
+ * currently holds NO model entry (the round-2 white model photo was
+ * rejected by the owner under the e-commerce standard and no compliant
+ * replacement was found), so this returns null for every combo; the
+ * lookup stays so a future verified model photo only needs a registry
+ * entry. Front view only. Returns { base, quad } with a fresh quad copy.
+ * ROUND 4: the DEMO model layer is now AI-GENERATED imagery in a
+ * SEPARATE registry (AI_MODEL_BASES / aiModelBaseFor below) — this
+ * function stays real-photos-only on purpose, so a photo can never be
+ * confused with an AI image or vice versa.
+ */
+export function photoBaseFor(garment) {
+  if (!garment || garment.view !== 'chinh-dien') return null;
+  if (garment.style === 'oversize') return null;
+  const b = PHOTO_BASES.find(x => x.kind === 'model' && x.demoPhoto && x.style === garment.style && x.colorKey === garment.colorKey);
+  if (!b) return null;
+  const q = GARMENT_QUADS[b.path];
+  return q ? { base: b, quad: q.map(p => [...p]) } : null;
+}
+
+// ---------- AI-GENERATED model bases (P4.2 ROUND 4) ----------
+// ROUND 4 (owner directive + approval, 2026-11-14): after three rounds
+// found NO real photograph passing the owner's e-commerce checklist, the
+// owner ordered the Template 1 model layer to be AI-GENERATED imagery
+// instead — a realistic AI model WEARING the correct garment style,
+// colour and pose, the shirt PLAIN (the design is still composited
+// afterwards from the original file, never drawn by AI). The three
+// images below were generated with the owner's verbatim catalog prompt
+// template (CATALOG_PROMPT_TEMPLATE), were VIEWED and APPROVED by the
+// owner on 2026-11-14 (the black-crew MALE model approved as-is), and
+// are the DEMO model bases for their (colour, fit) combos.
+// HONEST LABELLING (hard rule): these are AI-GENERATED images — NOT
+// photographs. They are therefore NOT recorded in
+// docs/P2_ASSET_LICENSES.md (that file is for real-photo licences);
+// their provenance lives in docs/AI_MODEL_ASSETS.md, and every name /
+// label in the app says "do AI tạo". They must never be presented as
+// real photography. Combos without an approved AI base (other colours,
+// black oversize, 3/4 view) keep the drawn-figure fallback, honestly
+// labelled. Landmarks are grid-measured per image (AI_MODEL_LANDMARKS
+// in warp.js); quads derive via torsoQuadFor — one rule for all bases.
+export const AI_MODEL_BASES = [
+  {
+    id: 'ai-model-white-crew', name: 'Người mẫu do AI tạo — áo trắng cổ tròn, mẫu nữ (KHÔNG phải ảnh chụp thật)',
+    path: 'public/fixtures/ai-model/model-white-crew.webp', style: 'co-tron', colorKey: 'trang', demoPhoto: true, kind: 'ai-model',
+    collarBottomY: 0.383, landmarks: AI_MODEL_LANDMARKS['public/fixtures/ai-model/model-white-crew.webp'],
+    source: { platform: 'AI-generated', generator: 'Muse — pipeline tạo ảnh (media generation)', prompt: 'CATALOG_PROMPT_TEMPLATE nguyên văn của chủ shop, [COLOR]=white, [FIT_TYPE]=regular-fit', approvedBy: 'Chủ shop Van', approvedDate: '2026-11-14', note: 'Ảnh người mẫu DO AI TẠO — không phải ảnh chụp thật; người mẫu nữ Việt Nam, áo trắng trơn cổ tròn, nửa người đầu→hông, thấy toàn bộ áo + cạp quần jean, tay đút túi, nền xám sáng.' },
+  },
+  {
+    id: 'ai-model-black-crew', name: 'Người mẫu do AI tạo — áo đen cổ tròn, mẫu NAM (KHÔNG phải ảnh chụp thật)',
+    path: 'public/fixtures/ai-model/model-black-crew.webp', style: 'co-tron', colorKey: 'den', demoPhoto: true, kind: 'ai-model',
+    collarBottomY: 0.363, landmarks: AI_MODEL_LANDMARKS['public/fixtures/ai-model/model-black-crew.webp'],
+    source: { platform: 'AI-generated', generator: 'Muse — pipeline tạo ảnh (media generation)', prompt: 'CATALOG_PROMPT_TEMPLATE nguyên văn của chủ shop, [COLOR]=black, [FIT_TYPE]=regular-fit', approvedBy: 'Chủ shop Van', approvedDate: '2026-11-14', note: 'Ảnh người mẫu DO AI TẠO — không phải ảnh chụp thật; người mẫu NAM Việt Nam (chủ shop duyệt giữ nguyên như vậy), áo đen trơn cổ tròn, nửa người đầu→hông, thấy toàn bộ áo + cạp quần jean, tay đút túi, nền xám sáng.' },
+  },
+  {
+    id: 'ai-model-white-oversize', name: 'Người mẫu do AI tạo — áo trắng OVERSIZE phom rộng, mẫu nữ (KHÔNG phải ảnh chụp thật)',
+    path: 'public/fixtures/ai-model/model-white-oversize.webp', style: 'oversize', colorKey: 'trang', demoPhoto: true, kind: 'ai-model',
+    collarBottomY: 0.328, landmarks: AI_MODEL_LANDMARKS['public/fixtures/ai-model/model-white-oversize.webp'],
+    source: { platform: 'AI-generated', generator: 'Muse — pipeline tạo ảnh (media generation)', prompt: 'CATALOG_PROMPT_TEMPLATE nguyên văn của chủ shop, [COLOR]=white, [FIT_TYPE]=oversized boxy-fit', approvedBy: 'Chủ shop Van', approvedDate: '2026-11-14', note: 'Ảnh người mẫu DO AI TẠO — không phải ảnh chụp thật; người mẫu nữ Việt Nam, áo trắng oversize phom rộng THẬT (vai trễ, thân rộng, vạt dài cong), nửa người đầu→hông, thấy toàn bộ áo + cạp quần jean, tay đút túi, nền xám sáng.' },
+  },
+];
+export function aiModelBaseByPath(path) { return AI_MODEL_BASES.find(b => b.path === path) || null; }
+/**
+ * The DEMO AI-MODEL base for structured garment params (ROUND 4), or
+ * null when no owner-approved AI image exists for them (caller falls
+ * back to the drawn figure, honestly labelled). Front view only; both
+ * regular and oversize fits can be mapped (white oversize is). Returns
+ * { base, quad } with a fresh quad copy.
+ */
+export function aiModelBaseFor(garment) {
+  if (!garment || garment.view !== 'chinh-dien') return null;
+  const b = AI_MODEL_BASES.find(x => x.style === garment.style && x.colorKey === garment.colorKey);
+  if (!b) return null;
+  const q = AI_MODEL_QUADS[b.path];
+  return q ? { base: b, quad: q.map(p => [...p]) } : null;
+}
+
+// ---------- Template/build versioning (P4.2 ROUND 4, R1 + R4) ----------
+/** Behaviour build marker. It is mixed into every P2 node cache key
+ * (p2.js nodeCacheKey), so cached outputs produced by an older build's
+ * behaviour (older base registry / calibration / template wiring) can
+ * NEVER be silently reused after an upgrade — the chained config/input
+ * hash alone does not cover code behaviour. Bump on any behaviour
+ * change that alters node outputs for identical configs/inputs. */
+export const AI_STUDIO_BUILD = 'p42-r4';
+/** Template 1's own version. Template-1-derived projects carry
+ * meta {templateId:'tpl1', tplVersion} (stamped by the template factory
+ * and threaded through save/draft/version snapshots). On load, a
+ * project whose marker is older is refreshed by refreshTpl1Graph. */
+export const TPL1_VERSION = 4;
+/** The current Template 1 default print quad = the torso-rule quad of
+ * the default garment case (white crew → the approved AI model base). */
+export const TPL1_DEFAULT_QUAD_PATH = 'public/fixtures/ai-model/model-white-crew.webp';
+const TPL1_RETIRED_BASES = [
+  'public/fixtures/real-tee/crew-white-vn-model.webp', // round-2 model photo — owner-rejected, fixture deleted (round 3)
+  'public/fixtures/real-tee/crew-black-woman.webp',    // held-up shirt — removed as a base in the supplementary round
+  'public/fixtures/real-tee/crew-white-model.webp',    // round-1 white model photo — superseded, fixture deleted
+];
+/**
+ * R4 — refresh a Template-1-derived project created under an older
+ * template version: template-owned defaults are brought current
+ * (promptAssistant catalog flag, composition's retired bases, the
+ * composition default quad from the current AI model landmarks), while
+ * anything the user explicitly set (a user-edited quad, quadSource
+ * 'user') is preserved. Pure + non-mutating: returns
+ * {graph, refreshed, notes} — notes are Vietnamese, user-visible.
+ */
+export function refreshTpl1Graph(graph) {
+  if (!graph || graph.meta?.templateId !== 'tpl1' || (graph.meta.tplVersion || 0) >= TPL1_VERSION) {
+    return { graph, refreshed: false, notes: [] };
+  }
+  const g = JSON.parse(JSON.stringify(graph));
+  const notes = [];
+  for (const n of g.nodes || []) {
+    if (n.type === 'promptAssistant' && !(n.config || {}).catalogPrompt) {
+      n.config = { ...(n.config || {}), catalogPrompt: true };
+      notes.push('Trợ lý prompt: bật prompt catalogue thương mại điện tử nguyên văn của chủ shop');
+    }
+    if (n.type === 'composition') {
+      const c = n.config = { ...(n.config || {}) };
+      let baseFixed = false;
+      if (TPL1_RETIRED_BASES.includes(c.realBase)) { c.realBase = 'public/fixtures/real-tee/crew-white-hanger.webp'; baseFixed = true; }
+      if (TPL1_RETIRED_BASES.includes(c.base)) { c.base = 'public/fixtures/real-tee/crew-white-hanger.webp'; baseFixed = true; }
+      if (baseFixed) notes.push('Ghép hình in: thay ảnh nền mẫu đã bị gỡ khỏi thư viện bằng ảnh áo trắng trên móc hiện hành');
+      if (c.quadSource !== 'user') {
+        c.quad = AI_MODEL_QUADS[TPL1_DEFAULT_QUAD_PATH].map(p => [...p]);
+        notes.push('Ghép hình in: vùng in đặt lại theo mốc thân áo của nền người mẫu AI đã duyệt');
+      }
+    }
+  }
+  g.meta = { ...g.meta, tplVersion: TPL1_VERSION };
+  return { graph: g, refreshed: true, notes };
+}
 
 // ---------- Templates (brief §7) ----------
 function tpl(defs, edges) {
@@ -263,17 +496,29 @@ export const TEMPLATES = [
   // wired into aiImageGen, because every real generation mode here is
   // text-to-image and cannot use a reference photo. To composite onto a
   // real photo instead of the AI photo, set the composition node's
-  // garmentSource to 'real' — its realBase defaults to this same fixture.
-  { id: 'tpl1', name: 'Mẫu 1 — Ảnh người mẫu mặc áo', make() { return tpl([
+  // garmentSource to 'real' — its realBase defaults to the white hanger
+  // garment photo (PHOTO_BASES), selectable per base in the panel.
+  // P4.2 round 3: this template's promptAssistant carries
+  // catalogPrompt: true, so its generation prompt is the owner's VERBATIM
+  // e-commerce catalog template (CATALOG_PROMPT_TEMPLATE).
+  // P4.2 ROUND 4 (R1): the shipped template itself defaults to the new
+  // stack — DEMO generation resolves the owner-approved AI MODEL base
+  // for the garment params (aiModelBaseFor) and the composition node's
+  // stored default quad is that base's torso-rule quad (the generated
+  // value's own calibrated baseQuad still wins at run time). The graph
+  // is stamped meta {templateId:'tpl1', tplVersion} so older copies can
+  // be detected and refreshed on load ( refreshTpl1Graph, R4 ). A fresh
+  // instance therefore runs correctly with ZERO manual edits.
+  { id: 'tpl1', name: 'Mẫu 1 — Ảnh người mẫu mặc áo', make() { const g = tpl([
     ['imageInput', 40, 60, { fixture: 'public/fixtures/real-tee/crew-white-hanger.webp' }, 'img'],
     ['designInput', 40, 300, { svgText: SAMPLE_DESIGN_SVG, assetName: 'hinh-in-mau.svg' }, 'des'],
     ['promptInput', 40, 520, {}, 'pin'],
-    ['promptAssistant', 330, 520, { kieuAo: 'co-tron', mauAo: 'trang', gocChup: 'chinh-dien' }, 'pa'],
+    ['promptAssistant', 330, 520, { model: 'nu-viet', kieuAo: 'co-tron', mauAo: 'trang', gocChup: 'chinh-dien', catalogPrompt: true }, 'pa'],
     ['aiImageGen', 620, 430, { ratio: '4:5' }, 'gen'],
-    ['composition', 620, 140, { mode: 'perspective', quad: DEMO_FIGURE.chestQuad.map(p => [...p]), wrinkle: 35, shading: 45, garmentSource: 'ai', realBase: 'public/fixtures/real-tee/crew-white-hanger.webp' }, 'comp'],
+    ['composition', 620, 140, { mode: 'perspective', quad: AI_MODEL_QUADS[TPL1_DEFAULT_QUAD_PATH].map(p => [...p]), wrinkle: 35, shading: 45, garmentSource: 'ai', realBase: 'public/fixtures/real-tee/crew-white-hanger.webp' }, 'comp'],
     ['preview', 900, 140, {}, 'prev'],
     ['exportNode', 1160, 140, { format: 'png', channels: ['website'] }, 'exp'],
-  ], [['pin', 'pa', 'in'], ['pa', 'gen', 'prompt'], ['gen', 'comp', 'garment'], ['des', 'comp', 'design'], ['comp', 'prev', 'in'], ['prev', 'exp', 'in']]); } },
+  ], [['pin', 'pa', 'in'], ['pa', 'gen', 'prompt'], ['gen', 'comp', 'garment'], ['des', 'comp', 'design'], ['comp', 'prev', 'in'], ['prev', 'exp', 'in']]); g.meta = { templateId: 'tpl1', tplVersion: TPL1_VERSION }; return g; } },
   { id: 'tpl2', name: 'Mẫu 2 — Bộ ảnh sản phẩm', make() { return tpl([
     ['imageInput', 40, 200, { fixture: 'public/fixtures/real-tee/crew-white-flatlay.webp' }, 'img'],
     ['aiVariation', 320, 200, { variant: 'boi-canh' }, 'var'],
@@ -303,4 +548,4 @@ export const TEMPLATES = [
   ], [['img', 'comp', 'garment'], ['des', 'comp', 'design'], ['comp', 'gen', 'image'], ['gen', 'vid', 'in'], ['vid', 'prev', 'in'], ['vid', 'exp', 'in']]); } },
 ];
 export function emptyGraph() { return { nodes: [], edges: [] }; }
-export function cloneGraph(g) { return JSON.parse(JSON.stringify({ nodes: g.nodes.map(n => ({ ...n, logs: [...(n.logs || [])] })), edges: g.edges })); }
+export function cloneGraph(g) { const c = JSON.parse(JSON.stringify({ nodes: g.nodes.map(n => ({ ...n, logs: [...(n.logs || [])] })), edges: g.edges })); if (g.meta) c.meta = JSON.parse(JSON.stringify(g.meta)); return c; }
