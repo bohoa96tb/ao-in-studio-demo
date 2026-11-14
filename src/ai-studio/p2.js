@@ -2,7 +2,7 @@
 // stable hashing + node cache keys, a sequential run queue, the pre-run
 // validation report, asset-reference computation for orphan GC, and list
 // pruning for run history / project versions. No browser APIs here.
-import { NODE_DEFS } from './core.js';
+import { NODE_DEFS, AI_STUDIO_BUILD } from './core.js';
 import { validateGraph } from './engine.js';
 
 // ---------- stable stringify + FNV-1a hash ----------
@@ -29,13 +29,20 @@ export function configForKey(node) {
   return cfg;
 }
 /**
- * Cache key for one node = hash of its type, its (stable) config and the
- * cache keys of everything wired into its input ports. Because a node's key
- * embeds its upstream keys, editing a node changes exactly its own key and
- * the keys of everything downstream of it — nothing else.
+ * Cache key for one node = hash of its type, its (stable) config, the
+ * cache keys of everything wired into its input ports — AND the
+ * behaviour build marker (P4.2 round 4, R4). The chained hash alone
+ * cannot see CODE behaviour: an old draft's aiImageGen node has the
+ * same config and inputs before and after the base registry /
+ * calibration changed, so without the build marker its stale cached
+ * output (e.g. a pre-P4.2 figure composite) would be silently reused.
+ * Mixing AI_STUDIO_BUILD into every key invalidates all pre-upgrade
+ * cache entries at once. Because a node's key embeds its upstream
+ * keys, editing a node changes exactly its own key and the keys of
+ * everything downstream of it — nothing else.
  */
-export function nodeCacheKey(node, inputKeys = {}) {
-  return node.type + ':' + hashOf({ t: node.type, c: configForKey(node), i: inputKeys });
+export function nodeCacheKey(node, inputKeys = {}, build = AI_STUDIO_BUILD) {
+  return node.type + ':' + hashOf({ t: node.type, c: configForKey(node), i: inputKeys, b: build });
 }
 
 // Node types whose execution must NOT be served from cache: they are pure

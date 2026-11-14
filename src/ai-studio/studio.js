@@ -2,11 +2,11 @@
 // workflow execution via engine.js, project persistence in IndexedDB
 // `ao-in-ai-studio`. AI nodes run the DEMO adapter until a real provider is
 // configured; every demo output is visibly labelled.
-import { NODE_DEFS, NODE_TYPES, TEMPLATES, emptyGraph, makeNode, findNode, validateConnection, buildPrompt, garmentParams, garmentSummaryVi, GARMENT_OPTIONS, DEMO_FIGURE, PHOTO_BASES, photoBaseFor, PROMPT_OPTIONS, PROMPT_TEMPLATES, checkSvgSafety, zipWrite, zipRead, uid, SAMPLE_DESIGN_SVG } from './core.js';
+import { NODE_DEFS, NODE_TYPES, TEMPLATES, emptyGraph, makeNode, findNode, validateConnection, buildPrompt, garmentParams, garmentSummaryVi, GARMENT_OPTIONS, DEMO_FIGURE, PHOTO_BASES, photoBaseFor, AI_MODEL_BASES, aiModelBaseFor, refreshTpl1Graph, PROMPT_OPTIONS, PROMPT_TEMPLATES, checkSvgSafety, zipWrite, zipRead, uid, SAMPLE_DESIGN_SVG } from './core.js';
 import { Engine, downstreamOf, upstreamOf } from './engine.js';
 import { nodeCacheKey, isCacheable, RunQueue, validateWorkflow, collectReferencedAssetIds, findOrphanAssets, pruneOldest, formatDuration } from './p2.js';
 import { DemoAdapter, HttpAdapter, PollinationsClassicAdapter, PollinationsKeyedAdapter, setSessionKey, hasSessionKey, BROWSER_KEY_WARNING, POLLINATIONS_KEY_WARNING, AUTO_TOPUP_WARNING, COMMERCIAL_USE_NOTE, PROVIDERS, providerById, modelOf, isRunnableModel, resolveGenerationMode, suppressRetryForMode, sizeForRatio, estimateGenerationCost, describePlannedCalls, describeProvider } from './providers.js';
-import { solveHomography, applyHomography, UNIT_SQUARE, rectToQuad, presetQuadFor, migrateCompositionConfig, torsoQuadFor, fieldMean, displacementAt, buildWarpGrid, fitInto, CHANNEL_PRESETS, channelPreset, channelFileName } from './warp.js';
+import { solveHomography, applyHomography, UNIT_SQUARE, rectToQuad, presetQuadFor, migrateCompositionConfig, torsoQuadFor, framingAspectClass, passesHalfBodyFraming, fieldMean, displacementAt, buildWarpGrid, fitInto, CHANNEL_PRESETS, channelPreset, channelFileName } from './warp.js';
 import { store, storageEstimate } from './store.js';
 
 const $ = (s) => document.querySelector(s);
@@ -49,7 +49,7 @@ const loadImg = (src) => new Promise((res, rej) => { const i = new Image(); i.on
 async function blobToImg(blob) { const url = URL.createObjectURL(blob); try { return await loadImg(url); } finally { /* keep url alive during draw; revoked by GC of blob url pool */ } }
 const canvasBlob = (c, type = 'image/png', q = 0.92) => new Promise(r => c.toBlob(r, type, q));
 function makeCanvas(w, h) { const c = document.createElement('canvas'); c.width = Math.max(2, Math.round(w)); c.height = Math.max(2, Math.round(h)); return c; }
-function valueFromBlob(blob, kind, extra = {}) { return { kind, blob, url: URL.createObjectURL(blob), mime: blob.type, name: extra.name || 'ket-qua', demo: !!extra.demo, label: extra.label || '', svgText: extra.svgText || '', baseQuad: extra.baseQuad || null, photoBase: extra.photoBase || '' }; }
+function valueFromBlob(blob, kind, extra = {}) { return { kind, blob, url: URL.createObjectURL(blob), mime: blob.type, name: extra.name || 'ket-qua', demo: !!extra.demo, label: extra.label || '', svgText: extra.svgText || '', baseQuad: extra.baseQuad || null, photoBase: extra.photoBase || '', baseKind: extra.baseKind || '', garment: extra.garment || null, realAi: !!extra.realAi }; }
 async function fetchBlob(url) { const r = await fetch(url); if (!r.ok) throw new Error('Không tải được file: ' + url); return r.blob(); }
 function wrapText(ctx, text, x, y, maxW, lh) { const words = String(text).split(/\s+/); let line = '', yy = y; for (const w of words) { const t = line ? line + ' ' + w : w; if (ctx.measureText(t).width > maxW && line) { ctx.fillText(line, x, yy); line = w; yy += lh; } else line = t; } if (line) ctx.fillText(line, x, yy); return yy; }
 function drawDemoBanner(ctx, w, text = 'ẢNH DEMO — chưa kết nối AI', h = 0) { ctx.save(); const stripH = h > 0 ? Math.max(30, Math.round(h * 0.045)) : 54; const fontPx = h > 0 ? Math.round(stripH * 0.48) : 26; ctx.fillStyle = 'rgba(32,32,32,0.88)'; ctx.fillRect(0, 0, w, stripH); ctx.fillStyle = '#ffb59d'; ctx.font = `bold ${fontPx}px Arial`; ctx.textAlign = 'center'; ctx.fillText(text, w / 2, Math.round(stripH * 0.685)); ctx.restore(); }
@@ -182,6 +182,23 @@ const demoImpl = {
     // A wired reference image keeps the legacy P1–P4 wash behaviour
     // (templates 2–4 unchanged).
     if (prompt?.garment && !image?.blob) {
+      // P4.2 ROUND 4: when an owner-approved AI-GENERATED MODEL image
+      // exists for these garment params (AI_MODEL_BASES in core.js —
+      // white crew / black crew / white oversize), DEMO returns THAT
+      // image as the model base with its torso-rule quad. The label
+      // says plainly that the model image is AI-generated (it is NOT a
+      // photograph and is never presented as one); the run itself made
+      // no AI call — the images were generated once from the owner's
+      // verbatim catalog prompt and approved by the owner 2026-11-14.
+      const ab = aiModelBaseFor(prompt.garment);
+      if (ab) {
+        const photo = await blobToImg(await fetchBlob(ab.base.path));
+        const pc = makeCanvas(photo.width, photo.height), px = pc.getContext('2d');
+        px.drawImage(photo, 0, 0);
+        drawDemoBanner(px, pc.width, 'ẢNH DEMO — chưa kết nối AI', pc.height);
+        px.strokeStyle = '#b6492f'; px.lineWidth = 10; px.strokeRect(5, 5, pc.width - 10, pc.height - 10);
+        return valueFromBlob(await canvasBlob(pc), 'image', { demo: true, baseQuad: ab.quad, photoBase: ab.base.id, baseKind: 'ai-model', label: `Ảnh người mẫu do AI tạo (chưa phải ảnh chụp thật) — hình in ghép hậu kỳ bằng file gốc. Người mẫu AI mặc áo thun TRƠN đúng màu/phom đã chọn, ngực trống; ảnh được tạo bằng prompt catalogue nguyên văn của chủ shop và được chủ shop duyệt 2026-11-14. Lượt chạy DEMO này chưa gọi AI.` });
+      }
       // When a VERIFIED REAL MODEL PHOTO exists for these garment params
       // (kind 'model' in PHOTO_BASES — round 3: currently NONE, see
       // core.js), DEMO returns that photo as the reference base
@@ -194,12 +211,11 @@ const demoImpl = {
         px.drawImage(photo, 0, 0);
         drawDemoBanner(px, pc.width, 'ẢNH DEMO — chưa kết nối AI', pc.height);
         px.strokeStyle = '#b6492f'; px.lineWidth = 10; px.strokeRect(5, 5, pc.width - 10, pc.height - 10);
-        return valueFromBlob(await canvasBlob(pc), 'image', { demo: true, baseQuad: pb.quad, photoBase: pb.base.id, label: `DEMO — dùng ảnh chụp thật làm ảnh nền tham chiếu, chưa gọi AI. Ảnh: ${pb.base.name} (Pexels ${pb.base.source.photoId}, tác giả ${pb.base.source.author}). Áo trong ảnh là áo TRƠN; hình in gốc được ghép hậu kỳ.` });
+        return valueFromBlob(await canvasBlob(pc), 'image', { demo: true, baseQuad: pb.quad, photoBase: pb.base.id, baseKind: 'photo', label: `DEMO — dùng ảnh chụp thật làm ảnh nền tham chiếu, chưa gọi AI. Ảnh: ${pb.base.name} (Pexels ${pb.base.source.photoId}, tác giả ${pb.base.source.author}). Áo trong ảnh là áo TRƠN; hình in gốc được ghép hậu kỳ.` });
       }
-      // No verified photo for these params → the drawn figure (P4.2
-      // round 3: with the round-2 model photo rejected by the owner and
-      // no compliant replacement found, this is now the path for EVERY
-      // garment combo). The figure canvas is 900×1125 at the 4:5 ratio
+      // No approved AI model image and no verified photo for these
+      // params → the drawn figure (unmapped combos only in round 4:
+      // other colours, black oversize, 3/4 view). The figure canvas is 900×1125 at the 4:5 ratio
       // so its aspect matches the photo fixtures; its quad is derived
       // from the figure landmarks via torsoQuadFor at the canvas's own
       // aspect — the same torso rule as every other base.
@@ -210,7 +226,7 @@ const demoImpl = {
       drawDemoBanner(fx, fw, 'ẢNH DEMO — chưa kết nối AI', fh);
       fx.strokeStyle = '#b6492f'; fx.lineWidth = 10; fx.strokeRect(5, 5, fw - 10, fh - 10);
       const figQuad = torsoQuadFor(DEMO_FIGURE.landmarks[fitKey], { imgW: fw, imgH: fh });
-      return valueFromBlob(await canvasBlob(fc), 'image', { demo: true, baseQuad: figQuad.map(p => [...p]), label: 'Ảnh DEMO mô phỏng — người mẫu VẼ bằng canvas (khung nửa người theo chuẩn thương mại điện tử) mặc áo thun TRƠN đúng màu/phom đã chọn; chưa có ảnh chụp thật đã kiểm chứng đạt chuẩn của chủ shop cho thông số này; hình in gốc được ghép hậu kỳ, đây không phải ảnh sản phẩm thật' });
+      return valueFromBlob(await canvasBlob(fc), 'image', { demo: true, baseQuad: figQuad.map(p => [...p]), baseKind: 'figure', label: 'Ảnh DEMO mô phỏng — người mẫu VẼ bằng canvas (khung nửa người theo chuẩn thương mại điện tử) mặc áo thun TRƠN đúng màu/phom đã chọn; chưa có ảnh người mẫu cho thông số này (chưa có ảnh AI tạo đã duyệt, chưa có ảnh chụp thật đã kiểm chứng đạt chuẩn của chủ shop); hình in gốc được ghép hậu kỳ, đây không phải ảnh sản phẩm thật' });
     }
     const g = x.createLinearGradient(0, 0, 0, rh); g.addColorStop(0, '#f3ead9'); g.addColorStop(1, '#d9c6a5'); x.fillStyle = g; x.fillRect(0, 0, rw, rh);
     if (image?.blob) { const img = await blobToImg(image.blob); const s = Math.max(rw / img.width, rh / img.height); x.drawImage(img, (rw - img.width * s) / 2, (rh - img.height * s) / 2, img.width * s, img.height * s); x.fillStyle = 'rgba(243,234,217,0.18)'; x.fillRect(0, 0, rw, rh); }
@@ -248,12 +264,12 @@ const demoImpl = {
 // when the value is served back. API keys are never part of a cache record.
 async function cachePutRecord(key, node, value) {
   if (!value || (value.kind !== 'prompt' && !(value.blob instanceof Blob))) return;
-  await store.putCache({ key, projectId, nodeId: node.id, nodeType: node.type, createdAt: Date.now(), kind: value.kind, label: value.label || '', demo: !!value.demo, name: value.name || '', mime: value.mime || '', svgText: value.svgText || '', text: value.text || '', garment: value.garment || null, baseQuad: value.baseQuad || null, photoBase: value.photoBase || '', blob: value.blob instanceof Blob ? value.blob : null });
+  await store.putCache({ key, projectId, nodeId: node.id, nodeType: node.type, createdAt: Date.now(), kind: value.kind, label: value.label || '', demo: !!value.demo, name: value.name || '', mime: value.mime || '', svgText: value.svgText || '', text: value.text || '', garment: value.garment || null, baseQuad: value.baseQuad || null, photoBase: value.photoBase || '', baseKind: value.baseKind || '', realAi: !!value.realAi, blob: value.blob instanceof Blob ? value.blob : null });
 }
 async function cacheGetRecord(key) {
   const r = await store.getCache(key); if (!r) return null;
   if (r.kind === 'prompt') return { kind: 'prompt', text: r.text, garment: r.garment || null };
-  if (r.blob) return valueFromBlob(r.blob, r.kind, { name: r.name, demo: r.demo, label: r.label, svgText: r.svgText, baseQuad: r.baseQuad || null, photoBase: r.photoBase || '' });
+  if (r.blob) return valueFromBlob(r.blob, r.kind, { name: r.name, demo: r.demo, label: r.label, svgText: r.svgText, baseQuad: r.baseQuad || null, photoBase: r.photoBase || '', baseKind: r.baseKind || '', garment: r.garment || null, realAi: !!r.realAi });
   return null;
 }
 /** Latest cached output per node id for this project (used to seed a resumed run). */
@@ -410,6 +426,25 @@ function migrateGraph(g) {
   }
   return g;
 }
+/**
+ * P4.2 ROUND 4 (R4) — adopt a graph loaded from storage (project open,
+ * version restore, draft recovery): run the config migration, then the
+ * Template 1 version refresh. If the project was created under an older
+ * Template 1 version, its template-owned defaults are refreshed AND
+ * this project's persisted node cache is purged (on top of the global
+ * build-marker in every cache key), with a user-visible note — an old
+ * draft can never silently resurrect pre-P4.2 behaviour.
+ */
+async function adoptLoadedGraph(g) {
+  migrateGraph(g);
+  const oldV = g.meta?.tplVersion || 0;
+  const r = refreshTpl1Graph(g);
+  if (!r.refreshed) return g;
+  for (const c of (await store.listCache()).filter(c => c.projectId === projectId)) await store.deleteCache(c.key);
+  logLine(`Đã cập nhật dự án Mẫu 1 từ phiên bản mẫu cũ (v${oldV}) lên v${r.graph.meta.tplVersion}: ${r.notes.join('; ')}. Đã xóa toàn bộ kết quả đệm cũ của dự án để không dùng lại kết quả của bản cũ.`);
+  message('Đã cập nhật dự án Mẫu 1 lên phiên bản mẫu mới nhất và xóa kết quả đệm cũ.');
+  return r.graph;
+}
 
 // ---------- node handlers ----------
 const handlers = {
@@ -451,7 +486,34 @@ const handlers = {
       }
     }
     const srcNote = useReal ? ' · ghép lên ẢNH MẪU THẬT' : '';
-    const g = await blobToImg(garmentBlob);
+    let g = await blobToImg(garmentBlob);
+    // P4.2 ROUND 4 (R2) — REAL-AI FRAMING GUARD. The owner's live failure
+    // (2026-11-14): a real-AI (Classic sana) garment photo arrived as a
+    // close-up whose framing broke compositing, and nothing checked it.
+    // Rule: a garment value flagged realAi (produced by a real provider
+    // in aiImageGen) is UNVALIDATED until this node checks its framing
+    // class (aspect heuristic — framingAspectClass in warp.js; landmark
+    // detection client-side is not reliable enough to gate on). If it
+    // fails, composition NEVER composites onto it: it falls back to the
+    // owner-approved AI model base for the same garment params, records
+    // the fallback in this node's log (persisted in the P2 run history)
+    // and in the result label. With no approved base for the params it
+    // errors honestly instead of producing a wrong composite.
+    let framingNote = '';
+    if (!useReal && inputs.garment?.realAi) {
+      if (passesHalfBodyFraming(g.width, g.height)) {
+        log(`Ảnh AI thật đạt kiểm tra khung hình (chân dung nửa người, ${g.width}×${g.height}) — ghép lên chính ảnh AI này.`);
+      } else {
+        const ab = aiModelBaseFor(inputs.garment.garment);
+        if (!ab) throw new Error(`Ảnh AI thật không đạt khung hình (${g.width}×${g.height} — lớp "${framingAspectClass(g.width, g.height)}", cần chân dung nửa người) và chưa có nền người mẫu đã duyệt cho thông số áo này. Hãy chuyển "Nguồn ảnh áo" sang "Ảnh mẫu thật", hoặc đổi tỉ lệ ảnh ở node Tạo ảnh AI rồi chạy lại.`);
+        log(`Ảnh AI thật không đạt khung hình (${g.width}×${g.height} — lớp "${framingAspectClass(g.width, g.height)}", cần chân dung nửa người) — đã dùng nền người mẫu đã duyệt thay thế; KHÔNG ghép lên ảnh AI sai khung.`);
+        framingNote = ' · Ảnh AI thật không đạt khung hình — đã dùng nền người mẫu đã duyệt';
+        garmentBlob = await fetchBlob(ab.base.path);
+        g = await blobToImg(garmentBlob);
+        quadOverride = ab.quad;
+        log(`Nền thay thế: ${ab.base.name} — vùng in theo mốc thân áo đã hiệu chuẩn của nền này; kết quả được đóng dấu DEMO vì lớp người mẫu là nền DEMO đã duyệt, không phải ảnh AI thật vừa tạo.`);
+      }
+    }
     const scale = Math.min(1, 900 / g.width); const W = Math.round(g.width * scale), H = Math.round(g.height * scale);
     const c = makeCanvas(W, H), x = c.getContext('2d'); x.drawImage(g, 0, 0, W, H);
     const dImg = await blobToImg(design.blob);
@@ -462,7 +524,7 @@ const handlers = {
       const pw = W * (cfg.printW / 100), px = W * (cfg.printX / 100) - pw / 2, py = H * (cfg.printY / 100) - pw / 2;
       x.save(); x.translate(px + pw / 2, py + pw / 2); x.rotate((cfg.rotation || 0) * Math.PI / 180); const ds = Math.min(pw / dImg.width, pw / dImg.height); x.globalAlpha = Math.min(100, Math.max(50, cfg.inkOpacity ?? 95)) / 100; x.drawImage(dImg, -dImg.width * ds / 2, -dImg.height * ds / 2, dImg.width * ds, dImg.height * ds); x.restore();
       log('Đã ghép file hình in GỐC lên ảnh áo (chế độ đơn giản P1) — nội dung hình in không bị AI vẽ lại.');
-      return valueFromBlob(await canvasBlob(c), 'image', { label: cfg.label + srcNote, demo: !useReal && !!inputs.garment?.demo });
+      return valueFromBlob(await canvasBlob(c), 'image', { label: cfg.label + srcNote + framingNote, demo: !useReal && (!!inputs.garment?.demo || !!framingNote) });
     }
     // P3 perspective mode: homography warp onto the 4-point quad + wrinkle
     // displacement + garment shading. The design drawn is the ORIGINAL file.
@@ -472,11 +534,12 @@ const handlers = {
     // generator produced. A quad the user explicitly dragged/typed in the
     // editor (quadSource 'user') wins over the calibrated one.
     let quad;
-    if (useReal) quad = quadOverride || cfg.quad;
+    if (quadOverride) quad = quadOverride; // 'real' source preset — or the R2 framing-fallback base's calibrated quad
+    else if (useReal) quad = cfg.quad;
     else if (cfg.quadSource === 'user' && Array.isArray(cfg.quad) && cfg.quad.length === 4) quad = cfg.quad;
     else if (Array.isArray(inputs.garment?.baseQuad) && inputs.garment.baseQuad.length === 4) {
       quad = inputs.garment.baseQuad;
-      log(`Dùng quad vùng ngực đã hiệu chuẩn theo cổ áo của ảnh nền (${inputs.garment.photoBase ? 'ảnh chụp thật' : 'hình DEMO'}) — hình in nằm giữa ngực, dưới cổ áo theo quy tắc 8–12%.`);
+      log(`Dùng quad vùng in đã hiệu chuẩn theo mốc thân áo của ảnh nền (${inputs.garment.baseKind === 'ai-model' ? 'ảnh người mẫu do AI tạo' : inputs.garment.photoBase ? 'ảnh chụp thật' : 'hình DEMO vẽ'}) — hình in nằm giữa ngực trên, cách mép dưới cổ áo 12–15% chiều dài thân áo (luật torso).`);
     }
     else quad = (Array.isArray(cfg.quad) && cfg.quad.length === 4) ? cfg.quad : (presetQuadFor(cfg.base) || rectToQuad(cfg.printX, cfg.printY, cfg.printW));
     const { layer } = renderWarpedLayer(c, dImg, quad, { wrinkle: cfg.wrinkle || 0, shading: cfg.shading || 0 });
@@ -491,7 +554,7 @@ const handlers = {
     // P4.2 supplementary (FIX D): propagate the DEMO flag from the garment
     // input so the export node can re-stamp the DEMO frame AFTER the
     // channel crop/resize (uniform banner in every exported file).
-    return valueFromBlob(await canvasBlob(c), 'image', { label: cfg.label + ' · phối cảnh 4 điểm + cong theo nếp vải (mô phỏng)' + srcNote, demo: !useReal && !!inputs.garment?.demo });
+    return valueFromBlob(await canvasBlob(c), 'image', { label: cfg.label + ' · phối cảnh 4 điểm + cong theo nếp vải (mô phỏng)' + srcNote + framingNote, demo: !useReal && (!!inputs.garment?.demo || !!framingNote) });
   },
   async background(node, { inputs, log }) {
     const v = inputs.in; if (!v?.blob) throw new Error('Thiếu ảnh đầu vào.');
@@ -585,7 +648,11 @@ const handlers = {
     log(`Đang gọi AI THẬT: ${p.name} · model ${model.name} · ${w}×${h} · chi phí ${model.pricePerImage === 0 ? '0 (miễn phí)' : '~' + model.pricePerImage + ' Pollen'}…`);
     const res = await p.generateImage({ prompt: promptText, width: w, height: h, seed: -1 });
     noteRealCall(res);
-    return valueFromBlob(res.blob, 'image', { name: 'anh-ai-that', label: res.label });
+    // P4.2 ROUND 4 (R2): real-AI outputs are flagged realAi + carry the
+    // garment params, so the composition node can run its framing guard
+    // before compositing (an unvalidated real-AI garment photo is never
+    // composited onto blindly — see the guard in the composition handler).
+    return valueFromBlob(res.blob, 'image', { name: 'anh-ai-that', label: res.label, realAi: true, garment: inputs.prompt?.garment || null });
   },
   async aiVariation(node, { inputs, log }) {
     const p = currentProvider();
@@ -680,9 +747,9 @@ function aiModeHint() {
 function renderAll() { renderNodes(); applyView(); renderProperties(); }
 
 // ---------- history / persistence ----------
-function snapshot() { return JSON.stringify({ nodes: graph.nodes.map(n => ({ id: n.id, type: n.type, x: n.x, y: n.y, config: n.config })), edges: graph.edges }); }
+function snapshot() { return JSON.stringify({ nodes: graph.nodes.map(n => ({ id: n.id, type: n.type, x: n.x, y: n.y, config: n.config })), edges: graph.edges, meta: graph.meta || null }); }
 function pushHistory() { history = history.slice(0, historyIdx + 1); history.push(snapshot()); if (history.length > 60) history.shift(); historyIdx = history.length - 1; updateUndoBtns(); }
-function restore(s) { const g = JSON.parse(s); graph = { nodes: g.nodes.map(n => ({ ...n, status: 'idle', logs: [], error: '' })), edges: g.edges }; selectedId = null; selectedEdgeId = null; outputs = new Map(); renderAll(); scheduleSave(); }
+function restore(s) { const g = JSON.parse(s); graph = { nodes: g.nodes.map(n => ({ ...n, status: 'idle', logs: [], error: '' })), edges: g.edges, meta: g.meta || null }; selectedId = null; selectedEdgeId = null; outputs = new Map(); renderAll(); scheduleSave(); }
 function updateUndoBtns() { $('#ais-undo').disabled = historyIdx <= 0; $('#ais-redo').disabled = historyIdx >= history.length - 1; }
 let saveTimer = null;
 // P2 draft semantics: AUTOSAVE writes only a draft record (store 'drafts').
@@ -712,7 +779,7 @@ async function saveProjectNow(opts = {}) {
 }
 async function refreshProjectList() { const list = (await store.listProjects()).sort((a, b) => b.updatedAt - a.updatedAt); const sel = $('#ais-project-select'); sel.innerHTML = list.map(p => `<option value="${p.id}" ${p.id === projectId ? 'selected' : ''}>${p.name} — ${new Date(p.updatedAt).toLocaleDateString('vi-VN')}</option>`).join('') || '<option value="">(chưa có dự án)</option>'; }
 async function refreshStorage() { const e = await storageEstimate(); const assets = await store.listAssets(); const el = $('#ais-storage-info'); if (el) el.textContent = `Dung lượng trình duyệt đã dùng: ${(e.usage / 1048576).toFixed(1)} MB${e.quota ? ' / ' + (e.quota / 1073741824).toFixed(1) + ' GB' : ''} · ${assets.length} file đã lưu trong AI Studio`; }
-async function openProject(id) { const p = await store.getProject(id); if (!p) return message('Không tìm thấy dự án.', true); projectId = p.id; $('#ais-project-name').value = p.name; graph = { nodes: p.graph.nodes.map(n => ({ ...n, status: 'idle', logs: [], error: '' })), edges: p.graph.edges }; migrateGraph(graph); outputs = new Map(); lastFailedNodeId = null; updateResumeBtn(); history = []; historyIdx = -1; pushHistory(); selectedId = null; renderAll(); await renderHistory(); await renderVersions(); await renderStoragePanel(); message('Đã mở dự án "' + p.name + '"'); }
+async function openProject(id) { const p = await store.getProject(id); if (!p) return message('Không tìm thấy dự án.', true); projectId = p.id; $('#ais-project-name').value = p.name; graph = { nodes: p.graph.nodes.map(n => ({ ...n, status: 'idle', logs: [], error: '' })), edges: p.graph.edges, meta: p.graph.meta || null }; graph = await adoptLoadedGraph(graph); outputs = new Map(); lastFailedNodeId = null; updateResumeBtn(); history = []; historyIdx = -1; pushHistory(); selectedId = null; renderAll(); await renderHistory(); await renderVersions(); await renderStoragePanel(); message('Đã mở dự án "' + p.name + '"'); }
 
 // ---------- properties panel ----------
 function field(label, inner) { return `<label class="pf"><span>${label}</span>${inner}</label>`; }
@@ -742,7 +809,7 @@ function renderProperties() {
   if (node.type === 'composition') {
     const cm = migrateCompositionConfig(c);
     h += field('Nguồn ảnh áo', sel('pf-garment-source', [['ai', 'Ảnh từ node Tạo ảnh AI (áo trơn do AI tạo)'], ['real', 'Ảnh mẫu thật — bỏ qua ảnh AI']], cm.garmentSource));
-    if (cm.garmentSource === 'real') h += field('Ảnh mẫu thật dùng làm nền ghép', sel('pf-real-base', PHOTO_BASES.map(b => [b.path, b.name]), cm.realBase));
+    if (cm.garmentSource === 'real') h += field('Ảnh nền dùng để ghép (mẫu thật / người mẫu AI tạo)', sel('pf-real-base', [...PHOTO_BASES, ...AI_MODEL_BASES].map(b => [b.path, b.name]), cm.realBase));
     h += '<p class="hint">Nếu ảnh AI sai kiểu áo/màu áo → chuyển Nguồn ảnh áo sang \'Ảnh mẫu thật\' để ghép lên ảnh áo thật. Ở chế độ Ảnh mẫu thật, vùng in dùng quad đã hiệu chuẩn sẵn của ảnh mẫu đó và node này vẫn chạy được kể cả khi node AI bị lỗi.</p>';
     h += field('Ảnh áo nền (khi không có dây vào)', sel('pf-base', FIXTURES, c.base));
     h += field('Chế độ ghép', sel('pf-comp-mode', [['perspective', 'Phối cảnh 4 điểm (P3)'], ['simple', 'Đơn giản — chữ nhật (P1)']], cm.mode));
@@ -1078,8 +1145,9 @@ async function importFile(file) {
 function applyImported(wf) {
   const g = wf.graph || wf; if (!g.nodes || !g.edges) throw new Error('File không chứa workflow hợp lệ.');
   projectId = uid('project'); $('#ais-project-name').value = wf.name || 'Dự án nhập vào';
-  graph = { nodes: g.nodes.map(n => ({ ...n, status: 'idle', logs: [], error: '' })), edges: g.edges };
+  graph = { nodes: g.nodes.map(n => ({ ...n, status: 'idle', logs: [], error: '' })), edges: g.edges, meta: g.meta || null };
   migrateGraph(graph);
+  { const r = refreshTpl1Graph(graph); if (r.refreshed) { graph = r.graph; logLine(`Workflow nhập vào thuộc Mẫu 1 phiên bản cũ — đã tự cập nhật: ${r.notes.join('; ')}.`); } }
   outputs = new Map(); pushHistory(); renderAll(); scheduleSave(); message('Đã nhập workflow. Hãy bấm Lưu / chờ tự lưu.');
 }
 
@@ -1244,7 +1312,7 @@ async function renderVersions() {
   box.querySelectorAll('[data-restore-version]').forEach(b => b.addEventListener('click', async () => {
     const v = (await store.listVersions(projectId)).find(x => x.id === b.dataset.restoreVersion); if (!v) return;
     if (!confirm('Khôi phục phiên bản ' + new Date(v.createdAt).toLocaleString('vi-VN') + '? Trạng thái hiện tại sẽ được thay bằng phiên bản này (việc khôi phục cũng được ghi thành 1 phiên bản mới).')) return;
-    graph = { nodes: v.graph.nodes.map(n => ({ ...n, status: 'idle', logs: [], error: '' })), edges: v.graph.edges }; migrateGraph(graph);
+    graph = { nodes: v.graph.nodes.map(n => ({ ...n, status: 'idle', logs: [], error: '' })), edges: v.graph.edges, meta: v.graph.meta || null }; graph = await adoptLoadedGraph(graph);
     $('#ais-project-name').value = v.name || $('#ais-project-name').value;
     outputs = new Map(); selectedId = null; selectedEdgeId = null; history = []; historyIdx = -1; pushHistory(); renderAll();
     await saveProjectNow({ version: true, note: 'Khôi phục từ phiên bản ' + new Date(v.createdAt).toLocaleString('vi-VN') });
@@ -1392,7 +1460,7 @@ document.querySelectorAll('.ais-tabs [data-tab]').forEach(b => b.addEventListene
 $('#ais-recovery-restore').addEventListener('click', async () => {
   if (!pendingDraft) return;
   projectId = pendingDraft.projectId; $('#ais-project-name').value = pendingDraft.name;
-  graph = { nodes: pendingDraft.graph.nodes.map(n => ({ ...n, status: 'idle', logs: [], error: '' })), edges: pendingDraft.graph.edges }; migrateGraph(graph);
+  graph = { nodes: pendingDraft.graph.nodes.map(n => ({ ...n, status: 'idle', logs: [], error: '' })), edges: pendingDraft.graph.edges, meta: pendingDraft.graph.meta || null }; graph = await adoptLoadedGraph(graph);
   outputs = new Map(); selectedId = null; history = []; historyIdx = -1; pushHistory(); renderAll();
   $('#ais-recovery').hidden = true; const d = pendingDraft; pendingDraft = null;
   await refreshProjectList(); await renderHistory(); await renderVersions();
@@ -1415,5 +1483,5 @@ $('#ais-run-mobile')?.addEventListener('click', () => runNodes('all'));
   await checkRecovery();
   updateModeBadge();
   document.body.dataset.ready = 'true'; document.documentElement.dataset.ready = 'true';
-  logLine('AI Studio P4.2 sẵn sàng: vùng in đã hiệu chuẩn lại theo cổ áo (giữa ngực, cách mép dưới cổ 8–12% chiều cao ảnh), khung đứt nét CHỈ còn trong trình căn chỉnh (không dính vào Xem trước/file xuất), hòa trộn mực theo bóng vải + độ phủ mực 95%. DEMO dùng ẢNH CHỤP THẬT làm nền tham chiếu cho áo trắng/đen cổ tròn (ghi rõ trong nhãn node); thông số chưa có ảnh thật thì dùng hình vẽ DEMO. Nếu ảnh AI sai kiểu/màu, chuyển node Ghép hình sang nguồn "Ảnh mẫu thật". AI thật qua Pollinations (P4) sau công tắc "Chế độ AI thật" — mặc định TẮT, đang ở DEMO.');
+  logLine('AI Studio P4.2 sẵn sàng: vùng in hiệu chuẩn theo mốc thân áo (giữa ngực trên, cách mép dưới cổ 12–15% chiều dài thân áo, rộng 35–45% bề ngang thân), khung đứt nét CHỈ còn trong trình căn chỉnh (không dính vào Xem trước/file xuất), hòa trộn mực theo bóng vải + độ phủ mực 95%. DEMO dùng ẢNH NGƯỜI MẪU DO AI TẠO đã được chủ shop duyệt cho áo trắng/đen cổ tròn và áo trắng oversize (nhãn node ghi rõ "do AI tạo", không phải ảnh chụp thật); thông số chưa có ảnh người mẫu thì dùng hình vẽ DEMO. Nếu ảnh AI sai kiểu/màu, chuyển node Ghép hình sang nguồn "Ảnh mẫu thật". AI thật qua Pollinations (P4) sau công tắc "Chế độ AI thật" — mặc định TẮT, đang ở DEMO.');
 })();

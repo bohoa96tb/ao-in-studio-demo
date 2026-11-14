@@ -8,7 +8,7 @@ import {
   solveHomography, applyHomography, UNIT_SQUARE, rectToQuad, presetQuadFor,
   migrateCompositionConfig, fieldMean, sampleField, displacementAt,
   buildWarpGrid, fitInto, CHANNEL_PRESETS, channelPreset, channelFileName,
-  chestQuadFor, GARMENT_QUADS, torsoQuadFor, FIXTURE_LANDMARKS,
+  chestQuadFor, GARMENT_QUADS, torsoQuadFor, FIXTURE_LANDMARKS, AI_MODEL_QUADS,
 } from '../src/ai-studio/warp.js';
 
 const near = (a, b, eps = 1e-6) => Math.abs(a - b) <= eps;
@@ -149,11 +149,14 @@ test('templates: T1 uses perspective composition; T2 has background + channel ex
   const t1 = TEMPLATES.find(t => t.id === 'tpl1').make();
   const comp = t1.nodes.find(n => n.type === 'composition');
   assert.equal(comp.config.mode, 'perspective');
-  // P4.1 (owner-mandated): Template 1's composition now targets the AI/demo
-  // model photo, so its default quad is the DEMO figure chest quad — the
-  // hanger preset quad remains the calibrated quad of the real-photo
-  // fallback (garmentSource 'real'), asserted in the P4.1 unit tests.
-  assert.deepEqual(comp.config.quad, DEMO_FIGURE.chestQuad);
+  // P4.1 (owner-mandated): Template 1's composition targets the AI/demo
+  // model photo. P4.2 ROUND 4 (R1): its stored default quad is the
+  // torso-rule quad of the DEFAULT garment case's base — white crew →
+  // the owner-approved AI model base (AI_MODEL_QUADS) — while the
+  // generated value's own calibrated baseQuad still wins at run time,
+  // and the hanger preset quad remains the calibrated quad of the
+  // real-photo fallback (garmentSource 'real').
+  assert.deepEqual(comp.config.quad, AI_MODEL_QUADS['public/fixtures/ai-model/model-white-crew.webp']);
   const t2 = TEMPLATES.find(t => t.id === 'tpl2').make();
   const bg = t2.nodes.find(n => n.type === 'background');
   assert.ok(bg, 'tpl2 contains the background node');

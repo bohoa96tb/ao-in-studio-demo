@@ -56,17 +56,17 @@ for (const width of [430, 1366]) {
   await p.waitForSelector('#ais-quad-canvas', { timeout: 15000 }).catch(() => fail('quad editor canvas missing @' + width));
   await p.waitForFunction(() => { const cv = document.querySelector('#ais-quad-canvas'); return cv && cv.width > 100 && cv.height > 100; }, null, { timeout: 15000 }).catch(() => fail('quad preview did not draw @' + width));
   const before = parseFloat(await p.inputValue('#pf-q0x'));
-  // P4.2 ROUND 3: Template 1's default quad is the DEMO figure chest quad
-  // derived by the TORSO RULE (torsoQuadFor from the figure landmarks —
-  // corner 1 at 41.2% x, 34.1% y: upper-mid chest, gap 13.5% of torso
-  // length below the collar). Supersedes the round-1 collar-rule corner
-  // (32.5%, 41.5%) pinned here before.
-  if (Math.abs(before - 41.2) > 0.6) fail('unexpected initial quad corner @' + width + ': ' + before);
-  // Drag corner handle 1 (at quad[0] = 41.2% x, 34.1% y of the canvas box).
+  // P4.2 ROUND 4: Template 1's default quad is the APPROVED AI white-crew
+  // model base's chest quad, derived by the TORSO RULE (torsoQuadFor from
+  // that image's measured landmarks — corner 1 at 40.2% x, 46.0% y:
+  // upper-mid chest, gap 13.5% of torso length below the collar).
+  // Supersedes the round-3 figure quad corner (41.2%, 34.1%).
+  if (Math.abs(before - 40.2) > 0.6) fail('unexpected initial quad corner @' + width + ': ' + before);
+  // Drag corner handle 1 (at quad[0] = 40.2% x, 46.0% y of the canvas box).
   await p.locator('#ais-quad-canvas').scrollIntoViewIfNeeded();
   await p.waitForTimeout(200);
   const box = await p.locator('#ais-quad-canvas').boundingBox();
-  const sx = box.x + box.width * 0.412, sy = box.y + box.height * 0.341;
+  const sx = box.x + box.width * 0.402, sy = box.y + box.height * 0.460;
   await p.mouse.move(sx, sy); await p.mouse.down();
   await p.mouse.move(sx + 26, sy + 18, { steps: 8 }); await p.mouse.up();
   await p.waitForTimeout(300);

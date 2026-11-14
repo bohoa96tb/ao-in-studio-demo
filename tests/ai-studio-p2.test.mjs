@@ -3,7 +3,7 @@
 // history/version pruning, stable hashing.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { makeNode } from '../src/ai-studio/core.js';
+import { makeNode, AI_STUDIO_BUILD } from '../src/ai-studio/core.js';
 import { Engine } from '../src/ai-studio/engine.js';
 import { stableStringify, hashOf, nodeCacheKey, configForKey, isCacheable, RunQueue, validateWorkflow, assetIdsInGraph, collectReferencedAssetIds, findOrphanAssets, pruneOldest, formatDuration } from '../src/ai-studio/p2.js';
 
@@ -18,6 +18,18 @@ test('stable hashing: key order does not matter, value change does', () => {
   assert.equal(hashOf({ a: 1, b: { c: 2, d: 3 } }), hashOf({ b: { d: 3, c: 2 }, a: 1 }));
   assert.notEqual(hashOf({ a: 1 }), hashOf({ a: 2 }));
   assert.equal(stableStringify({ b: 1, a: 2 }), '{"a":2,"b":1}');
+});
+
+test('cache key: the behaviour BUILD marker is mixed in (P4.2 round 4, R4)', () => {
+  // The chained config/input hash cannot see CODE behaviour: a node with
+  // identical config+inputs must still get a NEW key when the build's
+  // behaviour changes (base registry / calibration / template wiring),
+  // or an old draft would silently reuse stale cached outputs.
+  const n = makeNode('aiImageGen', 0, 0);
+  const kNow = nodeCacheKey(n, {});
+  assert.equal(nodeCacheKey(n, {}, AI_STUDIO_BUILD), kNow, 'default build = the current AI_STUDIO_BUILD');
+  assert.notEqual(nodeCacheKey(n, {}, 'p41-old-build'), kNow, 'an older build marker yields a different key — pre-upgrade cache can never hit');
+  assert.notEqual(nodeCacheKey(n, {}, 'p42-r3'), kNow);
 });
 
 test('cache key: derived promptAssistant.composed is volatile and ignored', () => {

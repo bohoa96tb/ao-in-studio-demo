@@ -16,11 +16,17 @@
 //   * Template 1's generation prompt is the owner's VERBATIM catalog
 //     template (only [COLOR]/[FIT_TYPE] substituted) — asserted as exact
 //     strings below.
+// ROUND 4 (owner approval 2026-11-14): the DEMO model layer is now the
+// three owner-approved AI-GENERATED model images (AI_MODEL_BASES — a
+// separate registry, honestly labelled, never in PHOTO_BASES). Their
+// landmarks were grid-measured per image; aiModelBaseFor maps exactly
+// white crew / black crew / white oversize; everything else still
+// falls back to the drawn figure.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { NODE_DEFS, DEMO_FIGURE, PHOTO_BASES, photoBaseFor, photoBaseByPath, SAMPLE_DESIGN_SVG, PROMPT_OPTIONS, buildPrompt, garmentSummaryVi, CATALOG_PROMPT_TEMPLATE, catalogPromptFor, TEMPLATES } from '../src/ai-studio/core.js';
-import { chestQuadFor, torsoQuadFor, GARMENT_QUADS, FIXTURE_LANDMARKS, migrateCompositionConfig } from '../src/ai-studio/warp.js';
+import { NODE_DEFS, DEMO_FIGURE, PHOTO_BASES, photoBaseFor, photoBaseByPath, AI_MODEL_BASES, aiModelBaseFor, aiModelBaseByPath, SAMPLE_DESIGN_SVG, PROMPT_OPTIONS, buildPrompt, garmentParams, garmentSummaryVi, CATALOG_PROMPT_TEMPLATE, catalogPromptFor, TEMPLATES, TPL1_VERSION, AI_STUDIO_BUILD, refreshTpl1Graph, cloneGraph } from '../src/ai-studio/core.js';
+import { chestQuadFor, torsoQuadFor, GARMENT_QUADS, FIXTURE_LANDMARKS, AI_MODEL_LANDMARKS, AI_MODEL_QUADS, presetQuadFor, migrateCompositionConfig, framingAspectClass, passesHalfBodyFraming } from '../src/ai-studio/warp.js';
 
 const topOf = (q) => Math.min(q[0][1], q[1][1]);
 const bottomOf = (q) => Math.max(q[2][1], q[3][1]);
@@ -129,7 +135,11 @@ test('PHOTO_BASES: verified garment photos with credits, landmarks — and no mo
   assert.ok(!existsSync(new URL('../public/fixtures/real-tee/crew-white-vn-model.webp', import.meta.url)), 'rejected model fixture must stay deleted');
 });
 
-test('photoBaseFor: null for EVERY garment combo in round 3 (figure fallback is the honest path)', () => {
+test('photoBaseFor: null for EVERY garment combo (real-photo registry unchanged in round 4)', () => {
+  // Round 4 did NOT add photos: the DEMO model layer moved to the
+  // separate AI-generated registry (AI_MODEL_BASES below). photoBaseFor
+  // stays real-photos-only and still finds no model photo — a real
+  // photo and an AI image must never be confused.
   assert.equal(photoBaseFor({ style: 'co-tron', colorKey: 'trang', view: 'chinh-dien' }), null, 'white: round-2 photo rejected, no compliant replacement');
   assert.equal(photoBaseFor({ style: 'co-tron', colorKey: 'den', view: 'chinh-dien' }), null, 'black: no Asian model WEARING a plain black crew tee verified');
   assert.equal(photoBaseFor({ style: 'oversize', colorKey: 'trang', view: 'chinh-dien' }), null, 'oversize: a regular tee + bigger print must never fake the fit');
@@ -137,6 +147,59 @@ test('photoBaseFor: null for EVERY garment combo in round 3 (figure fallback is 
   assert.equal(photoBaseFor({ style: 'co-tron', colorKey: 'be', view: 'chinh-dien' }), null);
   assert.equal(photoBaseFor({ style: 'co-tron', colorKey: 'trang', view: 'ba-phan-tu' }), null);
   assert.equal(photoBaseFor(null), null);
+});
+
+// ---------- ROUND 4: owner-approved AI-GENERATED model bases ----------
+test('AI_MODEL_BASES: 3 owner-approved AI-generated bases, honestly labelled, NOT photos', () => {
+  assert.equal(AI_MODEL_BASES.length, 3);
+  for (const b of AI_MODEL_BASES) {
+    assert.equal(b.kind, 'ai-model', b.id + ' is an AI-model base');
+    assert.ok(existsSync(new URL('../' + b.path, import.meta.url)), 'fixture file exists: ' + b.path);
+    assert.ok(b.path.startsWith('public/fixtures/ai-model/'), 'AI bases live apart from the real-photo fixtures: ' + b.path);
+    assert.ok(/AI tạo/.test(b.name) && /KHÔNG phải ảnh chụp thật/.test(b.name), 'name must say AI-generated, not a photo: ' + b.id);
+    // provenance: generated + owner-approved, never a photo licence
+    assert.equal(b.source.platform, 'AI-generated', b.id + ' provenance is AI generation, not a photo platform');
+    assert.equal(b.source.approvedBy, 'Chủ shop Van');
+    assert.equal(b.source.approvedDate, '2026-11-14');
+    assert.ok(/AI TẠO/.test(b.source.note), 'source note states AI-generated: ' + b.id);
+    // per-image landmarks, grid-measured on the actual pixels
+    assert.deepEqual(b.landmarks, AI_MODEL_LANDMARKS[b.path], b.id + ' carries its measured landmarks');
+    assert.equal(b.collarBottomY, b.landmarks.collarBottomY, b.id + ' collar pin matches landmarks');
+    assert.equal(aiModelBaseByPath(b.path), b);
+    // its quad is the torsoQuadFor of its own landmarks (one rule)
+    assert.deepEqual(AI_MODEL_QUADS[b.path], torsoQuadFor(b.landmarks, { imgW: b.landmarks.imgW, imgH: b.landmarks.imgH }), b.id + ' quad derived via the torso rule');
+    const gr = gapRatioOf(AI_MODEL_QUADS[b.path], b.landmarks), wr = widthRatioOf(AI_MODEL_QUADS[b.path], b.landmarks);
+    assert.ok(gr >= 0.12 && gr <= 0.15, `${b.id}: gap ratio ${gr.toFixed(3)} in [0.12,0.15]`);
+    assert.ok(wr >= 0.35 && wr <= 0.45, `${b.id}: width ratio ${wr.toFixed(3)} in [0.35,0.45]`);
+    // half-body framing sanity: full garment visible in frame
+    assert.ok(b.landmarks.hemY > 0.9, `${b.id}: hem ${b.landmarks.hemY} — whole garment + waistband in frame`);
+    // presetQuadFor serves the AI bases too (composition 'real' source)
+    assert.deepEqual(presetQuadFor(b.path), AI_MODEL_QUADS[b.path], b.id + ' preset quad available');
+  }
+  // the AI bases are NOT in the real-photo registry (no licence confusion)
+  for (const b of AI_MODEL_BASES) assert.equal(photoBaseByPath(b.path), null, b.id + ' must not appear in PHOTO_BASES');
+  // the oversize garment is genuinely wider than the crew garments
+  const over = AI_MODEL_BASES.find(b => b.style === 'oversize');
+  const crew = AI_MODEL_BASES.find(b => b.style === 'co-tron' && b.colorKey === 'trang');
+  assert.ok(over.landmarks.torsoWidth > crew.landmarks.torsoWidth * 1.3, 'oversize torso genuinely wider than crew');
+});
+
+test('aiModelBaseFor: maps exactly the 3 approved combos; unmapped combos fall back honestly', () => {
+  const w = aiModelBaseFor({ style: 'co-tron', colorKey: 'trang', view: 'chinh-dien' });
+  assert.equal(w.base.id, 'ai-model-white-crew');
+  assert.deepEqual(w.quad, AI_MODEL_QUADS[w.base.path]);
+  const bk = aiModelBaseFor({ style: 'co-tron', colorKey: 'den', view: 'chinh-dien' });
+  assert.equal(bk.base.id, 'ai-model-black-crew', 'black crew = the owner-approved MALE model image');
+  const ov = aiModelBaseFor({ style: 'oversize', colorKey: 'trang', view: 'chinh-dien' });
+  assert.equal(ov.base.id, 'ai-model-white-oversize', 'white oversize IS mapped in round 4');
+  // unmapped → null (the caller uses the drawn figure, honestly labelled)
+  assert.equal(aiModelBaseFor({ style: 'oversize', colorKey: 'den', view: 'chinh-dien' }), null, 'black oversize has no approved AI base');
+  assert.equal(aiModelBaseFor({ style: 'co-tron', colorKey: 'be', view: 'chinh-dien' }), null);
+  assert.equal(aiModelBaseFor({ style: 'co-tron', colorKey: 'xam', view: 'chinh-dien' }), null);
+  assert.equal(aiModelBaseFor({ style: 'co-tron', colorKey: 'trang', view: 'ba-phan-tu' }), null, 'front view only');
+  assert.equal(aiModelBaseFor(null), null);
+  // a fresh quad copy every call (callers may mutate)
+  assert.notEqual(aiModelBaseFor({ style: 'co-tron', colorKey: 'trang', view: 'chinh-dien' }).quad, w.quad);
 });
 
 // ---------- FIX C (round 2, kept): logo readable on dark garments ----------
@@ -199,4 +262,74 @@ test('composition defaults: torso-rule quad, hanger real base, ink opacity migra
   assert.equal(m.inkOpacity, 95, 'migration adds inkOpacity default');
   assert.equal(m.realBase, 'public/fixtures/real-tee/crew-white-hanger.webp', 'migration default realBase = hanger (round 3)');
   assert.equal(migrateCompositionConfig({ inkOpacity: 88 }).inkOpacity, 88, 'migration preserves a set inkOpacity');
+});
+
+// ---------- ROUND 4 R1: the SHIPPED Template 1 defaults to the new stack ----------
+test('R1 — Template 1 factory: stamped meta, catalog prompt, AI-base default quad, auto resolution', () => {
+  const t1 = TEMPLATES.find(t => t.id === 'tpl1').make();
+  assert.deepEqual(t1.meta, { templateId: 'tpl1', tplVersion: TPL1_VERSION }, 'the factory stamps the template version marker (R4 hook)');
+  const pa = t1.nodes.find(n => n.type === 'promptAssistant');
+  const comp = t1.nodes.find(n => n.type === 'composition');
+  assert.equal(pa.config.catalogPrompt, true, 'catalog prompt on by default');
+  // A fresh instance resolves the approved AI base + its landmarks from
+  // the template's OWN default garment params — zero manual edits.
+  const g = garmentParams(pa.config);
+  const ab = aiModelBaseFor(g);
+  assert.equal(ab.base.id, 'ai-model-white-crew', 'default params resolve the white-crew AI base');
+  assert.deepEqual(comp.config.quad, ab.quad, 'composition default quad = that base torso-rule quad');
+  assert.deepEqual(ab.base.landmarks, AI_MODEL_LANDMARKS[ab.base.path], 'landmarks travel with the base');
+  // the other two standard cases resolve too
+  assert.equal(aiModelBaseFor(garmentParams({ ...pa.config, mauAo: 'den' })).base.id, 'ai-model-black-crew');
+  assert.equal(aiModelBaseFor(garmentParams({ ...pa.config, kieuAo: 'oversize' })).base.id, 'ai-model-white-oversize');
+  // meta survives the graph clone used by save/draft/version snapshots
+  assert.deepEqual(cloneGraph(t1).meta, t1.meta, 'cloneGraph threads meta');
+  assert.ok(AI_STUDIO_BUILD.length > 0, 'build marker present for the cache key');
+});
+
+// ---------- ROUND 4 R2: real-AI framing guard classes ----------
+test('R2 — framingAspectClass: square/landscape/extreme fail, half-body portraits pass', () => {
+  assert.equal(framingAspectClass(512, 512), 'square', 'the mocked sana close-up class');
+  assert.equal(framingAspectClass(768, 768), 'square');
+  assert.equal(framingAspectClass(1280, 720), 'landscape');
+  assert.equal(framingAspectClass(300, 900), 'extreme-portrait');
+  assert.equal(framingAspectClass(614, 768), 'portrait-half-body', 'Classic 4:5 output passes the aspect gate');
+  assert.equal(framingAspectClass(1024, 1280), 'portrait-half-body');
+  assert.equal(framingAspectClass(1280, 1920), 'portrait-half-body', 'the approved AI bases’ own aspect');
+  assert.equal(framingAspectClass(720, 1280), 'portrait-half-body', '9:16');
+  assert.equal(framingAspectClass(0, 100), 'invalid');
+  assert.equal(passesHalfBodyFraming(512, 512), false);
+  assert.equal(passesHalfBodyFraming(1024, 1280), true);
+});
+
+// ---------- ROUND 4 R4: old Template 1 projects are refreshed on load ----------
+test('R4 — refreshTpl1Graph: old marker → defaults refreshed, user quad preserved, input untouched', () => {
+  const old = TEMPLATES.find(t => t.id === 'tpl1').make();
+  old.meta = { templateId: 'tpl1', tplVersion: 1 };
+  const pa = old.nodes.find(n => n.type === 'promptAssistant'); delete pa.config.catalogPrompt;
+  const comp = old.nodes.find(n => n.type === 'composition');
+  comp.config.realBase = 'public/fixtures/real-tee/crew-white-vn-model.webp'; // retired round-2 base
+  comp.config.quad = [[0.1, 0.1], [0.4, 0.1], [0.4, 0.4], [0.1, 0.4]];         // stale quad, not user-set
+  const before = JSON.stringify(old);
+  const r = refreshTpl1Graph(old);
+  assert.equal(r.refreshed, true);
+  assert.equal(JSON.stringify(old), before, 'refresh never mutates the loaded graph in place');
+  assert.equal(r.graph.meta.tplVersion, TPL1_VERSION, 'marker bumped to current');
+  assert.equal(r.graph.nodes.find(n => n.type === 'promptAssistant').config.catalogPrompt, true, 'catalog flag refreshed on');
+  const c2 = r.graph.nodes.find(n => n.type === 'composition').config;
+  assert.equal(c2.realBase, 'public/fixtures/real-tee/crew-white-hanger.webp', 'retired base replaced by the current hanger base');
+  assert.deepEqual(c2.quad, AI_MODEL_QUADS['public/fixtures/ai-model/model-white-crew.webp'], 'default quad refreshed to the AI-base torso quad');
+  assert.ok(r.notes.length >= 3, 'user-visible notes produced: ' + r.notes.join(' | '));
+  // a user-edited quad is NEVER overwritten
+  const userOld = TEMPLATES.find(t => t.id === 'tpl1').make();
+  userOld.meta = { templateId: 'tpl1', tplVersion: 2 };
+  const uc = userOld.nodes.find(n => n.type === 'composition');
+  uc.config.quadSource = 'user'; const uq = [[0.2, 0.2], [0.5, 0.2], [0.5, 0.5], [0.2, 0.5]]; uc.config.quad = uq;
+  const r2 = refreshTpl1Graph(userOld);
+  assert.equal(r2.refreshed, true);
+  assert.deepEqual(r2.graph.nodes.find(n => n.type === 'composition').config.quad, uq, 'user quad preserved');
+  // current-version and non-Template-1 graphs pass through untouched
+  const cur = TEMPLATES.find(t => t.id === 'tpl1').make();
+  assert.equal(refreshTpl1Graph(cur).refreshed, false, 'current template needs no refresh');
+  assert.equal(refreshTpl1Graph({ nodes: [], edges: [] }).refreshed, false, 'no marker → not a Template 1 project');
+  assert.equal(refreshTpl1Graph(null).refreshed, false);
 });

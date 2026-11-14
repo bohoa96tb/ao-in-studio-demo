@@ -159,8 +159,41 @@ export const FIXTURE_LANDMARKS = {
 export const GARMENT_QUADS = Object.fromEntries(
   Object.entries(FIXTURE_LANDMARKS).map(([path, lm]) => [path, torsoQuadFor(lm, { imgW: lm.imgW, imgH: lm.imgH })]),
 );
+/**
+ * Measured body landmarks of the AI-GENERATED model bases (P4.2 ROUND 4 —
+ * owner-approved 2026-11-14; registry + provenance in core.js
+ * AI_MODEL_BASES and docs/AI_MODEL_ASSETS.md). These are AI-generated
+ * images, NOT photographs — they live in their own landmarks table so
+ * they can never be confused with the real-photo fixtures above.
+ * Grid-measured on the actual pixels (centre-column skin→fabric scan for
+ * the collar, hem luminance drop, armpit-row edge scans):
+ *  - white crew (1280×1920): collar lower edge 0.383 (skin→fabric at
+ *    0.380–0.385 on the centre column); hem 0.952 (centre luminance
+ *    224→60 at 0.950–0.954, jeans below); torso body between the armpits
+ *    ≈ x 0.26–0.745 at the armpit row → width 0.49, centre 0.50.
+ *  - black crew (1280×1920, MALE model): collar 0.363 (skin→fabric at
+ *    0.360–0.365); hem 0.966 (fabric through 0.960, hem stitch dip at
+ *    0.964, jeans from 0.968); torso body ≈ x 0.26–0.77 → width 0.51,
+ *    centre 0.505.
+ *  - white oversize (1040×2352): collar 0.328 (skin→fabric at
+ *    0.325–0.330); hem 0.919 — the hem is CURVED/DRAPED: this is the
+ *    centre-front LOWEST hem point (fabric through 0.917, jeans at
+ *    0.921); the wide garment body at chest level spans the drape edges
+ *    ≈ x 0.145–0.865 → width 0.72, centre 0.505 (a genuinely wider
+ *    garment — never a regular tee with a bigger print).
+ */
+export const AI_MODEL_LANDMARKS = {
+  'public/fixtures/ai-model/model-white-crew.webp': { collarBottomY: 0.383, hemY: 0.952, torsoCenterX: 0.50, torsoWidth: 0.49, imgW: 1280, imgH: 1920 },
+  'public/fixtures/ai-model/model-black-crew.webp': { collarBottomY: 0.363, hemY: 0.966, torsoCenterX: 0.505, torsoWidth: 0.51, imgW: 1280, imgH: 1920 },
+  'public/fixtures/ai-model/model-white-oversize.webp': { collarBottomY: 0.328, hemY: 0.919, torsoCenterX: 0.505, torsoWidth: 0.72, imgW: 1040, imgH: 2352 },
+};
+/** Print quads for the AI model bases — derived via torsoQuadFor from
+ * the measured landmarks above (same torso rule as every other base). */
+export const AI_MODEL_QUADS = Object.fromEntries(
+  Object.entries(AI_MODEL_LANDMARKS).map(([path, lm]) => [path, torsoQuadFor(lm, { imgW: lm.imgW, imgH: lm.imgH })]),
+);
 export function presetQuadFor(fixturePath) {
-  const q = GARMENT_QUADS[fixturePath];
+  const q = GARMENT_QUADS[fixturePath] || AI_MODEL_QUADS[fixturePath];
   return q ? q.map(p => [...p]) : null;
 }
 /**
@@ -193,6 +226,36 @@ export function migrateCompositionConfig(cfg = {}) {
   if (out.mode === 'perspective' && !Array.isArray(out.quad)) out.quad = rectToQuad(out.printX ?? 50, out.printY ?? 42, out.printW ?? 34);
   return out;
 }
+
+// ---------- real-AI framing guard (P4.2 ROUND 4, R2) ----------
+/**
+ * Framing class of a garment image by aspect ratio ONLY — a documented,
+ * contract-level heuristic, NOT landmark detection. The owner's live
+ * failure (2026-11-14) was a real-AI (Classic sana) CLOSE-UP whose
+ * framing broke compositing; client-side face/torso landmark detection
+ * is not reliable enough to gate on, so the pipeline gates on the one
+ * property that is always measurable: the image's dimensions.
+ *   h/w < 0.98          → 'landscape'        (fail)
+ *   0.98 ≤ h/w < 1.10   → 'square'           (fail — the sana close-up
+ *                          class: square output cannot be a half-body)
+ *   1.10 ≤ h/w ≤ 2.05   → 'portrait-half-body' (PASS — 4:5 = 1.25,
+ *                          2:3 = 1.5, 9:16 = 1.78 all land here)
+ *   h/w > 2.05          → 'extreme-portrait' (fail)
+ * HONEST LIMIT: a portrait-aspect close-up can still pass this gate —
+ * aspect is a NECESSARY, not sufficient, condition. It reliably blocks
+ * the observed failure class (square/landscape outputs) and any output
+ * whose size class contradicts the requested half-body portrait; full
+ * landmark validation remains future work (see QA report round 4).
+ */
+export function framingAspectClass(w, h) {
+  if (!(w > 0 && h > 0)) return 'invalid';
+  const r = h / w;
+  if (r < 0.98) return 'landscape';
+  if (r < 1.10) return 'square';
+  if (r <= 2.05) return 'portrait-half-body';
+  return 'extreme-portrait';
+}
+export function passesHalfBodyFraming(w, h) { return framingAspectClass(w, h) === 'portrait-half-body'; }
 
 // ---------- fabric-wrinkle displacement field (visual simulation) ----------
 /**

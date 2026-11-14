@@ -206,3 +206,37 @@ prompt is the owner's VERBATIM catalog template
 (CATALOG_PROMPT_TEMPLATE in core.js; only [COLOR]/[FIT_TYPE]
 substituted; gated by config catalogPrompt: true, set only on
 Template 1; other templates keep the composed prompt).
+P4.2 round 4 (2026-11-14, same branch — owner APPROVED AI-GENERATED model
+bases; this paragraph SUPERSEDES the round-3 "DEMO uses the drawn figure
+for every combo" sentence for the three mapped combos): after three
+rounds found no licence-verified photo passing the e-commerce checklist,
+the owner directed the Template 1 model layer to be AI-GENERATED images
+and approved all three on 2026-11-14 (incl. the black-crew MALE model):
+`AI_MODEL_BASES` in core.js (kind 'ai-model') — (trang, co-tron) → female
+white crew 1280×1920, (den, co-tron) → MALE black crew 1280×1920,
+(trang, oversize) → female white oversize 1040×2352, files under
+public/fixtures/ai-model/. HONESTY: these are AI-generated, NEVER real
+photos — the label "Ảnh người mẫu do AI tạo (chưa phải ảnh chụp thật)"
+rides the node output, registry names and the properties-panel select;
+provenance lives in docs/AI_MODEL_ASSETS.md and they must NEVER be
+entered into docs/P2_ASSET_LICENSES.md. PHOTO_BASES stays garment-only
+(photoBaseFor still null everywhere). Per-image landmarks measured on
+the actual pixels live in warp.js AI_MODEL_LANDMARKS; quads derive via
+torsoQuadFor like everything else. Unmapped combos keep the drawn
+figure. REAL-AI FRAMING GUARD: a real (Classic/Keyed) garment output
+whose aspect class is not 'portrait-half-body' (h/w in [1.10, 2.05];
+square/landscape/extreme all fail) is REFUSED by composition, which
+falls back to the approved AI base for those params and records
+"Ảnh AI thật không đạt khung hình — đã dùng nền người mẫu đã duyệt" in
+the log + result label; the guard is aspect-class only (a portrait
+close-up can still pass — documented limitation, no fake landmark
+detection). OLD-DRAFT SAFETY: Template 1 projects carry
+meta {templateId, tplVersion} (current TPL1_VERSION in core.js) and the
+node-cache key mixes AI_STUDIO_BUILD (p2.js) — loading an older
+Template 1 project/draft refreshes its template-owned defaults
+(catalog flag, retired bases, default quad unless user-edited), purges
+that project's cache and shows a note (refreshTpl1Graph in core.js);
+user content is never touched. A fresh Template 1 instance must run to
+the correct result with ZERO manual edits — tests/ai-studio-tpl1.mjs
+CASE 8 proves it on a virgin IndexedDB (fresh-* exports byte-identical
+to the standard previews).

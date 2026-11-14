@@ -1,7 +1,7 @@
 // AI Studio — DOM-free core: node definitions, type/cycle rules, rule-based
 // Vietnamese prompt builder, SVG safety check, minimal store-only ZIP writer
 // + reader. Node-testable; no browser APIs used here.
-import { GARMENT_QUADS, FIXTURE_LANDMARKS, torsoQuadFor } from './warp.js';
+import { GARMENT_QUADS, FIXTURE_LANDMARKS, AI_MODEL_LANDMARKS, AI_MODEL_QUADS, torsoQuadFor } from './warp.js';
 
 export const DATA_TYPES = ['image', 'design', 'prompt', 'video', 'any'];
 
@@ -349,6 +349,10 @@ export function photoBaseByPath(path) { return PHOTO_BASES.find(b => b.path === 
  * replacement was found), so this returns null for every combo; the
  * lookup stays so a future verified model photo only needs a registry
  * entry. Front view only. Returns { base, quad } with a fresh quad copy.
+ * ROUND 4: the DEMO model layer is now AI-GENERATED imagery in a
+ * SEPARATE registry (AI_MODEL_BASES / aiModelBaseFor below) — this
+ * function stays real-photos-only on purpose, so a photo can never be
+ * confused with an AI image or vice versa.
  */
 export function photoBaseFor(garment) {
   if (!garment || garment.view !== 'chinh-dien') return null;
@@ -357,6 +361,119 @@ export function photoBaseFor(garment) {
   if (!b) return null;
   const q = GARMENT_QUADS[b.path];
   return q ? { base: b, quad: q.map(p => [...p]) } : null;
+}
+
+// ---------- AI-GENERATED model bases (P4.2 ROUND 4) ----------
+// ROUND 4 (owner directive + approval, 2026-11-14): after three rounds
+// found NO real photograph passing the owner's e-commerce checklist, the
+// owner ordered the Template 1 model layer to be AI-GENERATED imagery
+// instead — a realistic AI model WEARING the correct garment style,
+// colour and pose, the shirt PLAIN (the design is still composited
+// afterwards from the original file, never drawn by AI). The three
+// images below were generated with the owner's verbatim catalog prompt
+// template (CATALOG_PROMPT_TEMPLATE), were VIEWED and APPROVED by the
+// owner on 2026-11-14 (the black-crew MALE model approved as-is), and
+// are the DEMO model bases for their (colour, fit) combos.
+// HONEST LABELLING (hard rule): these are AI-GENERATED images — NOT
+// photographs. They are therefore NOT recorded in
+// docs/P2_ASSET_LICENSES.md (that file is for real-photo licences);
+// their provenance lives in docs/AI_MODEL_ASSETS.md, and every name /
+// label in the app says "do AI tạo". They must never be presented as
+// real photography. Combos without an approved AI base (other colours,
+// black oversize, 3/4 view) keep the drawn-figure fallback, honestly
+// labelled. Landmarks are grid-measured per image (AI_MODEL_LANDMARKS
+// in warp.js); quads derive via torsoQuadFor — one rule for all bases.
+export const AI_MODEL_BASES = [
+  {
+    id: 'ai-model-white-crew', name: 'Người mẫu do AI tạo — áo trắng cổ tròn, mẫu nữ (KHÔNG phải ảnh chụp thật)',
+    path: 'public/fixtures/ai-model/model-white-crew.webp', style: 'co-tron', colorKey: 'trang', demoPhoto: true, kind: 'ai-model',
+    collarBottomY: 0.383, landmarks: AI_MODEL_LANDMARKS['public/fixtures/ai-model/model-white-crew.webp'],
+    source: { platform: 'AI-generated', generator: 'Muse — pipeline tạo ảnh (media generation)', prompt: 'CATALOG_PROMPT_TEMPLATE nguyên văn của chủ shop, [COLOR]=white, [FIT_TYPE]=regular-fit', approvedBy: 'Chủ shop Van', approvedDate: '2026-11-14', note: 'Ảnh người mẫu DO AI TẠO — không phải ảnh chụp thật; người mẫu nữ Việt Nam, áo trắng trơn cổ tròn, nửa người đầu→hông, thấy toàn bộ áo + cạp quần jean, tay đút túi, nền xám sáng.' },
+  },
+  {
+    id: 'ai-model-black-crew', name: 'Người mẫu do AI tạo — áo đen cổ tròn, mẫu NAM (KHÔNG phải ảnh chụp thật)',
+    path: 'public/fixtures/ai-model/model-black-crew.webp', style: 'co-tron', colorKey: 'den', demoPhoto: true, kind: 'ai-model',
+    collarBottomY: 0.363, landmarks: AI_MODEL_LANDMARKS['public/fixtures/ai-model/model-black-crew.webp'],
+    source: { platform: 'AI-generated', generator: 'Muse — pipeline tạo ảnh (media generation)', prompt: 'CATALOG_PROMPT_TEMPLATE nguyên văn của chủ shop, [COLOR]=black, [FIT_TYPE]=regular-fit', approvedBy: 'Chủ shop Van', approvedDate: '2026-11-14', note: 'Ảnh người mẫu DO AI TẠO — không phải ảnh chụp thật; người mẫu NAM Việt Nam (chủ shop duyệt giữ nguyên như vậy), áo đen trơn cổ tròn, nửa người đầu→hông, thấy toàn bộ áo + cạp quần jean, tay đút túi, nền xám sáng.' },
+  },
+  {
+    id: 'ai-model-white-oversize', name: 'Người mẫu do AI tạo — áo trắng OVERSIZE phom rộng, mẫu nữ (KHÔNG phải ảnh chụp thật)',
+    path: 'public/fixtures/ai-model/model-white-oversize.webp', style: 'oversize', colorKey: 'trang', demoPhoto: true, kind: 'ai-model',
+    collarBottomY: 0.328, landmarks: AI_MODEL_LANDMARKS['public/fixtures/ai-model/model-white-oversize.webp'],
+    source: { platform: 'AI-generated', generator: 'Muse — pipeline tạo ảnh (media generation)', prompt: 'CATALOG_PROMPT_TEMPLATE nguyên văn của chủ shop, [COLOR]=white, [FIT_TYPE]=oversized boxy-fit', approvedBy: 'Chủ shop Van', approvedDate: '2026-11-14', note: 'Ảnh người mẫu DO AI TẠO — không phải ảnh chụp thật; người mẫu nữ Việt Nam, áo trắng oversize phom rộng THẬT (vai trễ, thân rộng, vạt dài cong), nửa người đầu→hông, thấy toàn bộ áo + cạp quần jean, tay đút túi, nền xám sáng.' },
+  },
+];
+export function aiModelBaseByPath(path) { return AI_MODEL_BASES.find(b => b.path === path) || null; }
+/**
+ * The DEMO AI-MODEL base for structured garment params (ROUND 4), or
+ * null when no owner-approved AI image exists for them (caller falls
+ * back to the drawn figure, honestly labelled). Front view only; both
+ * regular and oversize fits can be mapped (white oversize is). Returns
+ * { base, quad } with a fresh quad copy.
+ */
+export function aiModelBaseFor(garment) {
+  if (!garment || garment.view !== 'chinh-dien') return null;
+  const b = AI_MODEL_BASES.find(x => x.style === garment.style && x.colorKey === garment.colorKey);
+  if (!b) return null;
+  const q = AI_MODEL_QUADS[b.path];
+  return q ? { base: b, quad: q.map(p => [...p]) } : null;
+}
+
+// ---------- Template/build versioning (P4.2 ROUND 4, R1 + R4) ----------
+/** Behaviour build marker. It is mixed into every P2 node cache key
+ * (p2.js nodeCacheKey), so cached outputs produced by an older build's
+ * behaviour (older base registry / calibration / template wiring) can
+ * NEVER be silently reused after an upgrade — the chained config/input
+ * hash alone does not cover code behaviour. Bump on any behaviour
+ * change that alters node outputs for identical configs/inputs. */
+export const AI_STUDIO_BUILD = 'p42-r4';
+/** Template 1's own version. Template-1-derived projects carry
+ * meta {templateId:'tpl1', tplVersion} (stamped by the template factory
+ * and threaded through save/draft/version snapshots). On load, a
+ * project whose marker is older is refreshed by refreshTpl1Graph. */
+export const TPL1_VERSION = 4;
+/** The current Template 1 default print quad = the torso-rule quad of
+ * the default garment case (white crew → the approved AI model base). */
+export const TPL1_DEFAULT_QUAD_PATH = 'public/fixtures/ai-model/model-white-crew.webp';
+const TPL1_RETIRED_BASES = [
+  'public/fixtures/real-tee/crew-white-vn-model.webp', // round-2 model photo — owner-rejected, fixture deleted (round 3)
+  'public/fixtures/real-tee/crew-black-woman.webp',    // held-up shirt — removed as a base in the supplementary round
+  'public/fixtures/real-tee/crew-white-model.webp',    // round-1 white model photo — superseded, fixture deleted
+];
+/**
+ * R4 — refresh a Template-1-derived project created under an older
+ * template version: template-owned defaults are brought current
+ * (promptAssistant catalog flag, composition's retired bases, the
+ * composition default quad from the current AI model landmarks), while
+ * anything the user explicitly set (a user-edited quad, quadSource
+ * 'user') is preserved. Pure + non-mutating: returns
+ * {graph, refreshed, notes} — notes are Vietnamese, user-visible.
+ */
+export function refreshTpl1Graph(graph) {
+  if (!graph || graph.meta?.templateId !== 'tpl1' || (graph.meta.tplVersion || 0) >= TPL1_VERSION) {
+    return { graph, refreshed: false, notes: [] };
+  }
+  const g = JSON.parse(JSON.stringify(graph));
+  const notes = [];
+  for (const n of g.nodes || []) {
+    if (n.type === 'promptAssistant' && !(n.config || {}).catalogPrompt) {
+      n.config = { ...(n.config || {}), catalogPrompt: true };
+      notes.push('Trợ lý prompt: bật prompt catalogue thương mại điện tử nguyên văn của chủ shop');
+    }
+    if (n.type === 'composition') {
+      const c = n.config = { ...(n.config || {}) };
+      let baseFixed = false;
+      if (TPL1_RETIRED_BASES.includes(c.realBase)) { c.realBase = 'public/fixtures/real-tee/crew-white-hanger.webp'; baseFixed = true; }
+      if (TPL1_RETIRED_BASES.includes(c.base)) { c.base = 'public/fixtures/real-tee/crew-white-hanger.webp'; baseFixed = true; }
+      if (baseFixed) notes.push('Ghép hình in: thay ảnh nền mẫu đã bị gỡ khỏi thư viện bằng ảnh áo trắng trên móc hiện hành');
+      if (c.quadSource !== 'user') {
+        c.quad = AI_MODEL_QUADS[TPL1_DEFAULT_QUAD_PATH].map(p => [...p]);
+        notes.push('Ghép hình in: vùng in đặt lại theo mốc thân áo của nền người mẫu AI đã duyệt');
+      }
+    }
+  }
+  g.meta = { ...g.meta, tplVersion: TPL1_VERSION };
+  return { graph: g, refreshed: true, notes };
 }
 
 // ---------- Templates (brief §7) ----------
@@ -384,16 +501,24 @@ export const TEMPLATES = [
   // P4.2 round 3: this template's promptAssistant carries
   // catalogPrompt: true, so its generation prompt is the owner's VERBATIM
   // e-commerce catalog template (CATALOG_PROMPT_TEMPLATE).
-  { id: 'tpl1', name: 'Mẫu 1 — Ảnh người mẫu mặc áo', make() { return tpl([
+  // P4.2 ROUND 4 (R1): the shipped template itself defaults to the new
+  // stack — DEMO generation resolves the owner-approved AI MODEL base
+  // for the garment params (aiModelBaseFor) and the composition node's
+  // stored default quad is that base's torso-rule quad (the generated
+  // value's own calibrated baseQuad still wins at run time). The graph
+  // is stamped meta {templateId:'tpl1', tplVersion} so older copies can
+  // be detected and refreshed on load ( refreshTpl1Graph, R4 ). A fresh
+  // instance therefore runs correctly with ZERO manual edits.
+  { id: 'tpl1', name: 'Mẫu 1 — Ảnh người mẫu mặc áo', make() { const g = tpl([
     ['imageInput', 40, 60, { fixture: 'public/fixtures/real-tee/crew-white-hanger.webp' }, 'img'],
     ['designInput', 40, 300, { svgText: SAMPLE_DESIGN_SVG, assetName: 'hinh-in-mau.svg' }, 'des'],
     ['promptInput', 40, 520, {}, 'pin'],
     ['promptAssistant', 330, 520, { model: 'nu-viet', kieuAo: 'co-tron', mauAo: 'trang', gocChup: 'chinh-dien', catalogPrompt: true }, 'pa'],
     ['aiImageGen', 620, 430, { ratio: '4:5' }, 'gen'],
-    ['composition', 620, 140, { mode: 'perspective', quad: DEMO_FIGURE.chestQuad.map(p => [...p]), wrinkle: 35, shading: 45, garmentSource: 'ai', realBase: 'public/fixtures/real-tee/crew-white-hanger.webp' }, 'comp'],
+    ['composition', 620, 140, { mode: 'perspective', quad: AI_MODEL_QUADS[TPL1_DEFAULT_QUAD_PATH].map(p => [...p]), wrinkle: 35, shading: 45, garmentSource: 'ai', realBase: 'public/fixtures/real-tee/crew-white-hanger.webp' }, 'comp'],
     ['preview', 900, 140, {}, 'prev'],
     ['exportNode', 1160, 140, { format: 'png', channels: ['website'] }, 'exp'],
-  ], [['pin', 'pa', 'in'], ['pa', 'gen', 'prompt'], ['gen', 'comp', 'garment'], ['des', 'comp', 'design'], ['comp', 'prev', 'in'], ['prev', 'exp', 'in']]); } },
+  ], [['pin', 'pa', 'in'], ['pa', 'gen', 'prompt'], ['gen', 'comp', 'garment'], ['des', 'comp', 'design'], ['comp', 'prev', 'in'], ['prev', 'exp', 'in']]); g.meta = { templateId: 'tpl1', tplVersion: TPL1_VERSION }; return g; } },
   { id: 'tpl2', name: 'Mẫu 2 — Bộ ảnh sản phẩm', make() { return tpl([
     ['imageInput', 40, 200, { fixture: 'public/fixtures/real-tee/crew-white-flatlay.webp' }, 'img'],
     ['aiVariation', 320, 200, { variant: 'boi-canh' }, 'var'],
@@ -423,4 +548,4 @@ export const TEMPLATES = [
   ], [['img', 'comp', 'garment'], ['des', 'comp', 'design'], ['comp', 'gen', 'image'], ['gen', 'vid', 'in'], ['vid', 'prev', 'in'], ['vid', 'exp', 'in']]); } },
 ];
 export function emptyGraph() { return { nodes: [], edges: [] }; }
-export function cloneGraph(g) { return JSON.parse(JSON.stringify({ nodes: g.nodes.map(n => ({ ...n, logs: [...(n.logs || [])] })), edges: g.edges })); }
+export function cloneGraph(g) { const c = JSON.parse(JSON.stringify({ nodes: g.nodes.map(n => ({ ...n, logs: [...(n.logs || [])] })), edges: g.edges })); if (g.meta) c.meta = JSON.parse(JSON.stringify(g.meta)); return c; }

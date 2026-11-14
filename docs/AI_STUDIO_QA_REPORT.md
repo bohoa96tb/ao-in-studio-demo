@@ -270,3 +270,45 @@ Loại ở mức mô tả (không tải): loạt MART PRODUCTION 9558xxx (teen),
 - **Ảnh người mẫu thật đạt chuẩn TMĐT cho trắng, đen, oversize: CHƯA CÓ** sau đợt rà 8 góc truy vấn / 26 ảnh xem trực tiếp (bảng loại ở trên). Cần chủ shop quyết: (a) cung cấp ảnh của shop, hoặc (b) duyệt nới 1 mục checklist (ứng viên gần nhất: 6310890 — chỉ trượt mục nền studio trơn), hoặc (c) giữ figure vẽ như hiện tại.
 - P4.2 vòng 3 chưa kiểm chứng trên điện thoại thật của chủ shop; chưa push/PR/bundle (chờ duyệt ảnh kết quả vòng 3).
 - Các mục cũ giữ nguyên: AI thật chưa chạy end-to-end (quyết định của chủ shop — không tự gọi), P5 chưa bắt đầu.
+
+
+## P4.2 VÒNG 4 — QA (2026-11-14): nền người mẫu AI đã duyệt + R1–R4
+
+### Tích hợp + provenance
+- 3 file nguồn do chủ shop duyệt được chép vào `public/fixtures/ai-model/`: `model-white-crew.webp` (1280×1920, nữ), `model-black-crew.webp` (1280×1920, **nam** — duyệt nguyên trạng), `model-white-oversize.webp` (1040×2352, nữ). Registry `AI_MODEL_BASES` (core.js, kind 'ai-model') + `aiModelBaseFor` ánh xạ (trang,co-tron)/(đen,co-tron)/(trang,oversize), chỉ mặt trước. DEMO aiImageGen dùng các nền này trước figure; composition fallback/realBase chọn được trong panel. Tổ hợp chưa ánh xạ → figure vẽ (nhãn trung thực). PHOTO_BASES không đổi (garment-only).
+- Provenance đầy đủ: `docs/AI_MODEL_ASSETS.md` — tạo bởi pipeline ảnh của Muse từ prompt catalogue nguyên văn của chủ shop ngày 2026-11-14, chủ shop duyệt cùng ngày, mục đích duy nhất: nền DEMO Mẫu 1. **Không** ghi vào P2_ASSET_LICENSES.md (không phải ảnh chụp, không có giấy phép ảnh). Nhãn "do AI tạo" xuất hiện ở: đầu ra node aiImageGen (label + log), tên registry, mục chọn trong panel composition, tài liệu này + checkpoint + AGENTS.md.
+
+### Landmarks đo trên pixel thật + quad suy ra (torsoQuadFor, gap 0.135 / width 0.40)
+| Nền | collarBottomY | hemY | torsoCenterX | torsoWidth | Quad vùng in (chuẩn hoá) |
+|---|---|---|---|---|---|
+| white crew | 0.383 | 0.952 | 0.500 | 0.49 | [[0.402,0.460],[0.598,0.460],[0.598,0.590],[0.402,0.590]] |
+| black crew | 0.363 | 0.966 | 0.505 | 0.51 | [[0.403,0.444],[0.607,0.444],[0.607,0.580],[0.403,0.580]] |
+| white oversize | 0.328 | 0.919* | 0.505 | 0.72 | [[0.361,0.408],[0.649,0.408],[0.649,0.535],[0.361,0.535]] |
+
+\* Oversize: vạt cong/rủ — hemY = điểm thấp nhất của vạt ở chính giữa mặt trước.
+
+### Số đo in thực tế (bbox màu hình in trên file xuất 1200×1500 cuối cùng, đối chiếu landmarks nền)
+| Ca | gap / chiều dài thân (luật: 0.12–0.15) | bề rộng in / bề rộng thân (luật: 0.35–0.45) | tâm X | Rò rỉ ngoài quad | Tương quan vs hình gốc | Guide (preview + export) | Banner DEMO |
+|---|---|---|---|---|---|---|---|
+| white crew | **0.136** | **0.395** | 0.499 | 0 | ≥ 0.85 (suite, trên composite) | 0 + 0 | có, đồng nhất |
+| black crew | **0.136** | **0.395** | 0.504 | 0 | ≥ 0.85 (suite) | — | có, đồng nhất |
+| white oversize | **0.135** | **0.396** | 0.505 | 0 | — | — | có, đồng nhất |
+
+(Suite tpl1 khẳng định cùng các tỉ lệ trên canvas composite trong dung sai đã biện minh ±0.03/±0.045; footprint in oversize > crew ×1.15 trên cùng suite; figure fallback cho tổ hợp be: đo đạt luật torso trên landmarks figure.)
+
+### R1–R4 — bằng chứng
+- **R1:** Template 1 đóng dấu meta tplVersion 4 + catalogPrompt mặc định + quad mặc định = quad AI white-crew. CASE 8 (IndexedDB trắng, xác nhận 0 dự án/0 bản nháp, không banner khôi phục): tạo Mẫu 1 → chạy 3 ca → `fresh-white.png` / `fresh-black.png` / `fresh-oversize.png` **trùng SHA-256 từng byte** với 3 ảnh chuẩn (white `b4fba643…`, black `780fab10…`, oversize `c0bf2303…`).
+- **R2:** mock Classic trả ảnh VUÔNG 512×512 (xanh lá thuần): đúng 1 request; gen nhận ảnh xấu nhưng composite bị chặn — composite xây trên nền AI đã duyệt (900×1350), **0 pixel** của ảnh xấu trong composite, nhãn kết quả chứa "Ảnh AI thật không đạt khung hình — đã dùng nền người mẫu đã duyệt", xuất có banner DEMO (đầu ra fallback là DEMO). Guide: quét trên node XEM TRƯỚC và PNG xuất đều 0 pixel (CASE 6, hình in không đỏ). Giới hạn đã ghi rõ: guard theo lớp tỉ lệ khung (h/w ∈ [1.10, 2.05]) — ảnh cận cảnh tỉ lệ dọc vẫn có thể qua; không khẳng định có nhận diện landmarks.
+- **R4:** kết luận kiểm toán — hash cache chuỗi (config + đầu vào) KHÔNG bao phủ thay đổi hành vi (registry/hiệu chuẩn/template) → đã thêm `AI_STUDIO_BUILD` vào khóa cache + marker tplVersion. CASE 9: dự án marker v1 (catalogPrompt bị xóa, realBase trỏ nền đã gỡ `crew-white-vn-model.webp`, quad cũ, 1 bản ghi cache cũ) → mở + khôi phục bản nháp: thông báo làm mới xuất hiện, cache của dự án = 0, panel promptAssistant hiện tóm tắt catalogue, chạy ra nền AI 1280×1920. Quad người dùng tự sửa (quadSource 'user') được giữ — có unit test riêng.
+- **Giải thích sự cố site live 19:27 (giờ Nhật) 2026-11-14:** site live lúc đó vẫn là bản **P4.1** (P4.2 chưa ship) và trình duyệt khôi phục một **bản nháp tự lưu từ bản cũ** — kết quả hỏng là của P4.1 + dữ liệu cũ, không phải mã vòng 4. Sau khi P4.2 ship: bản nháp Mẫu 1 cũ sẽ được tự làm mới khi mở (R4, có thông báo); khuyến nghị chủ shop **tạo dự án MỚI từ Mẫu 1** để có đường sạch nhất.
+
+### Kết quả test vòng 4
+- Unit: **116/116 PASS** (thêm: registry AI-model + tính trung thực, landmarks/quads, mapping aiModelBaseFor, R1 audit Mẫu 1, framing classes, refreshTpl1Graph, build-marker trong khóa cache).
+- Suite trình duyệt: **ai-studio-tpl1 PASS** (9 case như trên); **ai-studio (P1) PASS**, **ai-studio-p2 PASS**, **ai-studio-p3 PASS** (pin góc quad mặc định cập nhật 41.2% → 40.2% theo quad AI white-crew, có chú thích vòng 4), **ai-studio-p4 PASS**. Lint PASS, build PASS. Không gọi Pollinations thật (mọi traffic AI thật đều mock).
+- **Kiểm tra bằng mắt của Muse trên 3 ảnh xuất:** trắng — in giữa ngực trên, khoảng cổ sạch, chữ rõ; đen — người mẫu nam, màu in nổi trên nền đen, "ÁO ĐẸP" đọc rõ; oversize — áo rộng thật, in lớn cân giữa. Cả 3: không guide, có banner. Ảnh fresh giống hệt (cùng SHA-256).
+
+### CHƯA đạt / chưa kiểm chứng ở P4.2 vòng 4 (không báo PASS)
+- Vòng 4 chưa kiểm chứng trên điện thoại thật của chủ shop; chưa đóng bundle/push/PR (chờ chủ shop duyệt 6 ảnh kết quả vòng 4).
+- Guard khung hình R2 chỉ theo tỉ lệ khung — ảnh AI thật cận cảnh nhưng tỉ lệ dọc vẫn có thể lọt (giới hạn đã công khai ở trên và trong mã).
+- Tổ hợp chưa có nền AI đã duyệt (màu khác ngoài trắng/đen, oversize đen, góc 3/4) vẫn dùng figure vẽ — đúng nhãn, đúng luật torso, nhưng không phải ảnh người mẫu AI.
+- Các mục cũ giữ nguyên: AI thật chưa chạy end-to-end (quyết định của chủ shop — không tự gọi), P5 chưa bắt đầu, LCP trang chủ theo lịch sử chưa đạt ≤2.5s.
