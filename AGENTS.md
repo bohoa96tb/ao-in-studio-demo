@@ -130,3 +130,28 @@ chest quad). Composition gained garmentSource 'ai'|'real' + realBase:
 'real' composites onto the real fixture with its calibrated quad and
 must run even when aiImageGen failed (engine ignoreFailedUpstream
 hook). No IndexedDB version change (still v2).
+P4.2 (2026-11-14, branch feature/ai-studio-p42): visual/compositing fixes
+after the owner rejected P4.1's output on sight (workflow said "0 errors"
+but the print sat on the model's neck). Standing rules from P4.2:
+(1) Print-area geometry follows the COLLAR RULE via `chestQuadFor`
+(warp.js): quad top edge 8–12% of image height BELOW the collar's lower
+edge, horizontally centred on the chest — applies to the DEMO figure,
+every photo base and the simple-mode defaults; never hand-place a quad
+without recording its measured collarBottomY. (2) The dashed red guide
+exists ONLY in the composition node's alignment editor — never draw it
+(or any guide) into a node output/preview/export; tests/ai-studio-tpl1.mjs
+CASE 6 scans preview + export for the guide colour with a red-free design.
+(3) Blending: design pixels are modulated by RELATIVE garment luminance
+(safe on dark garments — no absolute multiply), pulled 6% toward their
+own luminance, drawn at inkOpacity (default 95%, panel-configurable);
+the original-design correlation assertion stays ≥0.85. (4) Real photo
+bases live in core.js PHOTO_BASES (Pexels, credits + collar calibration
+recorded there and in docs/P2_ASSET_LICENSES.md); DEMO generation returns
+the matching REAL photo for white/black crew front params, labelled
+"DEMO — dùng ảnh chụp thật làm ảnh nền tham chiếu, chưa gọi AI" — never
+claim a photo base is AI-generated. No verified plain oversize photo
+exists yet: oversize reuses the white base with a wider quad (recorded
+honestly in the registry). Composition quad resolution: 'real' source →
+the base's calibrated quad; user-dragged/typed quad (quadSource 'user')
+wins in 'ai' mode; otherwise the generated base's own calibrated
+baseQuad wins over the stored quad. No IndexedDB version change (v2).

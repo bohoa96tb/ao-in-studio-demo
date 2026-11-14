@@ -71,11 +71,13 @@ test('P4.1 Template 1 structure: generate plain garment FIRST, composite origina
   assert.ok(!t1.edges.some(e => e.from === comp.id && e.to === gen.id), 'NO composition -> aiImageGen edge (the P4.1 root-cause fix)');
   assert.ok(!t1.edges.some(e => e.from === img.id), 'reference photo is standalone — NOT wired into the text-to-image node');
   // garment params present on the assistant; composition targets the demo
-  // figure chest quad; fallback defaults to the real crew-white hanger photo.
+  // figure chest quad; the real-photo fallback defaults to a real photo
+  // base (P4.1: the crew-white hanger; P4.2: the white crew MODEL photo —
+  // the first entry of the PHOTO_BASES registry).
   assert.equal(pa.config.kieuAo, 'co-tron'); assert.equal(pa.config.mauAo, 'trang'); assert.equal(pa.config.gocChup, 'chinh-dien');
   assert.deepEqual(comp.config.quad, DEMO_FIGURE.chestQuad);
   assert.equal(comp.config.garmentSource, 'ai');
-  assert.equal(comp.config.realBase, 'public/fixtures/real-tee/crew-white-hanger.webp');
+  assert.equal(comp.config.realBase, 'public/fixtures/real-tee/crew-white-model.webp');
   assert.deepEqual(exp.config.channels, ['website'], 'website channel preset = 1200x1500 export');
 });
 
@@ -88,7 +90,7 @@ test('P4.1 templates 2-4 unchanged in flow (tpl4 keeps its comp -> gen chain)', 
 
 test('P4.1 composition migration: garmentSource/realBase defaults, explicit values preserved', () => {
   const m = migrateCompositionConfig({ printX: 50, printY: 42, printW: 34, rotation: 0 });
-  assert.equal(m.garmentSource, 'ai'); assert.equal(m.realBase, 'public/fixtures/real-tee/crew-white-hanger.webp');
+  assert.equal(m.garmentSource, 'ai'); assert.equal(m.realBase, 'public/fixtures/real-tee/crew-white-model.webp'); // P4.2 default real base
   const r = migrateCompositionConfig({ garmentSource: 'real', realBase: 'public/fixtures/real-tee/crew-black-hanger.webp' });
   assert.equal(r.garmentSource, 'real'); assert.equal(r.realBase, 'public/fixtures/real-tee/crew-black-hanger.webp');
   assert.ok(presetQuadFor(r.realBase), 'real fallback base has a calibrated preset quad');

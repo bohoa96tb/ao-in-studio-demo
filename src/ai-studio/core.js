@@ -1,6 +1,7 @@
 // AI Studio — DOM-free core: node definitions, type/cycle rules, rule-based
 // Vietnamese prompt builder, SVG safety check, minimal store-only ZIP writer
 // + reader. Node-testable; no browser APIs used here.
+import { chestQuadFor, GARMENT_QUADS } from './warp.js';
 
 export const DATA_TYPES = ['image', 'design', 'prompt', 'video', 'any'];
 
@@ -28,7 +29,7 @@ export const NODE_DEFS = {
   promptAssistant: { label: 'Trợ lý prompt (quy tắc)', category: 'process', color: '#38618c', inputs: [{ id: 'in', type: 'prompt', label: 'Prompt gốc', required: false }], outputs: [{ id: 'out', type: 'prompt', label: 'Prompt' }],
     defaults: { style: 'studio', model: 'nu-tre', background: 'studio-kem', lighting: 'mem', angle: 'thang', kieuAo: 'co-tron', mauAo: 'trang', gocChup: 'chinh-dien', extra: '', composed: '' } },
   composition: { label: 'Ghép hình in lên áo', category: 'process', color: '#b6492f', inputs: [{ id: 'garment', type: 'image', label: 'Ảnh áo', required: false }, { id: 'design', type: 'design', label: 'Hình in', required: true }], outputs: [{ id: 'out', type: 'image', label: 'Ảnh ghép' }],
-    defaults: { base: 'public/fixtures/real-tee/crew-white-hanger.webp', garmentSource: 'ai', realBase: 'public/fixtures/real-tee/crew-white-hanger.webp', printX: 50, printY: 42, printW: 34, rotation: 0, mode: 'perspective', quad: [[0.315, 0.375], [0.515, 0.375], [0.52, 0.585], [0.31, 0.585]], wrinkle: 35, shading: 45, label: 'Ảnh ghép hậu kỳ — hình in là file gốc, không phải AI vẽ lại' } },
+    defaults: { base: 'public/fixtures/real-tee/crew-white-hanger.webp', garmentSource: 'ai', realBase: 'public/fixtures/real-tee/crew-white-model.webp', printX: 50, printY: 55, printW: 30, rotation: 0, mode: 'perspective', quad: [[0.315, 0.425], [0.515, 0.425], [0.515, 0.615], [0.315, 0.615]], wrinkle: 35, shading: 45, inkOpacity: 95, label: 'Ảnh ghép hậu kỳ — hình in là file gốc, không phải AI vẽ lại' } },
   background: { label: 'Nền & bối cảnh', category: 'process', color: '#2f6f6f', inputs: [{ id: 'in', type: 'image', label: 'Ảnh sản phẩm', required: true }], outputs: [{ id: 'out', type: 'image', label: 'Ảnh có nền' }],
     defaults: { mode: 'solid', color: '#f5f1e6', color2: '#d9c6a5', dir: 'down', horizon: 62, shadow: 55, vignette: 25, assetId: '', assetName: '', bgFit: 'cover', bgBlur: 0, scale: 82, posX: 50, posY: 50, framePad: 7 } },
   imageEditor: { label: 'Chỉnh sửa ảnh', category: 'process', color: '#8c6d1f', inputs: [{ id: 'in', type: 'image', label: 'Ảnh', required: true }], outputs: [{ id: 'out', type: 'image', label: 'Ảnh' }],
@@ -228,20 +229,95 @@ export function zipRead(bytes) {
   return entries;
 }
 
-// ---------- DEMO model figure geometry (P4.1) ----------
+// ---------- DEMO model figure geometry (P4.1, collar-fixed in P4.2) ----------
 // Deterministic geometry of the canvas-drawn DEMO model figure (drawn in
 // studio.js): torso spans per fit + the chest/print quads. Template 1's
 // composition node defaults to `chestQuad`, so in DEMO mode the original
-// design lands exactly on the figure's chest. The same quads are a sensible
-// worn-front chest quad for real 4:5 model photos.
+// design lands exactly on the figure's chest.
+//
+// P4.2 ROOT CAUSE of the rejected P4.1 output: the old chestQuad top edge
+// sat at y=0.375 while the figure's collar lower edge (the neckline
+// curve's lowest point, from the drawing code in studio.js: shoulderY
+// 0.295 + curve dip 0.0165 + collar stroke ≈ 0.316) left only a 5.9%
+// margin — under the owner's 8–12% rule the print rode up onto the neck.
+// The quads are now DERIVED with chestQuadFor (warp.js) from the measured
+// collar positions: regular collarBottomY 0.316, oversize 0.336 (its
+// shoulderY is 0.315). Margins: regular 9.9%, oversize 8.4% of height.
 export const DEMO_FIGURE = {
-  chestQuad: [[0.315, 0.375], [0.685, 0.375], [0.695, 0.6], [0.305, 0.6]],
-  chestQuadOversize: [[0.29, 0.38], [0.71, 0.38], [0.73, 0.7], [0.27, 0.7]],
+  collarBottomY: { regular: 0.316, oversize: 0.336 },
+  chestQuad: chestQuadFor({ collarBottomY: 0.316, centerX: 0.5, width: 0.35, height: 0.20, margin: 0.099 }),
+  chestQuadOversize: chestQuadFor({ collarBottomY: 0.336, centerX: 0.5, width: 0.40, height: 0.20, margin: 0.084 }),
   torso: {
     regular: { span: [0.27, 0.73], shoulderY: 0.295, hemY: 0.88 },
     oversize: { span: [0.2, 0.8], shoulderY: 0.315, hemY: 0.95 },
   },
 };
+
+// ---------- Real studio photo bases (P4.2) ----------
+// Sharp REAL studio photos used as compositing reference bases. They
+// replace the drawn DEMO figure as the reference standard for the garment
+// colours/fits that have a verified photo (the owner's P4.2 requirement).
+// Every base: front view, PLAIN garment (no existing print/logo/text — a
+// printed base would double-print), chest fully visible, model clearly an
+// adult, Pexels licence, credit recorded. Quads come from GARMENT_QUADS
+// (warp.js), each derived via the chestQuadFor collar-margin rule from
+// the collar position measured on the actual photo.
+export const PHOTO_BASES = [
+  {
+    id: 'model-white-crew', name: 'Người mẫu mặc áo trắng cổ tròn (ảnh chụp thật)',
+    path: 'public/fixtures/real-tee/crew-white-model.webp', style: 'co-tron', colorKey: 'trang', demoPhoto: true,
+    collarBottomY: 0.358,
+    // Oversize has no verified photo of its own (P4.2 sourcing: every
+    // plain oversize candidate on Pexels carried a print/logo) — the
+    // white base's garment is a relaxed long fit, so oversize uses the
+    // same photo with this wider/larger quad. Stated honestly in the UI.
+    quadOversize: chestQuadFor({ collarBottomY: 0.358, centerX: 0.486, width: 0.30, height: 0.175, margin: 0.085 }),
+    source: { platform: 'Pexels', photoId: '10159280', author: 'ROMAN ODINTSOV', sourceUrl: 'https://www.pexels.com/photo/a-woman-in-white-crew-neck-shirt-10159280/', license: 'Pexels License — free commercial use, attribution not required (given anyway)', note: 'Ảnh gốc 3445×5167; bản fixture cắt phần trên (bỏ 16,7% chiều cao nền trống) về khung 4:5, resize 960×1200 WebP.' },
+  },
+  {
+    id: 'model-black-crew', name: 'Người mẫu với áo đen cổ tròn (ảnh chụp thật)',
+    path: 'public/fixtures/real-tee/crew-black-woman.webp', style: 'co-tron', colorKey: 'den', demoPhoto: true,
+    collarBottomY: 0.495,
+    source: { platform: 'Pexels', photoId: '9558583', author: 'MART PRODUCTION', sourceUrl: 'https://www.pexels.com/photo/woman-in-black-crew-neck-t-shirt-9558583/', license: 'Pexels License — free commercial use, attribution not required (given anyway)', note: 'Ảnh có sẵn trong repo từ P2 (GAR-CREW-BLK-WORN-01): người mẫu cầm căng áo đen trơn trước người — mặt trước áo phẳng, ngực không bị che; P4.2 hiệu chuẩn quad vùng ngực cho AI Studio.' },
+  },
+  {
+    id: 'hanger-white', name: 'Áo trắng trên móc (ảnh chụp thật)',
+    path: 'public/fixtures/real-tee/crew-white-hanger.webp', style: 'co-tron', colorKey: 'trang', demoPhoto: false,
+    collarBottomY: 0.33,
+    source: { platform: 'Pexels', photoId: '20669538', author: 'Dmitriy Steinke', sourceUrl: 'https://www.pexels.com/photo/hand-holds-hanger-with-t-shirt-20669538/', license: 'Pexels License — free commercial use, attribution not required (given anyway)', note: 'Ảnh có sẵn trong repo từ P2 (GAR-CREW-WHT-HANGER-01).' },
+  },
+  {
+    id: 'hanger-black', name: 'Áo đen trên móc (ảnh chụp thật)',
+    path: 'public/fixtures/real-tee/crew-black-hanger.webp', style: 'co-tron', colorKey: 'den', demoPhoto: false,
+    collarBottomY: 0.26,
+    source: { platform: 'Pexels', photoId: '8532616', author: 'Hanna Pad', sourceUrl: 'https://www.pexels.com/photo/a-black-shirt-hanging-on-the-wall-8532616/', license: 'Pexels License — free commercial use, attribution not required (given anyway)', note: 'Ảnh có sẵn trong repo từ P3 (GAR-CREW-BLK-HANGER-01).' },
+  },
+  {
+    id: 'back-white', name: 'Áo trắng mặt sau, người mẫu mặc (ảnh chụp thật)',
+    path: 'public/fixtures/real-tee/crew-white-back-worn.webp', style: 'co-tron', colorKey: 'trang', demoPhoto: false,
+    collarBottomY: 0.445,
+    source: { platform: 'Pexels', photoId: '17515211', author: 'NJH STUDIO', sourceUrl: 'https://www.pexels.com/photo/back-view-of-man-in-t-shirt-and-hat-17515211/', license: 'Pexels License — free commercial use, attribution not required (given anyway)', note: 'Ảnh có sẵn trong repo từ P2 (GAR-CREW-WHT-BACKWORN-01) — chỉ dùng cho hình in mặt sau.' },
+  },
+];
+export function photoBaseByPath(path) { return PHOTO_BASES.find(b => b.path === path) || null; }
+/**
+ * The DEMO photo base for structured garment params, or null when no
+ * verified photo exists for them (caller falls back to the drawn figure).
+ * Front view only — the photo bases are all front shots. Oversize maps
+ * to the white base's wider quad (see the note on that registry entry).
+ * Returns { base, quad } with a fresh quad copy.
+ */
+export function photoBaseFor(garment) {
+  if (!garment || garment.view !== 'chinh-dien') return null;
+  if (garment.style === 'oversize') {
+    const b = PHOTO_BASES.find(x => x.demoPhoto && x.quadOversize && x.colorKey === garment.colorKey);
+    return b ? { base: b, quad: b.quadOversize.map(p => [...p]) } : null;
+  }
+  const b = PHOTO_BASES.find(x => x.demoPhoto && x.style === garment.style && x.colorKey === garment.colorKey);
+  if (!b) return null;
+  const q = GARMENT_QUADS[b.path];
+  return q ? { base: b, quad: q.map(p => [...p]) } : null;
+}
 
 // ---------- Templates (brief §7) ----------
 function tpl(defs, edges) {
@@ -263,14 +339,15 @@ export const TEMPLATES = [
   // wired into aiImageGen, because every real generation mode here is
   // text-to-image and cannot use a reference photo. To composite onto a
   // real photo instead of the AI photo, set the composition node's
-  // garmentSource to 'real' — its realBase defaults to this same fixture.
+  // garmentSource to 'real' — since P4.2 its realBase defaults to the
+  // white crew MODEL photo (PHOTO_BASES), selectable per base in the panel.
   { id: 'tpl1', name: 'Mẫu 1 — Ảnh người mẫu mặc áo', make() { return tpl([
     ['imageInput', 40, 60, { fixture: 'public/fixtures/real-tee/crew-white-hanger.webp' }, 'img'],
     ['designInput', 40, 300, { svgText: SAMPLE_DESIGN_SVG, assetName: 'hinh-in-mau.svg' }, 'des'],
     ['promptInput', 40, 520, {}, 'pin'],
     ['promptAssistant', 330, 520, { kieuAo: 'co-tron', mauAo: 'trang', gocChup: 'chinh-dien' }, 'pa'],
     ['aiImageGen', 620, 430, { ratio: '4:5' }, 'gen'],
-    ['composition', 620, 140, { mode: 'perspective', quad: DEMO_FIGURE.chestQuad.map(p => [...p]), wrinkle: 35, shading: 45, garmentSource: 'ai', realBase: 'public/fixtures/real-tee/crew-white-hanger.webp' }, 'comp'],
+    ['composition', 620, 140, { mode: 'perspective', quad: DEMO_FIGURE.chestQuad.map(p => [...p]), wrinkle: 35, shading: 45, garmentSource: 'ai', realBase: 'public/fixtures/real-tee/crew-white-model.webp' }, 'comp'],
     ['preview', 900, 140, {}, 'prev'],
     ['exportNode', 1160, 140, { format: 'png', channels: ['website'] }, 'exp'],
   ], [['pin', 'pa', 'in'], ['pa', 'gen', 'prompt'], ['gen', 'comp', 'garment'], ['des', 'comp', 'design'], ['comp', 'prev', 'in'], ['prev', 'exp', 'in']]); } },

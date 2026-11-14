@@ -8,6 +8,7 @@ import {
   solveHomography, applyHomography, UNIT_SQUARE, rectToQuad, presetQuadFor,
   migrateCompositionConfig, fieldMean, sampleField, displacementAt,
   buildWarpGrid, fitInto, CHANNEL_PRESETS, channelPreset, channelFileName,
+  chestQuadFor, GARMENT_QUADS,
 } from '../src/ai-studio/warp.js';
 
 const near = (a, b, eps = 1e-6) => Math.abs(a - b) <= eps;
@@ -119,7 +120,10 @@ test('P1 config with a rotation keeps simple mode (exact P1 rendering preserved)
 });
 
 test('garment preset quads exist for the calibrated hanger fixtures', () => {
-  assert.deepEqual(presetQuadFor('public/fixtures/real-tee/crew-white-hanger.webp'), [[0.315, 0.375], [0.515, 0.375], [0.52, 0.585], [0.31, 0.585]]);
+  // P4.2: preset quads were recalibrated with the chestQuadFor collar rule
+  // (the P3-era white-hanger quad top 0.375 sat only ~4.5% below the collar
+  // — the print rode onto the neck; the owner rejected that in P4.2).
+  assert.deepEqual(presetQuadFor('public/fixtures/real-tee/crew-white-hanger.webp'), chestQuadFor({ collarBottomY: 0.33, centerX: 0.415, width: 0.20, height: 0.19 }));
   assert.ok(presetQuadFor('public/fixtures/real-tee/crew-black-hanger.webp'));
   assert.equal(presetQuadFor('khong-co.webp'), null);
 });

@@ -53,14 +53,54 @@ export function rectToQuad(printX = 50, printY = 42, printW = 34) {
   const y0 = (printY - printW / 2) / 100, y1 = (printY + printW / 2) / 100;
   return clampQuad([[x0, y0], [x1, y0], [x1, y1], [x0, y1]]);
 }
-/** Calibrated/sensible preset quads for the built-in garment fixtures.
- * Hanger quads come from the shop's manual calibration (data/garments.json);
- * flatlay/back are hand-set chest-area defaults — all user-adjustable. */
+/**
+ * P4.2 collar-margin rule — the ONLY way chest quads are defined here.
+ * The owner rejected P4.1 because the default print area sat too high (the
+ * design touched the model's neck/chin while the chest stayed empty). The
+ * rule, applied to every base below with its MEASURED collar position:
+ *   - the quad's TOP edge sits `margin` (default 0.095, allowed 0.08–0.12)
+ *     of image height BELOW the collar's lower edge (`collarBottomY`,
+ *     measured on the actual image — neckline curve's lowest point);
+ *   - the quad is horizontally centred on the garment's chest (`centerX`,
+ *     measured, not assumed to be 0.5);
+ *   - the quad NEVER overlaps collar, neck, chin or hair.
+ * `collarBottomY`, `centerX`, `width` and `height` are per-image measured
+ * values, documented at each call site in GARMENT_QUADS / core.js.
+ */
+export function chestQuadFor({ collarBottomY, centerX = 0.5, width, height, margin = 0.095 }) {
+  if (!(collarBottomY >= 0 && collarBottomY < 1)) throw new Error('collarBottomY phải trong [0,1).');
+  if (!(margin >= 0.08 && margin <= 0.12)) throw new Error('margin (khoảng cách dưới cổ áo) phải trong [0.08, 0.12] chiều cao ảnh.');
+  if (!(width > 0 && height > 0)) throw new Error('width/height của vùng in phải > 0.');
+  const top = collarBottomY + margin;
+  return clampQuad([
+    [centerX - width / 2, top], [centerX + width / 2, top],
+    [centerX + width / 2, top + height], [centerX - width / 2, top + height],
+  ]);
+}
+/** Calibrated preset quads for the built-in garment fixtures (P4.2:
+ * every quad is derived via chestQuadFor from the collar position measured
+ * on the actual photo — see docs/AI_STUDIO_QA_REPORT.md P4.2 for the
+ * measurements. The old P3 quads put print tops at the collar/neck.)
+ * The cream flatlay close-up (crew-white-flatlay.webp) is NOT a base: it
+ * is a collar detail photo, so its bogus preset quad was removed. */
 export const GARMENT_QUADS = {
-  'public/fixtures/real-tee/crew-white-hanger.webp': [[0.315, 0.375], [0.515, 0.375], [0.52, 0.585], [0.31, 0.585]],
-  'public/fixtures/real-tee/crew-black-hanger.webp': [[0.335, 0.33], [0.603, 0.33], [0.608, 0.86], [0.33, 0.86]],
-  'public/fixtures/real-tee/crew-white-flatlay.webp': [[0.36, 0.30], [0.62, 0.30], [0.62, 0.62], [0.36, 0.62]],
-  'public/fixtures/real-tee/crew-white-back-worn.webp': [[0.35, 0.28], [0.63, 0.28], [0.64, 0.58], [0.34, 0.58]],
+  // White hanger (800×1200): collar lower edge 0.33 (orange inner strip
+  // scan + neckline curve), garment hangs angled — chest centre x 0.415
+  // (shop calibration in data/garments.json).
+  'public/fixtures/real-tee/crew-white-hanger.webp': chestQuadFor({ collarBottomY: 0.33, centerX: 0.415, width: 0.20, height: 0.19 }),
+  // Black hanger (1200×800): collar lower edge 0.26 (size-tag scan),
+  // garment centre x 0.495.
+  'public/fixtures/real-tee/crew-black-hanger.webp': chestQuadFor({ collarBottomY: 0.26, centerX: 0.495, width: 0.27, height: 0.28 }),
+  // White MODEL front photo (960×1200, Pexels 10159280, cropped to 4:5):
+  // neckline lowest point 0.358, torso centre x 0.486 (visually measured).
+  'public/fixtures/real-tee/crew-white-model.webp': chestQuadFor({ collarBottomY: 0.358, centerX: 0.486, width: 0.24, height: 0.15, margin: 0.085 }),
+  // Black tee displayed by a model (800×1200, Pexels 9558583): collar
+  // lower edge 0.495 (the garment fills the lower half of the frame, so
+  // the chest centre is lower than in an upper-body shot), centre x 0.58.
+  'public/fixtures/real-tee/crew-black-woman.webp': chestQuadFor({ collarBottomY: 0.495, centerX: 0.58, width: 0.30, height: 0.16, margin: 0.09 }),
+  // Back view (800×1200): back-collar lower edge 0.445, centre x 0.52.
+  // (Back prints sit lower than front chest prints by convention.)
+  'public/fixtures/real-tee/crew-white-back-worn.webp': chestQuadFor({ collarBottomY: 0.445, centerX: 0.52, width: 0.32, height: 0.20, margin: 0.09 }),
 };
 export function presetQuadFor(fixturePath) {
   const q = GARMENT_QUADS[fixturePath];
@@ -83,7 +123,11 @@ export function migrateCompositionConfig(cfg = {}) {
   // 'real' ignores the AI garment input and composites onto the real
   // fixture photo `realBase` with that fixture's calibrated preset quad.
   if (out.garmentSource === undefined) out.garmentSource = 'ai';
-  if (out.realBase === undefined) out.realBase = 'public/fixtures/real-tee/crew-white-hanger.webp';
+  if (out.realBase === undefined) out.realBase = 'public/fixtures/real-tee/crew-white-model.webp'; // P4.2: default real base = the white model photo
+  // P4.2: ink opacity (%) — the composited design is drawn at this opacity
+  // so the fabric texture/folds under the print stay faintly visible
+  // instead of the print looking like a flat sticker. 100 = P4.1 behaviour.
+  if (out.inkOpacity === undefined) out.inkOpacity = 95;
   if (out.mode === undefined) {
     if ((out.rotation || 0) !== 0) { out.mode = 'simple'; return out; }
     out.mode = 'perspective';

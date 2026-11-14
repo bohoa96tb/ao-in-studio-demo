@@ -114,3 +114,40 @@ Kết quả kiểm chứng trên nhánh `feature/ai-studio-p41` (base `34f3c28`)
 - **Độ bám thông số áo của AI THẬT (sana/flux): CHƯA kiểm chứng — có chủ đích.** Mọi kiểm chứng trên chạy ở DEMO (figure canvas xác định) + mock route. Prompt EN + thông số áo đã đúng cấu trúc, nhưng model thật có nghe lời tuyệt đối (đúng màu/phom, không tự in hình) hay không chỉ biết khi chạy thật — lần chạy Classic đầu tiên (0 Pollen) là quyết định của chủ shop sau khi P4.1 lên live. Nếu ảnh AI sai, đường fallback "Ảnh mẫu thật" đã sẵn sàng và đã được kiểm chứng ở mức pixel.
 - **Điện thoại Android thật:** chưa kiểm chứng P4.1 trên thiết bị thật (mới qua Playwright hasTouch @390/430). Chủ shop cần kiểm tra: đổi Kiểu áo/Màu áo trong panel Trợ lý prompt, chuyển Nguồn ảnh áo trong panel Ghép hình in.
 - Các mục chưa đạt từ P1–P4 vẫn giữ nguyên (video MP4, minimap, LCP của riêng studio.html chưa đo, quad mặt phẳng/mặt sau chưa hiệu chuẩn tay, img2img thật chưa hỗ trợ).
+
+## P4.2 — QA sửa vị trí vùng in, khung hướng dẫn, hòa trộn và ảnh nền thật (2026-11-14)
+
+Chủ shop bác bỏ P4.1 vì đầu ra không dùng để bán hàng được dù workflow báo 0 lỗi. P4.2 kiểm chứng bằng khẳng định MỨC PIXEL về VỊ TRÍ so với cơ thể (không chỉ "trong quad") + quét màu khung hướng dẫn, và xuất ảnh kết quả thật để duyệt bằng mắt.
+
+### Số đo cổ áo và quad đã hiệu chuẩn (đo trên ảnh/figure thật)
+
+| Nền | Mép dưới cổ áo (y) | Margin quad | Quad (tương đối) | Tâm dọc quad |
+|---|---|---|---|---|
+| Figure DEMO cổ tròn (vẽ trong studio.js) | 0.316 (điểm thấp nhất đường cong cổ + nét viền) | 0.099 | [[0.325,0.415],[0.675,0.415],[0.675,0.615],[0.325,0.615]] | 0.515 |
+| Figure DEMO oversize | 0.336 | 0.084 | [[0.30,0.42],[0.70,0.42],[0.70,0.62],[0.30,0.62]] | 0.52 |
+| Người mẫu trắng (Pexels 10159280) | 0.358 (điểm thấp nhất cổ áo trên ảnh 960×1200; tâm ngực x=0.486) | 0.085 | [[0.366,0.443],[0.606,0.443],[0.606,0.593],[0.366,0.593]] | 0.518 |
+| Người mẫu trắng — biến thể oversize | 0.358 | 0.085 | [[0.336,0.443],[0.636,0.443],[0.636,0.618],[0.336,0.618]] | 0.531 |
+| Người mẫu đen (Pexels 9558583) | 0.495 (áo được cầm căng, cổ áo ở giữa khung hình; tâm áo x=0.58) | 0.09 | [[0.43,0.585],[0.73,0.585],[0.73,0.745],[0.43,0.745]] | 0.665 (ngoài dải 42–52% vì khung hình chụp áo ở nửa dưới — đã ghi nhận) |
+| Móc treo trắng (Pexels 20669538) | 0.33 (quét dải cổ trong + đường cổ trên ảnh) | 0.095 | [[0.315,0.425],[0.515,0.425],[0.515,0.615],[0.315,0.615]] | 0.52 |
+| Móc treo đen (Pexels 8532616) | 0.26 (đáy tem size ở cổ) | 0.095 | [[0.36,0.355],[0.63,0.355],[0.63,0.635],[0.36,0.635]] | 0.495 |
+| Mặt sau trắng (Pexels 17515211) | 0.445 (mép dưới cổ sau) | 0.09 | [[0.36,0.535],[0.68,0.535],[0.68,0.735],[0.36,0.735]] | 0.635 |
+
+### Kết quả suite tests/ai-studio-tpl1.mjs (P4.2) — PASS toàn bộ
+
+- **WHITE-CREW @1366 và @390:** DEMO trả đúng ảnh người mẫu trắng 960×1200 (không phải figure vẽ), nhãn "dùng ảnh chụp thật làm ảnh nền tham chiếu" xuất hiện; mẫu màu hình in trong quad [793, 710, 807, 811, 57], rò rỉ ngoài quad **0**; bbox hình in: top **0.444** (≥ cổ 0.358 + 0.08 = 0.438 ✓), tâm **0.518** (trùng tâm quad); tương quan raster với hình in gốc **0.899** (ngưỡng giữ nguyên ≥0.85; số đo dao động nhẹ theo lượt chạy do lấy mẫu trên lưới warp, các lượt đo đều 0.90–0.99); export website đúng **1200×1500** với hình in hiện diện (tổng mẫu 5985).
+- **BLACK-CREW @1366:** DEMO trả ảnh đen 800×1200; cả 5 màu hình in hiện diện (tổng 4033), rò rỉ **0**; bbox top **0.587** (≥ 0.495 + 0.08 = 0.575 ✓), tâm **0.665** (trùng tâm quad, trong dải ngực của nền này [0.58, 0.74]); tương quan **0.92**.
+- **OVERSIZE @1366:** dùng ảnh trắng + quad rộng tự động; dấu chân hình in **1.48×** bản cổ tròn; rò rỉ **0**; tâm bbox 0.531 trong dải [0.42, 0.58].
+- **FALLBACK:** nguồn "Ảnh mẫu thật" mặc định → ảnh người mẫu trắng (đầu ra ghép 900×1125 — handler giới hạn bề ngang 900px từ trước), hình in đúng quad + đúng vị trí; đổi sang móc treo trắng → đầu ra 800×1200, pixel áo khớp fixture, hình in trong quad móc treo (tổng mẫu 3117), vị trí đạt quy tắc cổ áo.
+- **AI-FAIL:** Classic bị mock HTTP 500 — đúng **1 request mỗi lượt chạy** (retry ép 0); lỗi composition gợi ý chuyển "Ảnh mẫu thật"; chuyển nguồn → chạy hoàn tất trên ảnh thật.
+- **GUIDE-REGRESSION (case riêng, hình in KHÔNG chứa màu đỏ):** quét màu đỏ đứt nét của khung (182,73,47) quanh biên quad trên **1155** điểm mẫu — Xem trước: **0** pixel; file PNG xuất ra: **0** pixel. (Case riêng là bắt buộc: màu đỏ của chính hình in sau khi phủ bóng vải có thể lọt vào dung sai của màu khung — ghi rõ trong test.)
+- **Unit `npm test`: 105/105 PASS** (98 cũ + 7 test P4.2 mới: chestQuadFor + kiểm chứng margin, registry PHOTO_BASES + ánh xạ photoBaseFor, mặc định đơn giản, migrate inkOpacity). Hai khẳng định P4.1 về realBase mặc định được cập nhật theo quyết định P4.2 (mặc định = ảnh người mẫu trắng thay cho móc treo), có comment trong test.
+- **Hồi quy:** ai-studio.mjs (P1) PASS; ai-studio-p2.mjs PASS (chạy đơn lẻ — một lần chạy song song 3 suite trên VM nhỏ bị timeout do tranh CPU, chạy lại riêng PASS toàn bộ phase A–E); ai-studio-p3.mjs PASS; ai-studio-p4.mjs PASS; toàn bộ suite shop của CI (browser 5 viewport, interaction, p0, p1, p3, p31, p36, p4-shop) PASS; lint + build PASS; scripts/performance.mjs PASS theo tiêu chí của script (Performance 79 / LCP 3165 ms đo trên VM đang tải nặng — số đo môi trường, trang chủ shop; lần đo P4.1 trên máy yên tĩnh là 99 / 2265 ms). Baseline-screenshots để CI chạy (cần worktree commit P0).
+- **Ảnh kết quả cho chủ shop duyệt (bắt buộc ở P4.2):** chạy Mẫu 1 ở DEMO với hình in mẫu mặc định, xuất kênh website 1200×1500: `white-crew.png`, `black-crew.png`, `oversize.png` — hình in giữa ngực, dưới cổ áo, không khung đứt nét. Kèm trong báo cáo bàn giao.
+
+### CHƯA đạt / chưa kiểm chứng ở P4.2 (không báo PASS)
+
+- **Ảnh oversize người mẫu thật: CHƯA có.** Đã rà Pexels theo đúng kỷ luật thẩm định — không có ảnh oversize trơn chính diện đạt chuẩn (ứng viên đều có in/logo hoặc là áo sơ mi nút). Oversize tạm dùng ảnh trắng phom rộng + quad rộng hơn; khi có ảnh đạt chuẩn sẽ bổ sung vào PHOTO_BASES.
+- **Ảnh nền đen là áo được CẦM căng, không phải mặc:** mặt trước phẳng và trống nên ghép đúng, nhưng mép áo ngoài vùng in có biến dạng nhẹ; tâm vùng in 0.665 nằm ngoài dải ngực 42–52% của ảnh chân dung thông thường vì khung hình chụp áo ở nửa dưới — đúng với chính ảnh đó, đã ghi nhận thay vì giấu.
+- **Độ bám thông số áo của AI THẬT (sana/flux): vẫn CHƯA kiểm chứng** (giữ nguyên từ P4/P4.1 — không gọi API tạo ảnh thật theo quy định chi phí). P4.2 chỉ sửa đường DEMO + ghép; lần chạy thật đầu tiên vẫn là quyết định của chủ shop.
+- **Điện thoại Android thật:** P4.2 mới kiểm chứng qua Playwright (kèm viewport 390px trong suite tpl1). Chủ shop cần duyệt trực tiếp 3 ảnh kết quả và kiểm tra trên điện thoại: kéo quad trong trình căn chỉnh, trượt "Độ phủ mực", đổi "Ảnh mẫu thật".
+- Các mục chưa đạt từ P1–P4.1 giữ nguyên (video MP4, minimap, quad mặt phẳng chưa hiệu chuẩn tay cho shop, img2img thật chưa hỗ trợ).

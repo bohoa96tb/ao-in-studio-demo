@@ -50,3 +50,11 @@ All three: Pexels License (free commercial use, attribution not required, given 
 ## P3.2 ảnh mở đầu
 
 - `public/fixtures/real-tee/rack-neutral-ron-lach.webp`: ảnh giá áo trơn của Ron Lach, [Pexels 9594682](https://www.pexels.com/photo/white-and-brown-clothes-hanging-on-gray-metal-rack-9594682/), Pexels License, tải và xem ảnh 2026-11-09. Dùng làm ảnh không khí tham khảo, không đại diện sản phẩm thực tế hoặc dùng làm nền in.
+
+## AI Studio P4.2 additions (2026-11-14)
+
+| File | Nguồn | Tác giả | Giấy phép | Ghi chú |
+|---|---|---|---|---|
+| public/fixtures/real-tee/crew-white-model.webp (960×1200, ~38 KB) | https://www.pexels.com/photo/a-woman-in-white-crew-neck-shirt-10159280/ | ROMAN ODINTSOV | Pexels License | Tải bản 1600×2400 qua images.pexels.com, crop 4:5 (bỏ 16.7% phía trên), resize 960. Người mẫu nữ trưởng thành rõ ràng, mặc áo thun trắng cổ tròn TRƠN (không in/logo/chữ), chụp chính diện trong studio, ngực trống hoàn toàn. Dùng làm ảnh nền tham chiếu DEMO + nền ghép "Ảnh mẫu thật" trong AI Studio (đăng ký PHOTO_BASES trong src/ai-studio/core.js, quad ngực hiệu chuẩn theo cổ áo y≈0.358). |
+
+Ảnh Pexels 9558583 (crew-black-woman.webp, MART PRODUCTION — đã ghi ở bảng P2 phía trên): ở phía CỬA HÀNG ảnh này vẫn chỉ dùng lifestyle, KHÔNG ghép hình in (ghi chú P2 giữ nguyên). Riêng trong AI Studio P4.2, theo yêu cầu trực tiếp của chủ dự án về ảnh nền mẫu áo đen, ảnh được dùng làm nền tham chiếu DEMO: người mẫu cầm áo căng phẳng hướng thẳng vào camera nên mặt trước áo phẳng và trống; quad ngực được hiệu chuẩn tay trên chính mặt phẳng đó (cổ áo y≈0.495). Hạn chế đã biết: áo được cầm chứ không mặc, mép áo có biến dạng nhẹ ngoài vùng in.

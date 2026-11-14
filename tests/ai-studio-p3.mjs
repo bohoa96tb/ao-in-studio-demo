@@ -56,12 +56,14 @@ for (const width of [430, 1366]) {
   await p.waitForSelector('#ais-quad-canvas', { timeout: 15000 }).catch(() => fail('quad editor canvas missing @' + width));
   await p.waitForFunction(() => { const cv = document.querySelector('#ais-quad-canvas'); return cv && cv.width > 100 && cv.height > 100; }, null, { timeout: 15000 }).catch(() => fail('quad preview did not draw @' + width));
   const before = parseFloat(await p.inputValue('#pf-q0x'));
-  if (Math.abs(before - 31.5) > 0.6) fail('unexpected initial quad corner @' + width + ': ' + before);
-  // Drag corner handle 1 (at quad[0] = 31.5% x, 37.5% y of the canvas box).
+  // P4.2: Template 1's default quad is the recalibrated DEMO chest quad
+  // (corner 1 at 32.5% x, 41.5% y — centre-chest, below the collar).
+  if (Math.abs(before - 32.5) > 0.6) fail('unexpected initial quad corner @' + width + ': ' + before);
+  // Drag corner handle 1 (at quad[0] = 32.5% x, 41.5% y of the canvas box).
   await p.locator('#ais-quad-canvas').scrollIntoViewIfNeeded();
   await p.waitForTimeout(200);
   const box = await p.locator('#ais-quad-canvas').boundingBox();
-  const sx = box.x + box.width * 0.315, sy = box.y + box.height * 0.375;
+  const sx = box.x + box.width * 0.325, sy = box.y + box.height * 0.415;
   await p.mouse.move(sx, sy); await p.mouse.down();
   await p.mouse.move(sx + 26, sy + 18, { steps: 8 }); await p.mouse.up();
   await p.waitForTimeout(300);
