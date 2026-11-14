@@ -72,11 +72,16 @@ test('engine: error in one branch marks node error, missing required input caugh
   assert.ok(r === null || r.failed.length === 1);
 });
 
-test('prompt builder composes Vietnamese prompt from rules', () => {
+test('prompt builder composes the EN plain-garment generation prompt from rules (P4.1)', () => {
+  // P4.1 redesign (owner-mandated): the generation prompt is English, asks
+  // for a PLAIN tee driven by the garment params, and must NOT carry the
+  // old instructions that told the model to draw the print itself.
   const out = buildPrompt({ style: 'studio', model: 'nu-tre', background: 'studio-kem', lighting: 'mem', angle: 'thang', extra: 'màu áo đỏ' }, 'Mô tả gốc');
-  assert.ok(out.includes('Mô tả gốc'));
-  assert.ok(out.includes('người mẫu nữ trẻ'));
-  assert.ok(out.includes('giữ nguyên chính xác hình in gốc'.toLowerCase()) || out.includes('Giữ nguyên chính xác hình in gốc'));
+  assert.ok(out.includes('Mô tả gốc'), 'base prompt is carried through');
+  assert.ok(out.includes('a young female model'), 'model in English');
+  assert.ok(out.includes('PLAIN') && out.includes('white') && out.includes('classic crew-neck regular-fit'), 'plain white crew-neck garment');
+  assert.ok(!out.includes('Giữ nguyên chính xác hình in gốc'), 'old keep-the-print instruction removed');
+  assert.ok(!out.includes('mặc áo thun in theo yêu cầu'), 'old printed-tee instruction removed');
 });
 
 test('SVG safety check rejects scripts/handlers, accepts sample', () => {

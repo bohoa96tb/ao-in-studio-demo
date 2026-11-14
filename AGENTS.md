@@ -115,3 +115,18 @@ URL → img2img honestly errors). Keys stay session-memory only with the
 browser-key + auto-top-up warnings in the panel. AI outputs keep the
 "Ảnh AI" label; video stays DEMO. No IndexedDB version change in P4
 (still v2; run records gained `aiCalls`/`aiCostPollen` fields).
+P4.1 (2026-11-14, branch feature/ai-studio-p41): Template 1 flow is
+generate-plain-garment-FIRST, composite-original-design-AFTER
+(pa → gen → comp.garment; des → comp.design; comp → preview → export).
+Never wire composition INTO aiImageGen again — every real mode is
+text-to-image and discards the input; that inversion was the P4.1 bug.
+promptAssistant carries structured garment params (kieuAo/mauAo/gocChup)
+and buildPrompt emits an ENGLISH plain-tee prompt with strict
+no-print/no-logo/no-text + garment-type-lock prohibitions — the design
+is NEVER part of the generation prompt; the prompt value is
+{text, garment} and must round-trip the P2 cache intact. DEMO figure
+geometry lives in core.js DEMO_FIGURE (Template 1's comp quad = its
+chest quad). Composition gained garmentSource 'ai'|'real' + realBase:
+'real' composites onto the real fixture with its calibrated quad and
+must run even when aiImageGen failed (engine ignoreFailedUpstream
+hook). No IndexedDB version change (still v2).
