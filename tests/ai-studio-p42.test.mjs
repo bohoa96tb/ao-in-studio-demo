@@ -287,18 +287,25 @@ test('R1 — Template 1 factory: stamped meta, catalog prompt, AI-base default q
 });
 
 // ---------- ROUND 4 R2: real-AI framing guard classes ----------
+// P4.3 CONTRACT CHANGE (owner order 2026-11-15): the pass band was
+// tightened from h/w ∈ [1.10, 2.05] to [1.45, 2.10] after a real Classic
+// 3:4 close-up (h/w ≈ 1.33) passed the old band live. 4:5 / 3:4 outputs
+// are now the 'portrait-short' FAIL class; the full edge matrix lives in
+// tests/ai-studio-p43.test.mjs. The two assertions below were updated to
+// the new contract (they pinned the old band in P4.2).
 test('R2 — framingAspectClass: square/landscape/extreme fail, half-body portraits pass', () => {
   assert.equal(framingAspectClass(512, 512), 'square', 'the mocked sana close-up class');
   assert.equal(framingAspectClass(768, 768), 'square');
   assert.equal(framingAspectClass(1280, 720), 'landscape');
   assert.equal(framingAspectClass(300, 900), 'extreme-portrait');
-  assert.equal(framingAspectClass(614, 768), 'portrait-half-body', 'Classic 4:5 output passes the aspect gate');
-  assert.equal(framingAspectClass(1024, 1280), 'portrait-half-body');
+  assert.equal(framingAspectClass(614, 768), 'portrait-short', 'P4.3: Classic 4:5 output now FAILS the tightened band');
+  assert.equal(framingAspectClass(1024, 1280), 'portrait-short', 'P4.3: 4:5 fails');
   assert.equal(framingAspectClass(1280, 1920), 'portrait-half-body', 'the approved AI bases’ own aspect');
   assert.equal(framingAspectClass(720, 1280), 'portrait-half-body', '9:16');
   assert.equal(framingAspectClass(0, 100), 'invalid');
   assert.equal(passesHalfBodyFraming(512, 512), false);
-  assert.equal(passesHalfBodyFraming(1024, 1280), true);
+  assert.equal(passesHalfBodyFraming(1024, 1280), false, 'P4.3: 4:5 no longer passes');
+  assert.equal(passesHalfBodyFraming(1024, 1536), true, '2:3 passes');
 });
 
 // ---------- ROUND 4 R4: old Template 1 projects are refreshed on load ----------

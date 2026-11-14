@@ -31,6 +31,22 @@
 //     flag, retired realBase, stale quad, plus a stale cache record) is
 //     refreshed on load — note shown, project cache purged — and then
 //     runs on the new stack.
+// P4.3 (owner order 2026-11-15 — the owner's FIRST real Classic run on
+// the live site returned a 768×1024 sana CLOSE-UP, h/w ≈ 1.33, that
+// PASSED the P4.2 band [1.10, 2.05] and was composited):
+//   * the framing pass band is tightened to h/w ∈ [1.45, 2.10]
+//     ('portrait-short' is the new fail class for 4:5 / 3:4 outputs);
+//   * Template 1's real path requests the 2:3 size class (Classic
+//     512×768 — asserted from the intercepted request URL in CASE 10);
+//   * CASE 10: the 3:4 mock under STRICT (the shipped default) is
+//     refused exactly like CASE 7's square — approved-base fallback,
+//     zero mock pixels in the composite, fallback wording recorded,
+//     DEMO-stamped export (the fallback output is a DEMO output);
+//   * CASE 11: the same 3:4 mock with framingGuard 'allow' IS
+//     composited onto (the user's explicit override) — the composite
+//     keeps the mock's own size + colours, the result label honestly
+//     states the framing is NOT up to standard and the user chose it,
+//     and the export is NOT DEMO-stamped.
 // No real Pollinations traffic: DEMO makes no external requests; the
 // real-mode cases reuse the P4 suite's mocked-route pattern.
 import { chromium } from 'playwright';
@@ -535,6 +551,107 @@ for (const width of [1366, 390]) {
   await ctx.close();
 }
 
+// ---------- P4.3 shared helpers for CASE 10/11 ----------
+/** Mock of the owner's live failure: a 768×1024 (3:4, h/w ≈ 1.33)
+ * "close-up" in pure cyan — cyan occurs in neither the approved bases
+ * nor the design palette, so any cyan pixel in a composite proves the
+ * mock itself was composited onto. */
+async function mockPortrait34(p) {
+  return p.evaluate(async () => {
+    const c = document.createElement('canvas'); c.width = 768; c.height = 1024;
+    const x = c.getContext('2d'); x.fillStyle = '#00e5ff'; x.fillRect(0, 0, 768, 1024);
+    x.fillStyle = '#00b8cc'; x.beginPath(); x.arc(384, 300, 130, 0, 7); x.fill(); // face-like blob
+    const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+    return Array.from(new Uint8Array(await blob.arrayBuffer()));
+  });
+}
+function countMockPx(img) {
+  const px = pxReader(img); let n = 0;
+  for (let y = 0; y < img.h; y += 2) for (let x = 0; x < img.w; x += 2) { const c = px(x / img.w, y / img.h); if (near(c, [0, 229, 255], 40) || near(c, [0, 184, 204], 40)) n++; }
+  return n;
+}
+async function enableClassic(p) {
+  await p.click('#ais-toggle-props');
+  await p.waitForSelector('#ais-real-switch', { state: 'visible', timeout: 10000 });
+  const sw = p.locator('#ais-real-switch'); await sw.scrollIntoViewIfNeeded(); await sw.check();
+  await p.selectOption('#ais-provider-kind', 'pollinations-classic');
+  await p.click('#ais-toggle-props');
+}
+
+// ================= CASE 10 (P4.3): real-AI 3:4 close-up (768×1024) — STRICT refuses =================
+{
+  const { ctx, p, errors } = await newPage(1366);
+  const bad = await mockPortrait34(p);
+  let classicCalls = 0; const classicUrls = [];
+  await p.route('https://image.pollinations.ai/**', r => { classicCalls++; classicUrls.push(r.request().url()); r.fulfill({ status: 200, contentType: 'image/png', body: Buffer.from(bad) }); });
+  await p.route('https://gen.pollinations.ai/**', r => r.fulfill({ status: 200, contentType: 'application/json', body: '{"data":[]}' }));
+  await loadTpl1(p);
+  // the shipped default of the new panel select must be 'strict'
+  await nodeByTitle(p, 'Ghép hình in lên áo').locator('header strong').click();
+  await p.waitForSelector('#pf-framing-guard', { timeout: 10000 });
+  const guardDefault = await p.evaluate(() => document.querySelector('#pf-framing-guard')?.value);
+  if (guardDefault !== 'strict') fail('framing-strict-34: panel default for the framing guard must be strict, got ' + guardDefault);
+  await closeProps(p);
+  await enableClassic(p);
+  await runAll(p, 1366, 'framing-strict-34');
+  await expectSuccess(p, 'framing-strict-34');
+  if (classicCalls !== 1) fail('framing-strict-34: expected exactly 1 Classic request, got ' + classicCalls);
+  if (!/width=512/.test(classicUrls[0] || '') || !/height=768/.test(classicUrls[0] || '')) fail('framing-strict-34: the catalog path must request 512×768 (2:3) from Classic, got ' + classicUrls[0]);
+  const gen = await nodeCanvas(p, 'Tạo ảnh AI (DEMO)');
+  if (!gen || gen.w !== 768 || gen.h !== 1024) fail(`framing-strict-34: the mocked 3:4 image must be the gen output (768×1024), got ${gen && gen.w + '×' + gen.h}`);
+  const comp = await nodeCanvas(p, 'Ghép hình in lên áo');
+  if (!comp || comp.w !== 900 || comp.h !== 1350) fail(`framing-strict-34: composite must be built on the approved AI base (900×1350), got ${comp && comp.w + '×' + comp.h} — a 768-derived size would mean the 3:4 image was composited`);
+  const mockPx = countMockPx(comp);
+  if (mockPx > 0) fail(`framing-strict-34: ${mockPx} pixels of the 3:4 mock found in the composite — strict mode must never composite onto it`);
+  const an = analyse(comp, WHITE_QUAD, null);
+  if (totalOf(an.counts) < 500) fail('framing-strict-34: design missing on the fallback base composite: ' + an.counts);
+  const bodyText = await p.textContent('body');
+  if (!/Ảnh AI thật không đạt khung hình — đã dùng nền người mẫu đã duyệt/.test(bodyText || '')) fail('framing-strict-34: strict fallback wording missing from the result label/log');
+  const expImg = await nodeCanvas(p, 'Xuất file');
+  const banner = bannerCheck(expImg, 'framing-strict-34 export');
+  results.push({ case: 'framing-strict-34 (P4.3)', classicCalls, requestSize: '512×768 (2:3 catalog)', mockPxInComposite: mockPx, compDims: comp.w + '×' + comp.h, counts: an.counts, banner });
+  const realErrors = errors.filter(e => !/Failed to load resource/.test(e));
+  if (realErrors.length) fail('framing-strict-34: page errors: ' + realErrors.join(' | '));
+  await ctx.close();
+}
+
+// ================= CASE 11 (P4.3): same 3:4 mock with framingGuard 'allow' — user override =================
+{
+  const { ctx, p, errors } = await newPage(1366);
+  const bad = await mockPortrait34(p);
+  let classicCalls = 0;
+  await p.route('https://image.pollinations.ai/**', r => { classicCalls++; r.fulfill({ status: 200, contentType: 'image/png', body: Buffer.from(bad) }); });
+  await p.route('https://gen.pollinations.ai/**', r => r.fulfill({ status: 200, contentType: 'application/json', body: '{"data":[]}' }));
+  await loadTpl1(p);
+  await propSelect(p, 'Ghép hình in lên áo', '#pf-framing-guard', 'allow');
+  await enableClassic(p);
+  await runAll(p, 1366, 'framing-allow-34');
+  await expectSuccess(p, 'framing-allow-34');
+  if (classicCalls !== 1) fail('framing-allow-34: expected exactly 1 Classic request, got ' + classicCalls);
+  const gen = await nodeCanvas(p, 'Tạo ảnh AI (DEMO)');
+  if (!gen || gen.w !== 768 || gen.h !== 1024) fail(`framing-allow-34: the mocked 3:4 image must be the gen output (768×1024), got ${gen && gen.w + '×' + gen.h}`);
+  const comp = await nodeCanvas(p, 'Ghép hình in lên áo');
+  if (!comp || comp.w !== 768 || comp.h !== 1024) fail(`framing-allow-34: composite must be built ON the mock image (768×1024), got ${comp && comp.w + '×' + comp.h} — the approved-base size would mean the override was ignored`);
+  const mockPx = countMockPx(comp);
+  if (mockPx < 2000) fail(`framing-allow-34: only ${mockPx} mock-colour samples in the composite — the design must sit on the mock image itself`);
+  const an = analyse(comp, WHITE_QUAD, null);
+  if (totalOf(an.counts) < 150) fail('framing-allow-34: design barely composited onto the mock image: ' + an.counts);
+  const bodyText = await p.textContent('body');
+  if (!/KHÔNG đạt chuẩn khung hình — người dùng chọn vẫn ghép lên ảnh AI này/.test(bodyText || '')) fail('framing-allow-34: honest not-up-to-standard label wording missing');
+  if (/Ảnh AI thật không đạt khung hình — đã dùng nền người mẫu đã duyệt/.test(bodyText || '')) fail('framing-allow-34: strict fallback wording must not appear when the user override was used');
+  // No DEMO stamp on the export: the top strip must stay the mock's own
+  // colours, not the dark DEMO banner (the base IS the real AI image).
+  const expImg = await nodeCanvas(p, 'Xuất file');
+  if (!expImg || expImg.w !== 1200 || expImg.h !== 1500) fail(`framing-allow-34: export PNG must be 1200×1500, got ${expImg && expImg.w + '×' + expImg.h}`);
+  const pxE = pxReader(expImg); const stripH = Math.round(expImg.h * 0.045); let dark = 0, n = 0;
+  for (let y = 1; y < stripH; y += 2) for (let x = 0; x < expImg.w; x += 4) { const c = pxE(x / expImg.w, y / expImg.h); n++; if (c[0] < 90 && c[1] < 90 && c[2] < 90) dark++; }
+  if (dark / n > 0.2) fail(`framing-allow-34: export top strip looks DEMO-stamped (${(dark / n).toFixed(2)} dark) — a real-AI composite must not carry the DEMO frame`);
+  results.push({ case: 'framing-allow-34 (P4.3)', classicCalls, mockPxInComposite: mockPx, compDims: comp.w + '×' + comp.h, counts: an.counts, exportDarkStripRatio: Number((dark / n).toFixed(3)) });
+  const realErrors = errors.filter(e => !/Failed to load resource/.test(e));
+  if (realErrors.length) fail('framing-allow-34: page errors: ' + realErrors.join(' | '));
+  await ctx.close();
+}
+
 // ================= CASE 8 (R3): FRESH project from Template 1 — zero manual edits =================
 // A completely new browser profile (fresh IndexedDB: assert no projects,
 // no drafts exist), instantiate Template 1, run the 3 standard cases and
@@ -614,4 +731,4 @@ for (const width of [1366, 390]) {
 }
 
 await browser.close();
-console.log(JSON.stringify({ suite: 'ai-studio-tpl1 (P4.2 round 4)', pass: true, results }, null, 1));
+console.log(JSON.stringify({ suite: 'ai-studio-tpl1 (P4.2 round 4 + P4.3)', pass: true, results }, null, 1));

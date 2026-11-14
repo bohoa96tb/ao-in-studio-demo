@@ -33,7 +33,7 @@ export const NODE_DEFS = {
   promptAssistant: { label: 'Trợ lý prompt (quy tắc)', category: 'process', color: '#38618c', inputs: [{ id: 'in', type: 'prompt', label: 'Prompt gốc', required: false }], outputs: [{ id: 'out', type: 'prompt', label: 'Prompt' }],
     defaults: { style: 'studio', model: 'nu-viet', background: 'studio-kem', lighting: 'mem', angle: 'thang', kieuAo: 'co-tron', mauAo: 'trang', gocChup: 'chinh-dien', extra: '', composed: '', catalogPrompt: false } },
   composition: { label: 'Ghép hình in lên áo', category: 'process', color: '#b6492f', inputs: [{ id: 'garment', type: 'image', label: 'Ảnh áo', required: false }, { id: 'design', type: 'design', label: 'Hình in', required: true }], outputs: [{ id: 'out', type: 'image', label: 'Ảnh ghép' }],
-    defaults: { base: 'public/fixtures/real-tee/crew-white-hanger.webp', garmentSource: 'ai', realBase: 'public/fixtures/real-tee/crew-white-hanger.webp', printX: 50, printY: 55, printW: 30, rotation: 0, mode: 'perspective', quad: GARMENT_QUADS['public/fixtures/real-tee/crew-white-hanger.webp'].map(p => [...p]), wrinkle: 35, shading: 45, inkOpacity: 95, label: 'Ảnh ghép hậu kỳ — hình in là file gốc, không phải AI vẽ lại' } },
+    defaults: { base: 'public/fixtures/real-tee/crew-white-hanger.webp', garmentSource: 'ai', realBase: 'public/fixtures/real-tee/crew-white-hanger.webp', printX: 50, printY: 55, printW: 30, rotation: 0, mode: 'perspective', quad: GARMENT_QUADS['public/fixtures/real-tee/crew-white-hanger.webp'].map(p => [...p]), wrinkle: 35, shading: 45, inkOpacity: 95, framingGuard: 'strict', label: 'Ảnh ghép hậu kỳ — hình in là file gốc, không phải AI vẽ lại' } },
   background: { label: 'Nền & bối cảnh', category: 'process', color: '#2f6f6f', inputs: [{ id: 'in', type: 'image', label: 'Ảnh sản phẩm', required: true }], outputs: [{ id: 'out', type: 'image', label: 'Ảnh có nền' }],
     defaults: { mode: 'solid', color: '#f5f1e6', color2: '#d9c6a5', dir: 'down', horizon: 62, shadow: 55, vignette: 25, assetId: '', assetName: '', bgFit: 'cover', bgBlur: 0, scale: 82, posX: 50, posY: 50, framePad: 7 } },
   imageEditor: { label: 'Chỉnh sửa ảnh', category: 'process', color: '#8c6d1f', inputs: [{ id: 'in', type: 'image', label: 'Ảnh', required: true }], outputs: [{ id: 'out', type: 'image', label: 'Ảnh' }],
@@ -426,7 +426,7 @@ export function aiModelBaseFor(garment) {
  * NEVER be silently reused after an upgrade — the chained config/input
  * hash alone does not cover code behaviour. Bump on any behaviour
  * change that alters node outputs for identical configs/inputs. */
-export const AI_STUDIO_BUILD = 'p42-r4';
+export const AI_STUDIO_BUILD = 'p43';
 /** Template 1's own version. Template-1-derived projects carry
  * meta {templateId:'tpl1', tplVersion} (stamped by the template factory
  * and threaded through save/draft/version snapshots). On load, a

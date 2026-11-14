@@ -108,9 +108,14 @@ export function clampClassicSize(w, h) {
   return { w: Math.max(64, Math.floor(w * s)), h: Math.max(64, Math.floor(h * s)) };
 }
 export function sizeForRatio(ratio, kind) {
+  // P4.3: '2:3' is the catalog (Template 1) request class — the tallest
+  // portrait each adapter legitimately supports at its quality tier:
+  // keyed 1024×1536; Classic 512×768 (2:3 inside its ≤768 cap, never
+  // above it — sana often ignores the requested size anyway, and the
+  // tightened framing guard in warp.js is what judges the OUTPUT).
   const table = kind === 'free'
-    ? { '4:5': [614, 768], '1:1': [768, 768], '9:16': [432, 768], '16:9': [768, 432] }
-    : { '4:5': [1024, 1280], '1:1': [1024, 1024], '9:16': [720, 1280], '16:9': [1280, 720] };
+    ? { '4:5': [614, 768], '2:3': [512, 768], '1:1': [768, 768], '9:16': [432, 768], '16:9': [768, 432] }
+    : { '4:5': [1024, 1280], '2:3': [1024, 1536], '1:1': [1024, 1024], '9:16': [720, 1280], '16:9': [1280, 720] };
   const [w, h] = table[ratio] || table['4:5'];
   return { w, h };
 }

@@ -290,11 +290,11 @@ const demoImpl = {
 // when the value is served back. API keys are never part of a cache record.
 async function cachePutRecord(key, node, value) {
   if (!value || (value.kind !== 'prompt' && !(value.blob instanceof Blob))) return;
-  await store.putCache({ key, projectId, nodeId: node.id, nodeType: node.type, createdAt: Date.now(), kind: value.kind, label: value.label || '', demo: !!value.demo, name: value.name || '', mime: value.mime || '', svgText: value.svgText || '', text: value.text || '', garment: value.garment || null, baseQuad: value.baseQuad || null, photoBase: value.photoBase || '', baseKind: value.baseKind || '', realAi: !!value.realAi, blob: value.blob instanceof Blob ? value.blob : null });
+  await store.putCache({ key, projectId, nodeId: node.id, nodeType: node.type, createdAt: Date.now(), kind: value.kind, label: value.label || '', demo: !!value.demo, name: value.name || '', mime: value.mime || '', svgText: value.svgText || '', text: value.text || '', garment: value.garment || null, catalog: !!value.catalog, baseQuad: value.baseQuad || null, photoBase: value.photoBase || '', baseKind: value.baseKind || '', realAi: !!value.realAi, blob: value.blob instanceof Blob ? value.blob : null });
 }
 async function cacheGetRecord(key) {
   const r = await store.getCache(key); if (!r) return null;
-  if (r.kind === 'prompt') return { kind: 'prompt', text: r.text, garment: r.garment || null };
+  if (r.kind === 'prompt') return { kind: 'prompt', text: r.text, garment: r.garment || null, catalog: !!r.catalog };
   if (r.blob) return valueFromBlob(r.blob, r.kind, { name: r.name, demo: r.demo, label: r.label, svgText: r.svgText, baseQuad: r.baseQuad || null, photoBase: r.photoBase || '', baseKind: r.baseKind || '', garment: r.garment || null, realAi: !!r.realAi });
   return null;
 }
@@ -488,7 +488,10 @@ const handlers = {
   // the EN text, so aiImageGen (and the DEMO figure) get machine-readable
   // style/colour/view — not just prose. Legacy string prompts still work:
   // consumers read .text and treat a missing .garment as "no params".
-  async promptAssistant(node, { inputs }) { const text = buildPrompt(node.config, inputs.in?.text || ''); node.config.composed = text; return { kind: 'prompt', text, garment: garmentParams(node.config) }; },
+  // P4.3: the prompt value also carries `catalog` (this assistant is
+  // wired with the owner's verbatim catalog template — Template 1), so
+  // aiImageGen can request the 2:3 catalog size class on the real path.
+  async promptAssistant(node, { inputs }) { const text = buildPrompt(node.config, inputs.in?.text || ''); node.config.composed = text; return { kind: 'prompt', text, garment: garmentParams(node.config), catalog: !!node.config.catalogPrompt }; },
   async composition(node, { inputs, log, engine }) {
     const design = inputs.design; if (!design) throw new Error('Thiếu hình in.');
     const cfg = migrateCompositionConfig(node.config); node.config = cfg;
@@ -513,27 +516,42 @@ const handlers = {
     }
     const srcNote = useReal ? ' · ghép lên ẢNH MẪU THẬT' : '';
     let g = await blobToImg(garmentBlob);
-    // P4.2 ROUND 4 (R2) — REAL-AI FRAMING GUARD. The owner's live failure
-    // (2026-11-14): a real-AI (Classic sana) garment photo arrived as a
-    // close-up whose framing broke compositing, and nothing checked it.
-    // Rule: a garment value flagged realAi (produced by a real provider
-    // in aiImageGen) is UNVALIDATED until this node checks its framing
-    // class (aspect heuristic — framingAspectClass in warp.js; landmark
-    // detection client-side is not reliable enough to gate on). If it
-    // fails, composition NEVER composites onto it: it falls back to the
-    // owner-approved AI model base for the same garment params, records
-    // the fallback in this node's log (persisted in the P2 run history)
-    // and in the result label. With no approved base for the params it
-    // errors honestly instead of producing a wrong composite.
+    // P4.2 ROUND 4 (R2) — REAL-AI FRAMING GUARD, tightened in P4.3. The
+    // owner's live failures: a real-AI (Classic sana) garment photo
+    // arrived as a close-up whose framing broke compositing (2026-11-14),
+    // and a 768×1024-class close-up (h/w ≈ 1.33) then PASSED the old
+    // aspect band and was composited (2026-11-15). Rule: a garment value
+    // flagged realAi (produced by a real provider in aiImageGen) is
+    // UNVALIDATED until this node checks its framing class (aspect
+    // heuristic — framingAspectClass in warp.js, band now [1.45, 2.10];
+    // landmark detection client-side is not reliable enough to gate on).
+    // P4.3 adds the user's explicit override, config framingGuard:
+    //  - 'strict' (default): a failing image is NEVER composited onto —
+    //    composition falls back to the owner-approved AI model base for
+    //    the same garment params, records the fallback in this node's
+    //    log (persisted in the P2 run history) and in the result label.
+    //    With no approved base for the params it errors honestly instead
+    //    of producing a wrong composite.
+    //  - 'allow': the user has chosen to accept the off-standard frame —
+    //    composition proceeds onto the real AI image with the normal
+    //    quad resolution, and BOTH the log and the result label state
+    //    plainly that the framing is not up to standard and the user
+    //    chose to use it anyway. The output is NOT marked DEMO (its base
+    //    really is the AI image) and gets no DEMO export stamp.
     let framingNote = '';
+    let framingFallback = false;
     if (!useReal && inputs.garment?.realAi) {
       if (passesHalfBodyFraming(g.width, g.height)) {
         log(`Ảnh AI thật đạt kiểm tra khung hình (chân dung nửa người, ${g.width}×${g.height}) — ghép lên chính ảnh AI này.`);
+      } else if (cfg.framingGuard === 'allow') {
+        log(`Ảnh AI thật KHÔNG đạt chuẩn khung hình (${g.width}×${g.height} — lớp "${framingAspectClass(g.width, g.height)}", cần chân dung nửa người h/w trong [1.45, 2.10]) — kiểm tra khung đang ở chế độ LINH HOẠT nên vẫn ghép lên ảnh AI này theo lựa chọn của bạn; khung hình này KHÔNG đạt chuẩn nửa người đã duyệt.`);
+        framingNote = ' · Ảnh AI thật KHÔNG đạt chuẩn khung hình — người dùng chọn vẫn ghép lên ảnh AI này (kiểm tra khung: Linh hoạt)';
       } else {
         const ab = aiModelBaseFor(inputs.garment.garment);
-        if (!ab) throw new Error(`Ảnh AI thật không đạt khung hình (${g.width}×${g.height} — lớp "${framingAspectClass(g.width, g.height)}", cần chân dung nửa người) và chưa có nền người mẫu đã duyệt cho thông số áo này. Hãy chuyển "Nguồn ảnh áo" sang "Ảnh mẫu thật", hoặc đổi tỉ lệ ảnh ở node Tạo ảnh AI rồi chạy lại.`);
+        if (!ab) throw new Error(`Ảnh AI thật không đạt khung hình (${g.width}×${g.height} — lớp "${framingAspectClass(g.width, g.height)}", cần chân dung nửa người) và chưa có nền người mẫu đã duyệt cho thông số áo này. Hãy chuyển "Nguồn ảnh áo" sang "Ảnh mẫu thật", hoặc đổi tỉ lệ ảnh ở node Tạo ảnh AI rồi chạy lại. Nếu vẫn muốn ghép lên chính ảnh AI này, đặt "Kiểm tra khung hình ảnh AI thật" của node này sang "Linh hoạt".`);
         log(`Ảnh AI thật không đạt khung hình (${g.width}×${g.height} — lớp "${framingAspectClass(g.width, g.height)}", cần chân dung nửa người) — đã dùng nền người mẫu đã duyệt thay thế; KHÔNG ghép lên ảnh AI sai khung.`);
         framingNote = ' · Ảnh AI thật không đạt khung hình — đã dùng nền người mẫu đã duyệt';
+        framingFallback = true;
         garmentBlob = await fetchBlob(ab.base.path);
         g = await blobToImg(garmentBlob);
         quadOverride = ab.quad;
@@ -550,7 +568,7 @@ const handlers = {
       const pw = W * (cfg.printW / 100), px = W * (cfg.printX / 100) - pw / 2, py = H * (cfg.printY / 100) - pw / 2;
       x.save(); x.translate(px + pw / 2, py + pw / 2); x.rotate((cfg.rotation || 0) * Math.PI / 180); const ds = Math.min(pw / dImg.width, pw / dImg.height); x.globalAlpha = Math.min(100, Math.max(50, cfg.inkOpacity ?? 95)) / 100; x.drawImage(dImg, -dImg.width * ds / 2, -dImg.height * ds / 2, dImg.width * ds, dImg.height * ds); x.restore();
       log('Đã ghép file hình in GỐC lên ảnh áo (chế độ đơn giản P1) — nội dung hình in không bị AI vẽ lại.');
-      return valueFromBlob(await canvasBlob(c), 'image', { label: cfg.label + srcNote + framingNote, demo: !useReal && (!!inputs.garment?.demo || !!framingNote) });
+      return valueFromBlob(await canvasBlob(c), 'image', { label: cfg.label + srcNote + framingNote, demo: !useReal && (!!inputs.garment?.demo || framingFallback) });
     }
     // P3 perspective mode: homography warp onto the 4-point quad + wrinkle
     // displacement + garment shading. The design drawn is the ORIGINAL file.
@@ -582,7 +600,7 @@ const handlers = {
     // channel crop/resize (uniform banner in every exported file).
     // Round-4 fix: that export stamp is the ONLY frame — generation no
     // longer bakes one into the garment image this node consumes.
-    return valueFromBlob(await canvasBlob(c), 'image', { label: cfg.label + ' · phối cảnh 4 điểm + cong theo nếp vải (mô phỏng)' + srcNote + framingNote, demo: !useReal && (!!inputs.garment?.demo || !!framingNote) });
+    return valueFromBlob(await canvasBlob(c), 'image', { label: cfg.label + ' · phối cảnh 4 điểm + cong theo nếp vải (mô phỏng)' + srcNote + framingNote, demo: !useReal && (!!inputs.garment?.demo || framingFallback) });
   },
   async background(node, { inputs, log }) {
     const v = inputs.in; if (!v?.blob) throw new Error('Thiếu ảnh đầu vào.');
@@ -672,7 +690,17 @@ const handlers = {
       if (model.supportsImg2Img) throw new Error('Model này hỗ trợ img2img NHƯNG ảnh tham chiếu đang lưu trên máy của bạn (IndexedDB), chưa có URL công khai — P4 không tự tải ảnh của bạn lên bất kỳ dịch vụ nào. Hãy bỏ dây ảnh tham chiếu, hoặc chọn model chỉ tạo từ chữ (flux / zimage).');
       log(`Model ${model.name} không hỗ trợ ảnh tham chiếu — tạo ảnh chỉ từ prompt; ảnh tham chiếu KHÔNG bị gửi đi đâu.`);
     }
-    const { w, h } = sizeForRatio(node.config.ratio || '4:5', p.kind);
+    // P4.3: when this node serves the CATALOG garment prompt (Template
+    // 1's verbatim half-body template), request the 2:3 size class — the
+    // tallest portrait the adapter legitimately supports — so a real
+    // output has a real chance to land inside the tightened half-body
+    // framing band [1.45, 2.10]. Other prompts keep the node's
+    // configured ratio. (Classic stays within its ≤768 cap; if sana
+    // still returns a short/close-up frame, the composition framing
+    // guard judges the output — that refusal is intended behaviour.)
+    const catalogReq = !!inputs.prompt?.catalog;
+    const { w, h } = sizeForRatio(catalogReq ? '2:3' : (node.config.ratio || '4:5'), p.kind);
+    if (catalogReq) log('Prompt catalogue (Mẫu 1): yêu cầu kích thước 2:3 — khung dọc cao nhất adapter hỗ trợ, khớp dải khung nửa người của bộ lọc ở node Ghép hình.');
     log(`Đang gọi AI THẬT: ${p.name} · model ${model.name} · ${w}×${h} · chi phí ${model.pricePerImage === 0 ? '0 (miễn phí)' : '~' + model.pricePerImage + ' Pollen'}…`);
     const res = await p.generateImage({ prompt: promptText, width: w, height: h, seed: -1 });
     noteRealCall(res);
@@ -850,6 +878,9 @@ function renderProperties() {
     h += field('Nguồn ảnh áo', sel('pf-garment-source', [['ai', 'Ảnh từ node Tạo ảnh AI (áo trơn do AI tạo)'], ['real', 'Ảnh mẫu thật — bỏ qua ảnh AI']], cm.garmentSource));
     if (cm.garmentSource === 'real') h += field('Ảnh nền dùng để ghép (mẫu thật / người mẫu AI tạo)', sel('pf-real-base', [...PHOTO_BASES, ...AI_MODEL_BASES].map(b => [b.path, b.name]), cm.realBase));
     h += '<p class="hint">Nếu ảnh AI sai kiểu áo/màu áo → chuyển Nguồn ảnh áo sang \'Ảnh mẫu thật\' để ghép lên ảnh áo thật. Ở chế độ Ảnh mẫu thật, vùng in dùng quad đã hiệu chuẩn sẵn của ảnh mẫu đó và node này vẫn chạy được kể cả khi node AI bị lỗi.</p>';
+    // P4.3: framing-guard mode for real-AI garment inputs (warp.js band).
+    h += field('Kiểm tra khung hình ảnh AI thật', sel('pf-framing-guard', [['strict', 'Nghiêm ngặt — ảnh AI sai khung thì dùng nền người mẫu đã duyệt'], ['allow', 'Linh hoạt — vẫn ghép lên ảnh AI dù sai khung']], cm.framingGuard));
+    h += '<p class="hint">Chỉ áp dụng khi Nguồn ảnh áo là ảnh từ node Tạo ảnh AI và đang chạy AI THẬT. Ảnh đạt chuẩn = chân dung nửa người (tỉ lệ cao/rộng 1.45–2.10, như nền người mẫu đã duyệt 2:3). Nghiêm ngặt (mặc định): ảnh sai khung bị từ chối, tự thay bằng nền người mẫu đã duyệt. Linh hoạt: vẫn ghép lên chính ảnh AI sai khung — nhãn kết quả sẽ ghi rõ khung hình KHÔNG đạt chuẩn và đó là lựa chọn của bạn.</p>';
     h += field('Ảnh áo nền (khi không có dây vào)', sel('pf-base', FIXTURES, c.base));
     h += field('Chế độ ghép', sel('pf-comp-mode', [['perspective', 'Phối cảnh 4 điểm (P3)'], ['simple', 'Đơn giản — chữ nhật (P1)']], cm.mode));
     if (cm.mode === 'perspective') {
@@ -1011,6 +1042,7 @@ function bindProperties(node) {
     // (called just below) replaces node.config with a migrated copy, which
     // would orphan any writes made through the older object reference.
     on('pf-garment-source', 'change', e => { node.config.garmentSource = e.target.value; delete node.config.quadSource; node.config = migrateCompositionConfig(node.config); pushHistory(); renderAll(); scheduleSave(); });
+    on('pf-framing-guard', 'change', e => { node.config.framingGuard = e.target.value; node.config = migrateCompositionConfig(node.config); renderNodes(); scheduleSave(); });
     on('pf-real-base', 'change', e => { node.config.realBase = e.target.value; delete node.config.quadSource; renderNodes(); scheduleSave(); });
     on('pf-comp-mode', 'change', e => { c.mode = e.target.value; if (c.mode === 'perspective') node.config = migrateCompositionConfig(node.config); pushHistory(); renderAll(); scheduleSave(); });
     if (document.getElementById('ais-quad-canvas')) {
@@ -1522,5 +1554,5 @@ $('#ais-run-mobile')?.addEventListener('click', () => runNodes('all'));
   await checkRecovery();
   updateModeBadge();
   document.body.dataset.ready = 'true'; document.documentElement.dataset.ready = 'true';
-  logLine('AI Studio P4.2 sẵn sàng: vùng in hiệu chuẩn theo mốc thân áo (giữa ngực trên, cách mép dưới cổ 12–15% chiều dài thân áo, rộng 35–45% bề ngang thân), khung đứt nét CHỈ còn trong trình căn chỉnh (không dính vào Xem trước/file xuất), hòa trộn mực theo bóng vải + độ phủ mực 95%. DEMO dùng ẢNH NGƯỜI MẪU DO AI TẠO đã được chủ shop duyệt cho áo trắng/đen cổ tròn và áo trắng oversize (nhãn node ghi rõ "do AI tạo", không phải ảnh chụp thật); thông số chưa có ảnh người mẫu thì dùng hình vẽ DEMO. Nếu ảnh AI sai kiểu/màu, chuyển node Ghép hình sang nguồn "Ảnh mẫu thật". AI thật qua Pollinations (P4) sau công tắc "Chế độ AI thật" — mặc định TẮT, đang ở DEMO.');
+  logLine('AI Studio P4.3 sẵn sàng: vùng in hiệu chuẩn theo mốc thân áo (giữa ngực trên, cách mép dưới cổ 12–15% chiều dài thân áo, rộng 35–45% bề ngang thân), khung đứt nét CHỈ còn trong trình căn chỉnh (không dính vào Xem trước/file xuất), hòa trộn mực theo bóng vải + độ phủ mực 95%. DEMO dùng ẢNH NGƯỜI MẪU DO AI TẠO đã được chủ shop duyệt cho áo trắng/đen cổ tròn và áo trắng oversize (nhãn node ghi rõ "do AI tạo", không phải ảnh chụp thật); thông số chưa có ảnh người mẫu thì dùng hình vẽ DEMO. AI thật: bộ lọc khung hình đã SIẾT — chỉ nhận ảnh dọc nửa người (cao/rộng 1.45–2.10); mặc định NGHIÊM NGẶT: ảnh AI sai khung bị từ chối và tự thay bằng nền người mẫu đã duyệt. Muốn vẫn ghép lên ảnh AI sai khung: mở node Ghép hình, đặt "Kiểm tra khung hình ảnh AI thật" sang Linh hoạt — kết quả sẽ ghi rõ khung KHÔNG đạt chuẩn. Nếu ảnh AI sai kiểu/màu, chuyển node Ghép hình sang nguồn "Ảnh mẫu thật". AI thật qua Pollinations (P4) sau công tắc "Chế độ AI thật" — mặc định TẮT, đang ở DEMO.');
 })();
