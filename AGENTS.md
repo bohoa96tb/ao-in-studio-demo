@@ -240,3 +240,23 @@ user content is never touched. A fresh Template 1 instance must run to
 the correct result with ZERO manual edits — tests/ai-studio-tpl1.mjs
 CASE 8 proves it on a virgin IndexedDB (fresh-* exports byte-identical
 to the standard previews).
+P4.2 round-4 double-frame fix (2026-11-14 — this SUPERSEDES the
+supplementary paragraph's "baked strip AND export stamp" sentence):
+the owner approved the white + black previews as-is and rejected only
+the oversize export because the DEMO frame was stamped TWICE — the
+generator baked a banner + terracotta border into its output, and the
+contain export path kept that baked frame INSIDE the export stamp
+(two-tone banner strip spanning only the contained column + two
+full-height terracotta lines at the column edges). RULE from now on:
+the DEMO frame is applied EXACTLY ONCE, by `stampDemoFrame` in the
+export node on the final channel image; `demoImage` bakes NO banner
+and NO border into any intermediate (AI-model base, photo base,
+figure, legacy wash) — in-app honesty rides the value's demo flag +
+text label. `drawDemoBanner` survives only in the demo variation /
+demo video paths, whose outputs are final artefacts, not compositing
+inputs. Verified non-regression: the real-path driver regenerates the
+approved white/black exports byte-identically (in cover exports the
+baked strip was always cropped away and the baked border fully
+covered by the stamp border); the fixed oversize pair keeps gap
+0.136 / width 0.394 / centre 0 with zero terracotta pixels at the
+contain column edges.

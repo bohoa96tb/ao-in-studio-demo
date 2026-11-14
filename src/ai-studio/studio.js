@@ -53,21 +53,25 @@ function valueFromBlob(blob, kind, extra = {}) { return { kind, blob, url: URL.c
 async function fetchBlob(url) { const r = await fetch(url); if (!r.ok) throw new Error('Không tải được file: ' + url); return r.blob(); }
 function wrapText(ctx, text, x, y, maxW, lh) { const words = String(text).split(/\s+/); let line = '', yy = y; for (const w of words) { const t = line ? line + ' ' + w : w; if (ctx.measureText(t).width > maxW && line) { ctx.fillText(line, x, yy); line = w; yy += lh; } else line = t; } if (line) ctx.fillText(line, x, yy); return yy; }
 function drawDemoBanner(ctx, w, text = 'ẢNH DEMO — chưa kết nối AI', h = 0) { ctx.save(); const stripH = h > 0 ? Math.max(30, Math.round(h * 0.045)) : 54; const fontPx = h > 0 ? Math.round(stripH * 0.48) : 26; ctx.fillStyle = 'rgba(32,32,32,0.88)'; ctx.fillRect(0, 0, w, stripH); ctx.fillStyle = '#ffb59d'; ctx.font = `bold ${fontPx}px Arial`; ctx.textAlign = 'center'; ctx.fillText(text, w / 2, Math.round(stripH * 0.685)); ctx.restore(); }
-// P4.2 supplementary (FIX D): when h is given, the strip is 4.5% of the
-// canvas height — the SAME fraction stampDemoFrame stamps onto channel
-// exports — so the export stamp covers the baked strip exactly (one
-// clean banner). The old fixed 54px was 5.6% of the 960px-tall figure
-// canvas vs 4.5% of the 1200px photo, leaving a ghost strip under the
-// stamp in figure-based exports.
+// P4.2 round-4 FIX (double frame): drawDemoBanner is NO LONGER used by
+// the aiImageGen DEMO outputs — generation must not bake any frame into
+// an intermediate image (see stampDemoFrame below). It remains only for
+// the demo VARIATION and demo VIDEO paths, whose outputs are final
+// artefacts of those nodes rather than compositing inputs.
 /**
- * P4.2 supplementary (FIX D): the DEMO frame (dark banner strip + text +
- * terracotta border) is re-stamped on the FINAL channel image, AFTER the
- * crop/resize — sized relative to the final image so every export carries
- * the SAME treatment. (Round 1 baked the banner into the generated image
- * only: the website cover-crop then cut the black case's banner off the
- * top while white/oversize kept theirs.) Stamping the identical strip
- * over the top of an uncropped image is a no-op visually — the strip
- * height matches the generator's 54px-at-1200 ≈ 4.5% of height.
+ * P4.2 supplementary (FIX D) + round-4 FIX: the DEMO frame (dark banner
+ * strip + text + terracotta border) is stamped EXACTLY ONCE, here, on
+ * the FINAL channel image, AFTER the crop/resize — sized relative to
+ * the final image so every export carries the SAME treatment.
+ * History: round 1–3 ALSO baked a banner+border into the generated
+ * image; cover-cropped exports happened to crop/cover it, but the
+ * round-4 contain fallback for the extreme-aspect oversize base kept
+ * the baked frame INSIDE the frame — banner strip spanning only the
+ * contained column and the baked border's left/right edges surviving
+ * as two full-height terracotta lines (the owner's double-frame
+ * rejection). Generation outputs now carry NO frame at all; in-app
+ * honesty rides the value's demo flag + text label, and this stamp is
+ * the one and only frame an exported file ever gets.
  */
 /** Backdrop colour of a source image, sampled from the image itself:
  * two vertical bands at the far left/right edges, 18–34% down — pure
@@ -216,8 +220,9 @@ const demoImpl = {
         const photo = await blobToImg(await fetchBlob(ab.base.path));
         const pc = makeCanvas(photo.width, photo.height), px = pc.getContext('2d');
         px.drawImage(photo, 0, 0);
-        drawDemoBanner(px, pc.width, 'ẢNH DEMO — chưa kết nối AI', pc.height);
-        px.strokeStyle = '#b6492f'; px.lineWidth = 10; px.strokeRect(5, 5, pc.width - 10, pc.height - 10);
+        // NO baked DEMO frame here (round-4 double-frame fix): the frame
+        // is stamped exactly once, at export time (stampDemoFrame). The
+        // demo flag + label below carry the honesty in-app.
         return valueFromBlob(await canvasBlob(pc), 'image', { demo: true, baseQuad: ab.quad, photoBase: ab.base.id, baseKind: 'ai-model', label: `Ảnh người mẫu do AI tạo (chưa phải ảnh chụp thật) — hình in ghép hậu kỳ bằng file gốc. Người mẫu AI mặc áo thun TRƠN đúng màu/phom đã chọn, ngực trống; ảnh được tạo bằng prompt catalogue nguyên văn của chủ shop và được chủ shop duyệt 2026-11-14. Lượt chạy DEMO này chưa gọi AI.` });
       }
       // When a VERIFIED REAL MODEL PHOTO exists for these garment params
@@ -230,8 +235,7 @@ const demoImpl = {
         const photo = await blobToImg(await fetchBlob(pb.base.path));
         const pc = makeCanvas(photo.width, photo.height), px = pc.getContext('2d');
         px.drawImage(photo, 0, 0);
-        drawDemoBanner(px, pc.width, 'ẢNH DEMO — chưa kết nối AI', pc.height);
-        px.strokeStyle = '#b6492f'; px.lineWidth = 10; px.strokeRect(5, 5, pc.width - 10, pc.height - 10);
+        // NO baked DEMO frame (round-4 double-frame fix, as above).
         return valueFromBlob(await canvasBlob(pc), 'image', { demo: true, baseQuad: pb.quad, photoBase: pb.base.id, baseKind: 'photo', label: `DEMO — dùng ảnh chụp thật làm ảnh nền tham chiếu, chưa gọi AI. Ảnh: ${pb.base.name} (Pexels ${pb.base.source.photoId}, tác giả ${pb.base.source.author}). Áo trong ảnh là áo TRƠN; hình in gốc được ghép hậu kỳ.` });
       }
       // No approved AI model image and no verified photo for these
@@ -244,17 +248,18 @@ const demoImpl = {
       const [fw, fh] = (prompt.ratio || '4:5') === '4:5' ? [900, 1125] : [rw, rh];
       const fc = makeCanvas(fw, fh), fx = fc.getContext('2d');
       drawDemoFigure(fx, fw, fh, prompt.garment);
-      drawDemoBanner(fx, fw, 'ẢNH DEMO — chưa kết nối AI', fh);
-      fx.strokeStyle = '#b6492f'; fx.lineWidth = 10; fx.strokeRect(5, 5, fw - 10, fh - 10);
+      // NO baked DEMO frame (round-4 double-frame fix, as above): the
+      // bare figure is the intermediate; the frame exists only at export.
       const figQuad = torsoQuadFor(DEMO_FIGURE.landmarks[fitKey], { imgW: fw, imgH: fh });
       return valueFromBlob(await canvasBlob(fc), 'image', { demo: true, baseQuad: figQuad.map(p => [...p]), baseKind: 'figure', label: 'Ảnh DEMO mô phỏng — người mẫu VẼ bằng canvas (khung nửa người theo chuẩn thương mại điện tử) mặc áo thun TRƠN đúng màu/phom đã chọn; chưa có ảnh người mẫu cho thông số này (chưa có ảnh AI tạo đã duyệt, chưa có ảnh chụp thật đã kiểm chứng đạt chuẩn của chủ shop); hình in gốc được ghép hậu kỳ, đây không phải ảnh sản phẩm thật' });
     }
     const g = x.createLinearGradient(0, 0, 0, rh); g.addColorStop(0, '#f3ead9'); g.addColorStop(1, '#d9c6a5'); x.fillStyle = g; x.fillRect(0, 0, rw, rh);
     if (image?.blob) { const img = await blobToImg(image.blob); const s = Math.max(rw / img.width, rh / img.height); x.drawImage(img, (rw - img.width * s) / 2, (rh - img.height * s) / 2, img.width * s, img.height * s); x.fillStyle = 'rgba(243,234,217,0.18)'; x.fillRect(0, 0, rw, rh); }
-    drawDemoBanner(x, rw, 'ẢNH DEMO — chưa kết nối AI', rh);
+    // NO baked DEMO banner/border (round-4 double-frame fix, as above);
+    // the prompt caption block at the bottom stays — it is the P1 demo
+    // content itself, not a frame.
     x.fillStyle = 'rgba(32,32,32,0.82)'; x.fillRect(0, rh - 120, rw, 120); x.fillStyle = '#fff'; x.font = '22px Arial'; x.textAlign = 'left';
     wrapText(x, (prompt?.text || 'Không có prompt') + '', 24, rh - 82, rw - 48, 28);
-    x.strokeStyle = '#b6492f'; x.lineWidth = 10; x.strokeRect(5, 5, rw - 10, rh - 10);
     return valueFromBlob(await canvasBlob(c), 'image', { demo: true, label: 'Ảnh DEMO mô phỏng — không phải ảnh sản phẩm thật, chưa kết nối AI' });
   },
   async demoVariation({ image, variant }) {
@@ -573,8 +578,10 @@ const handlers = {
     x.save(); x.globalAlpha = Math.min(100, Math.max(50, cfg.inkOpacity ?? 95)) / 100; x.drawImage(layer, 0, 0); x.restore();
     log(`Đã ghép file hình in GỐC theo phối cảnh 4 điểm (cong nếp vải ${cfg.wrinkle || 0}%, bóng vải ${cfg.shading || 0}%, độ phủ mực ${cfg.inkOpacity ?? 95}%) — mô phỏng bằng hình học, không phải ảnh sản phẩm thật.`);
     // P4.2 supplementary (FIX D): propagate the DEMO flag from the garment
-    // input so the export node can re-stamp the DEMO frame AFTER the
+    // input so the export node can stamp the DEMO frame AFTER the
     // channel crop/resize (uniform banner in every exported file).
+    // Round-4 fix: that export stamp is the ONLY frame — generation no
+    // longer bakes one into the garment image this node consumes.
     return valueFromBlob(await canvasBlob(c), 'image', { label: cfg.label + ' · phối cảnh 4 điểm + cong theo nếp vải (mô phỏng)' + srcNote + framingNote, demo: !useReal && (!!inputs.garment?.demo || !!framingNote) });
   },
   async background(node, { inputs, log }) {
@@ -721,9 +728,10 @@ const handlers = {
       if (padded && backdrop === null) backdrop = sampleBackdropColor(img);
       x.fillStyle = padded ? backdrop : '#ffffff'; x.fillRect(0, 0, p.w, p.h);
       x.drawImage(img, f.sx, f.sy, f.sw, f.sh, f.dx, f.dy, f.dw, f.dh);
-      // P4.2 supplementary (FIX D): DEMO inputs get the DEMO frame stamped
-      // on the FINAL channel image (after crop/resize) — identical banner
-      // treatment in every case, never cropped away.
+      // P4.2 supplementary (FIX D) + round-4 fix: DEMO inputs get the
+      // DEMO frame stamped HERE ONLY — on the FINAL channel image (after
+      // crop/resize) — identical banner treatment in every case, never
+      // cropped away, and never doubled by a frame baked upstream.
       if (v.demo) stampDemoFrame(x, p.w, p.h);
       const blob = await canvasBlob(c, format === 'jpg' ? 'image/jpeg' : 'image/png', (node.config.jpgQuality || 92) / 100);
       files.push(valueFromBlob(blob, 'image', { name: channelFileName(p, format, node.config.namePattern), label: `Kênh ${p.label} (${mode === 'cover' ? 'cắt phủ khung' : padded ? 'vừa khung, đệm màu nền của ảnh — nguồn quá cao, tránh cắt mất đầu/vạt áo' : 'vừa khung, chừa nền trắng'})` }));
@@ -769,7 +777,7 @@ function summary(node) { const c = node.config; return node.type === 'imageInput
 function def0(t) { const gm = generationMode().mode; const aiTxt = gm === 'classic' ? 'AI THẬT — Pollinations Classic (miễn phí)' : gm === 'keyed' ? 'AI THẬT — Pollinations (key + Pollen)' : gm === 'blocked' ? 'AI thật đang BỊ KHÓA — mở bảng Nhà cung cấp AI' : gm === 'http' ? 'HTTP stub — chưa cấu hình (sẽ báo lỗi)' : 'DEMO — chưa kết nối AI'; return { promptAssistant: 'Trợ lý quy tắc — không phải AI', composition: 'Ghép hình in gốc hậu kỳ', background: 'Thêm nền / bối cảnh cho ảnh sản phẩm', imageEditor: 'Cắt / xoay / sáng / tương phản', aiImageGen: aiTxt, aiVariation: aiTxt, aiVideoGen: 'DEMO — WebM từ canvas', preview: 'Xem ảnh / video kết quả', exportNode: 'Tải PNG/JPG/SVG/ZIP + nhiều kích thước kênh', saveProject: 'Lưu vào IndexedDB' }[t] || ''; }
 function aiModeHint() {
   const gm = generationMode();
-  if (gm.mode === 'demo') return '<p class="hint warn">DEMO: chưa kết nối AI thật — kết quả là ảnh canvas có đóng dấu DEMO. Muốn tạo ảnh thật: bỏ chọn node để mở bảng "Nhà cung cấp AI", bật Chế độ AI thật và chọn Pollinations.</p>';
+  if (gm.mode === 'demo') return '<p class="hint warn">DEMO: chưa kết nối AI thật — kết quả mang nhãn DEMO và file xuất được đóng khung DEMO. Muốn tạo ảnh thật: bỏ chọn node để mở bảng "Nhà cung cấp AI", bật Chế độ AI thật và chọn Pollinations.</p>';
   if (gm.mode === 'blocked') return `<p class="hint warn">AI THẬT đang BỊ KHÓA: ${gm.reason}</p>`;
   if (gm.mode === 'http') return '<p class="hint warn">Đang chọn HTTP stub (P1) — node sẽ báo lỗi cấu hình rõ ràng, không tạo ảnh giả.</p>';
   const m = selectedModel();
