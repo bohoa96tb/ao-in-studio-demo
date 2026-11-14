@@ -179,3 +179,30 @@ stamps stampDemoFrame after channel crop/resize via the composition
 value's demo flag) — one uniform banner in every export.
 promptAssistant: model options include nu-viet/nam-viet ("a young
 Vietnamese female/male model"); Template 1's default model is nu-viet.
+P4.2 round 3 (2026-11-14, same branch — owner E-COMMERCE STANDARD; this
+paragraph SUPERSEDES the round-1 collar-rule sentence in the P4.2
+paragraph and the supplementary paragraph's photo-base sentences): the
+round-2 white base (Pexels 25471921) is REJECTED by the owner (close
+head-and-shoulders portrait — head too big, torso cut off below the
+chest, model leaning in, dark room background) and REMOVED as a base
+(fixture deleted; licence record kept, marked superseded). ALL model
+bases must now pass the e-commerce checklist: medium half-body (top of
+head → past hips), ENTIRE plain garment visible (collar, both
+shoulders, both sleeves, bottom hem + trousers waistband), camera at
+chest height, upright facing camera, arms relaxed or hands in pockets,
+no leaning/crossed arms/hair over chest, plain bright neutral studio
+background, Vietnamese/Asian adult model, verified licence. Round-3
+search (8 query angles, 26 candidates viewed) found NO compliant photo
+for white/black/oversize → PHOTO_BASES holds garment reference photos
+only (kind: 'garment'), photoBaseFor returns null for every combo, and
+DEMO uses the drawn figure (redrawn to the half-body framing, 900×1125)
+with the honest no-verified-photo label. Print placement now follows
+the TORSO RULE via `torsoQuadFor` (warp.js) from measured landmarks
+{collarBottomY, hemY, torsoCenterX, torsoWidth}: gap collar→print top
+= 12–15% of TOTAL TORSO LENGTH, print width = 35–45% of torso width,
+centred on the torso — for fixtures AND the figure (one rule);
+chestQuadFor remains as a legacy export only. Template 1's generation
+prompt is the owner's VERBATIM catalog template
+(CATALOG_PROMPT_TEMPLATE in core.js; only [COLOR]/[FIT_TYPE]
+substituted; gated by config catalogPrompt: true, set only on
+Template 1; other templates keep the composed prompt).

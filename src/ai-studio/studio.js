@@ -6,7 +6,7 @@ import { NODE_DEFS, NODE_TYPES, TEMPLATES, emptyGraph, makeNode, findNode, valid
 import { Engine, downstreamOf, upstreamOf } from './engine.js';
 import { nodeCacheKey, isCacheable, RunQueue, validateWorkflow, collectReferencedAssetIds, findOrphanAssets, pruneOldest, formatDuration } from './p2.js';
 import { DemoAdapter, HttpAdapter, PollinationsClassicAdapter, PollinationsKeyedAdapter, setSessionKey, hasSessionKey, BROWSER_KEY_WARNING, POLLINATIONS_KEY_WARNING, AUTO_TOPUP_WARNING, COMMERCIAL_USE_NOTE, PROVIDERS, providerById, modelOf, isRunnableModel, resolveGenerationMode, suppressRetryForMode, sizeForRatio, estimateGenerationCost, describePlannedCalls, describeProvider } from './providers.js';
-import { solveHomography, applyHomography, UNIT_SQUARE, rectToQuad, presetQuadFor, migrateCompositionConfig, fieldMean, displacementAt, buildWarpGrid, fitInto, CHANNEL_PRESETS, channelPreset, channelFileName } from './warp.js';
+import { solveHomography, applyHomography, UNIT_SQUARE, rectToQuad, presetQuadFor, migrateCompositionConfig, torsoQuadFor, fieldMean, displacementAt, buildWarpGrid, fitInto, CHANNEL_PRESETS, channelPreset, channelFileName } from './warp.js';
 import { store, storageEstimate } from './store.js';
 
 const $ = (s) => document.querySelector(s);
@@ -82,42 +82,63 @@ function stampDemoFrame(ctx, w, h) {
 
 // ---------- demo provider implementation (canvas-derived, honestly labelled) ----------
 /**
- * P4.1 DEMO model figure: a simple stylised model (head / shoulders / torso)
- * wearing a PLAIN t-shirt in the garment params' colour and fit (oversize =
- * visibly wider + longer silhouette). Fully deterministic — geometry comes
- * from DEMO_FIGURE (core.js), so Template 1's composition chest quad matches
- * the figure exactly and the original design lands on the chest in tests.
+ * DEMO model figure (P4.1; redrawn in P4.2 ROUND 3 to the owner's
+ * e-commerce framing): a simple stylised model in MEDIUM HALF-BODY
+ * framing — top of head → past the hips, camera at chest height, plain
+ * light-grey studio backdrop (#F2F2F2 family), standing upright and
+ * facing the camera, arms relaxed along the body, hair NOT over the
+ * chest, the ENTIRE plain t-shirt visible (collar, both shoulders, both
+ * sleeves, bottom hem + trousers waistband below it). Oversize = a
+ * genuinely wider + longer silhouette. Fully deterministic — geometry
+ * comes from DEMO_FIGURE (core.js) landmarks, so the composition quad
+ * (torsoQuadFor) matches the figure exactly. This is a DRAWING, honestly
+ * labelled as such — it exists because no verified real photo currently
+ * passes the owner's model-photo checklist.
  */
 function drawDemoFigure(x, W, H, garment) {
-  const fit = garment.style === 'oversize' ? DEMO_FIGURE.torso.oversize : DEMO_FIGURE.torso.regular;
+  const fitKey = garment.style === 'oversize' ? 'oversize' : 'regular';
+  const fit = DEMO_FIGURE.torso[fitKey];
+  const lm = DEMO_FIGURE.landmarks[fitKey];
   const [tx0, tx1] = fit.span;
   const shY = fit.shoulderY * H, hemY = fit.hemY * H;
   const X = (f) => f * W, Y = (f) => f * H;
-  // clean studio-ish background + floor band
+  // plain bright neutral studio backdrop (#F2F2F2 → slightly deeper floor)
   const bg = x.createLinearGradient(0, 0, 0, H);
-  bg.addColorStop(0, '#f2ecdf'); bg.addColorStop(0.78, '#e0d2b6'); bg.addColorStop(1, '#c9b48d');
+  bg.addColorStop(0, '#f4f4f2'); bg.addColorStop(0.8, '#ececea'); bg.addColorStop(1, '#dededb');
   x.fillStyle = bg; x.fillRect(0, 0, W, H);
-  x.fillStyle = 'rgba(120,95,60,0.16)'; x.fillRect(0, Y(0.9), W, H - Y(0.9));
+  x.fillStyle = 'rgba(90,90,90,0.10)'; x.fillRect(0, Y(0.94), W, H - Y(0.94));
   const skin = '#eec39f', skinDark = '#c98f5f', hair = '#3a2a20';
-  // arms (skin) behind the sleeves
+  // arms (skin) hanging relaxed ALONGSIDE the body, below the sleeves:
+  // from just under the sleeve ends down to hip level, hands included.
   x.fillStyle = skin;
-  const armW = 0.045 * W;
-  x.fillRect(X(tx0) + 2, shY + 0.16 * H, armW, 0.3 * H);
-  x.fillRect(X(tx1) - armW - 2, shY + 0.16 * H, armW, 0.3 * H);
-  // trousers below the hem
-  x.fillStyle = '#45454e'; x.fillRect(X(tx0 + 0.07), hemY, X(tx1 - 0.07) - X(tx0 + 0.07), H - hemY);
-  // neck + head + simple face
-  x.fillStyle = skin; x.fillRect(X(0.468), Y(0.185), X(0.532) - X(0.468), Y(0.3) - Y(0.185));
-  x.beginPath(); x.arc(X(0.5), Y(0.148), 0.072 * H, 0, Math.PI * 2); x.fillStyle = skin; x.fill();
+  const armW = 0.042 * W, sleeveEndY = shY + 0.185 * H;
+  x.fillRect(X(tx0) - armW - 0.004 * W, sleeveEndY - 0.02 * H, armW, (hemY + 0.10 * H) - sleeveEndY);
+  x.fillRect(X(tx1) + 0.004 * W, sleeveEndY - 0.02 * H, armW, (hemY + 0.10 * H) - sleeveEndY);
+  x.beginPath(); x.arc(X(tx0) - armW / 2 - 0.004 * W, hemY + 0.105 * H, armW * 0.55, 0, Math.PI * 2); x.fill();
+  x.beginPath(); x.arc(X(tx1) + armW / 2 + 0.004 * W, hemY + 0.105 * H, armW * 0.55, 0, Math.PI * 2); x.fill();
+  // trousers below the hem — with a visible WAISTBAND strip right under
+  // the hem, so the garment's length can be judged (round-3 standard).
+  x.fillStyle = '#45454e'; x.fillRect(X(tx0 + 0.03), hemY, X(tx1 - 0.03) - X(tx0 + 0.03), H - hemY);
+  x.fillStyle = '#33333c'; x.fillRect(X(tx0 + 0.03), hemY, X(tx1 - 0.03) - X(tx0 + 0.03), 0.02 * H);
+  x.fillStyle = 'rgba(255,255,255,0.20)'; x.fillRect(X(0.5) - 0.014 * W, hemY + 0.004 * H, 0.028 * W, 0.012 * H); // waistband button hint
+  // neck + head + simple face — head sized for half-body framing
+  // (centre 0.13, radius 0.068·H: top of head 0.062, chin ≈ 0.198; the
+  // exposed neck is only ≈0.05 of height — an earlier draft put the
+  // shoulders at 0.315+ with a smaller, higher head and produced a
+  // giraffe neck that visual review rejected).
+  x.fillStyle = skin; x.fillRect(X(0.474), Y(0.185), X(0.526) - X(0.474), shY + 0.012 * H - Y(0.185));
+  x.beginPath(); x.arc(X(0.5), Y(0.13), 0.068 * H, 0, Math.PI * 2); x.fillStyle = skin; x.fill();
   x.fillStyle = '#2b2b2b';
-  for (const sgn of [-1, 1]) { x.beginPath(); x.arc(X(0.5) + sgn * 0.026 * H, Y(0.15), 0.006 * H, 0, Math.PI * 2); x.fill(); }
-  x.beginPath(); x.arc(X(0.5), Y(0.166), 0.02 * H, Math.PI * 0.15, Math.PI * 0.85); x.strokeStyle = skinDark; x.lineWidth = Math.max(2, 0.004 * H); x.stroke();
-  // hair: cap + side locks
+  for (const sgn of [-1, 1]) { x.beginPath(); x.arc(X(0.5) + sgn * 0.024 * H, Y(0.132), 0.005 * H, 0, Math.PI * 2); x.fill(); }
+  x.beginPath(); x.arc(X(0.5), Y(0.144), 0.018 * H, Math.PI * 0.15, Math.PI * 0.85); x.strokeStyle = skinDark; x.lineWidth = Math.max(2, 0.0035 * H); x.stroke();
+  // hair: cap + SHORT side locks ending at the jaw line — nothing hangs
+  // over the shoulders or the chest (round-3 standard).
   x.fillStyle = hair;
-  x.beginPath(); x.arc(X(0.5), Y(0.14), 0.074 * H, Math.PI * 1.03, Math.PI * 1.97); x.lineTo(X(0.5) + 0.074 * H, Y(0.128)); x.lineTo(X(0.5) - 0.074 * H, Y(0.128)); x.closePath(); x.fill();
-  x.fillRect(X(0.5) - 0.076 * H, Y(0.125), 0.018 * H, 0.085 * H);
-  x.fillRect(X(0.5) + 0.058 * H, Y(0.125), 0.018 * H, 0.085 * H);
-  // the PLAIN t-shirt silhouette
+  x.beginPath(); x.arc(X(0.5), Y(0.122), 0.07 * H, Math.PI * 1.02, Math.PI * 1.98); x.lineTo(X(0.5) + 0.07 * H, Y(0.112)); x.lineTo(X(0.5) - 0.07 * H, Y(0.112)); x.closePath(); x.fill();
+  x.fillRect(X(0.5) - 0.07 * H, Y(0.10), 0.016 * H, 0.088 * H);
+  x.fillRect(X(0.5) + 0.054 * H, Y(0.10), 0.016 * H, 0.088 * H);
+  // the PLAIN t-shirt silhouette — full garment: collar, both shoulders,
+  // both sleeves, straight body down to the hem at hemY.
   const sx0 = X(tx0), sx1 = X(tx1);
   const tee = new Path2D();
   tee.moveTo(X(0.455), shY - 0.012 * H);
@@ -132,7 +153,7 @@ function drawDemoFigure(x, W, H, garment) {
   tee.lineTo(sx1 + 0.018 * W, shY + 0.035 * H);
   tee.lineTo(sx1 - 0.028 * W, shY);
   tee.lineTo(X(0.545), shY - 0.012 * H);
-  tee.quadraticCurveTo(X(0.5), shY + 0.045 * H, X(0.455), shY - 0.012 * H);
+  tee.quadraticCurveTo(X(0.5), shY + 0.052 * H, X(0.455), shY - 0.012 * H);
   tee.closePath();
   x.fillStyle = garment.colorHex || '#f4f4f2'; x.fill(tee);
   // soft side shading + gentle fold strokes, clipped to the tee
@@ -142,11 +163,16 @@ function drawDemoFigure(x, W, H, garment) {
   sh.addColorStop(0.5, 'rgba(255,255,255,0.05)'); sh.addColorStop(0.82, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(0,0,0,0.13)');
   x.fillStyle = sh; x.fillRect(0, 0, W, H);
   x.strokeStyle = 'rgba(0,0,0,0.05)'; x.lineWidth = Math.max(2, 0.006 * H);
-  for (const fy of [0.52, 0.63, 0.74]) { x.beginPath(); x.moveTo(sx0 + 0.05 * W, Y(fy)); x.quadraticCurveTo(X(0.5), Y(fy) + 0.012 * H, sx1 - 0.05 * W, Y(fy)); x.stroke(); }
+  const torsoLen = lm.hemY - lm.collarBottomY;
+  for (const fr of [0.45, 0.72]) { const fy = lm.collarBottomY + fr * torsoLen; x.beginPath(); x.moveTo(sx0 + 0.05 * W, Y(fy)); x.quadraticCurveTo(X(0.5), Y(fy) + 0.012 * H, sx1 - 0.05 * W, Y(fy)); x.stroke(); }
   x.restore();
-  // crew-neck collar band
-  x.beginPath(); x.moveTo(X(0.455), shY - 0.012 * H); x.quadraticCurveTo(X(0.5), shY + 0.045 * H, X(0.545), shY - 0.012 * H);
+  // crew-neck collar band — its curve dip (0.02) + stroke place the
+  // collar's lower edge at DEMO_FIGURE.landmarks collarBottomY.
+  x.beginPath(); x.moveTo(X(0.455), shY - 0.012 * H); x.quadraticCurveTo(X(0.5), shY + 0.052 * H, X(0.545), shY - 0.012 * H);
   x.strokeStyle = 'rgba(0,0,0,0.28)'; x.lineWidth = Math.max(3, 0.009 * H); x.stroke();
+  // hem stitch line just above the bottom hem
+  x.beginPath(); x.moveTo(sx0 + 0.008 * W, hemY - 0.014 * H); x.lineTo(sx1 - 0.008 * W, hemY - 0.014 * H);
+  x.strokeStyle = 'rgba(0,0,0,0.16)'; x.lineWidth = Math.max(2, 0.0035 * H); x.stroke();
 }
 const demoImpl = {
   async demoImage({ prompt, image }) {
@@ -156,10 +182,11 @@ const demoImpl = {
     // A wired reference image keeps the legacy P1–P4 wash behaviour
     // (templates 2–4 unchanged).
     if (prompt?.garment && !image?.blob) {
-      // P4.2: when a VERIFIED REAL STUDIO PHOTO exists for these garment
-      // params, DEMO returns that photo as the reference base (labelled —
-      // never claimed to be AI-generated) with its calibrated chest quad,
-      // so the composition lands centre-chest per the collar-margin rule.
+      // When a VERIFIED REAL MODEL PHOTO exists for these garment params
+      // (kind 'model' in PHOTO_BASES — round 3: currently NONE, see
+      // core.js), DEMO returns that photo as the reference base
+      // (labelled — never claimed to be AI-generated) with its
+      // torso-rule quad, so the composition lands centre-chest.
       const pb = photoBaseFor(prompt.garment);
       if (pb) {
         const photo = await blobToImg(await fetchBlob(pb.base.path));
@@ -169,13 +196,21 @@ const demoImpl = {
         px.strokeStyle = '#b6492f'; px.lineWidth = 10; px.strokeRect(5, 5, pc.width - 10, pc.height - 10);
         return valueFromBlob(await canvasBlob(pc), 'image', { demo: true, baseQuad: pb.quad, photoBase: pb.base.id, label: `DEMO — dùng ảnh chụp thật làm ảnh nền tham chiếu, chưa gọi AI. Ảnh: ${pb.base.name} (Pexels ${pb.base.source.photoId}, tác giả ${pb.base.source.author}). Áo trong ảnh là áo TRƠN; hình in gốc được ghép hậu kỳ.` });
       }
-      // No verified photo for these params → the drawn figure, with its
-      // own collar-calibrated quad for the composition to use.
-      drawDemoFigure(x, rw, rh, prompt.garment);
-      drawDemoBanner(x, rw, 'ẢNH DEMO — chưa kết nối AI', rh);
-      x.strokeStyle = '#b6492f'; x.lineWidth = 10; x.strokeRect(5, 5, rw - 10, rh - 10);
-      const figQuad = prompt.garment.style === 'oversize' ? DEMO_FIGURE.chestQuadOversize : DEMO_FIGURE.chestQuad;
-      return valueFromBlob(await canvasBlob(c), 'image', { demo: true, baseQuad: figQuad.map(p => [...p]), label: 'Ảnh DEMO mô phỏng — người mẫu vẽ bằng canvas mặc áo thun TRƠN đúng màu/phom đã chọn (chưa có ảnh chụp thật đã kiểm chứng cho thông số này); hình in gốc được ghép hậu kỳ, đây không phải ảnh sản phẩm thật' });
+      // No verified photo for these params → the drawn figure (P4.2
+      // round 3: with the round-2 model photo rejected by the owner and
+      // no compliant replacement found, this is now the path for EVERY
+      // garment combo). The figure canvas is 900×1125 at the 4:5 ratio
+      // so its aspect matches the photo fixtures; its quad is derived
+      // from the figure landmarks via torsoQuadFor at the canvas's own
+      // aspect — the same torso rule as every other base.
+      const fitKey = prompt.garment.style === 'oversize' ? 'oversize' : 'regular';
+      const [fw, fh] = (prompt.ratio || '4:5') === '4:5' ? [900, 1125] : [rw, rh];
+      const fc = makeCanvas(fw, fh), fx = fc.getContext('2d');
+      drawDemoFigure(fx, fw, fh, prompt.garment);
+      drawDemoBanner(fx, fw, 'ẢNH DEMO — chưa kết nối AI', fh);
+      fx.strokeStyle = '#b6492f'; fx.lineWidth = 10; fx.strokeRect(5, 5, fw - 10, fh - 10);
+      const figQuad = torsoQuadFor(DEMO_FIGURE.landmarks[fitKey], { imgW: fw, imgH: fh });
+      return valueFromBlob(await canvasBlob(fc), 'image', { demo: true, baseQuad: figQuad.map(p => [...p]), label: 'Ảnh DEMO mô phỏng — người mẫu VẼ bằng canvas (khung nửa người theo chuẩn thương mại điện tử) mặc áo thun TRƠN đúng màu/phom đã chọn; chưa có ảnh chụp thật đã kiểm chứng đạt chuẩn của chủ shop cho thông số này; hình in gốc được ghép hậu kỳ, đây không phải ảnh sản phẩm thật' });
     }
     const g = x.createLinearGradient(0, 0, 0, rh); g.addColorStop(0, '#f3ead9'); g.addColorStop(1, '#d9c6a5'); x.fillStyle = g; x.fillRect(0, 0, rw, rh);
     if (image?.blob) { const img = await blobToImg(image.blob); const s = Math.max(rw / img.width, rh / img.height); x.drawImage(img, (rw - img.width * s) / 2, (rh - img.height * s) / 2, img.width * s, img.height * s); x.fillStyle = 'rgba(243,234,217,0.18)'; x.fillRect(0, 0, rw, rh); }

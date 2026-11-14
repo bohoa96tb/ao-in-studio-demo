@@ -72,12 +72,14 @@ test('P4.1 Template 1 structure: generate plain garment FIRST, composite origina
   assert.ok(!t1.edges.some(e => e.from === img.id), 'reference photo is standalone — NOT wired into the text-to-image node');
   // garment params present on the assistant; composition targets the demo
   // figure chest quad; the real-photo fallback defaults to a real photo
-  // base (P4.1: the crew-white hanger; P4.2: the white crew MODEL photo —
-  // the first entry of the PHOTO_BASES registry).
+  // base (P4.1: the crew-white hanger; P4.2 round 2: the white crew MODEL
+  // photo; P4.2 ROUND 3: back to the crew-white HANGER garment photo —
+  // the owner rejected the model photo under the e-commerce standard and
+  // removed it as a base; no compliant model photo exists).
   assert.equal(pa.config.kieuAo, 'co-tron'); assert.equal(pa.config.mauAo, 'trang'); assert.equal(pa.config.gocChup, 'chinh-dien');
   assert.deepEqual(comp.config.quad, DEMO_FIGURE.chestQuad);
   assert.equal(comp.config.garmentSource, 'ai');
-  assert.equal(comp.config.realBase, 'public/fixtures/real-tee/crew-white-vn-model.webp');
+  assert.equal(comp.config.realBase, 'public/fixtures/real-tee/crew-white-hanger.webp');
   assert.deepEqual(exp.config.channels, ['website'], 'website channel preset = 1200x1500 export');
 });
 
@@ -90,7 +92,7 @@ test('P4.1 templates 2-4 unchanged in flow (tpl4 keeps its comp -> gen chain)', 
 
 test('P4.1 composition migration: garmentSource/realBase defaults, explicit values preserved', () => {
   const m = migrateCompositionConfig({ printX: 50, printY: 42, printW: 34, rotation: 0 });
-  assert.equal(m.garmentSource, 'ai'); assert.equal(m.realBase, 'public/fixtures/real-tee/crew-white-vn-model.webp'); // P4.2 default real base
+  assert.equal(m.garmentSource, 'ai'); assert.equal(m.realBase, 'public/fixtures/real-tee/crew-white-hanger.webp'); // P4.2 round 3 default real base (hanger garment photo)
   const r = migrateCompositionConfig({ garmentSource: 'real', realBase: 'public/fixtures/real-tee/crew-black-hanger.webp' });
   assert.equal(r.garmentSource, 'real'); assert.equal(r.realBase, 'public/fixtures/real-tee/crew-black-hanger.webp');
   assert.ok(presetQuadFor(r.realBase), 'real fallback base has a calibrated preset quad');

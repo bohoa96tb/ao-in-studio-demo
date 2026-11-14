@@ -77,40 +77,88 @@ export function chestQuadFor({ collarBottomY, centerX = 0.5, width, height, marg
     [centerX + width / 2, top + height], [centerX - width / 2, top + height],
   ]);
 }
-/** Calibrated preset quads for the built-in garment fixtures (P4.2:
- * every quad is derived via chestQuadFor from the collar position measured
- * on the actual photo — see docs/AI_STUDIO_QA_REPORT.md P4.2 for the
- * measurements. The old P3 quads put print tops at the collar/neck.)
- * The cream flatlay close-up (crew-white-flatlay.webp) is NOT a base: it
- * is a collar detail photo, so its bogus preset quad was removed. */
-export const GARMENT_QUADS = {
-  // White hanger (800×1200): collar lower edge 0.33 (orange inner strip
-  // scan + neckline curve), garment hangs angled — chest centre x 0.415
-  // (shop calibration in data/garments.json).
-  'public/fixtures/real-tee/crew-white-hanger.webp': chestQuadFor({ collarBottomY: 0.33, centerX: 0.415, width: 0.20, height: 0.19 }),
-  // Black hanger (1200×800): collar lower edge 0.26 (size-tag scan),
-  // garment centre x 0.495.
-  'public/fixtures/real-tee/crew-black-hanger.webp': chestQuadFor({ collarBottomY: 0.26, centerX: 0.495, width: 0.27, height: 0.28 }),
-  // White MODEL front photo (960×1200, Pexels 25471921, Vietnamese model,
-  // cropped to 4:5 from the top of the 2000×3000 original): neckline
-  // lowest point 0.64 (grid-measured on the fixture — a close portrait,
-  // so the collar sits lower in frame than in an upper-body shot), chest
-  // centre x 0.40 (grid-measured). P4.2 supplementary: replaces Pexels
-  // 10159280 (model not Asian — owner's localisation order).
-  'public/fixtures/real-tee/crew-white-vn-model.webp': chestQuadFor({ collarBottomY: 0.64, centerX: 0.40, width: 0.26, height: 0.15, margin: 0.085 }),
-  // REMOVED (P4.2 supplementary): crew-black-woman.webp (Pexels 9558583)
-  // was round 1's black "model" base, but the model HOLDS the shirt
-  // stretched in front of her — the owner forbids held-up shirts as
-  // compositing bases, and the photo's P2 record is lifestyle-only. The
-  // file stays in the repo for the SHOP's lifestyle/reference use; it is
-  // NOT an AI Studio compositing base and has no quad. No verified photo
-  // of an Asian model wearing a plain black crew tee was found, so black
-  // DEMO uses the drawn figure; the black real-photo fallback is the
-  // calibrated black hanger garment photo above.
-  // Back view (800×1200): back-collar lower edge 0.445, centre x 0.52.
-  // (Back prints sit lower than front chest prints by convention.)
-  'public/fixtures/real-tee/crew-white-back-worn.webp': chestQuadFor({ collarBottomY: 0.445, centerX: 0.52, width: 0.32, height: 0.20, margin: 0.09 }),
+/**
+ * P4.2 ROUND 3 — TORSO RULE (owner's e-commerce framing standard; it
+ * SUPERSEDES the round-1 collar rule above for every base used with the
+ * half-body framing — the owner explicitly replaced it). Print placement
+ * is derived from measured body LANDMARKS of the actual image:
+ *   landmarks = { collarBottomY, hemY, torsoCenterX, torsoWidth }
+ *   (fractions of image size; hemY = the garment's bottom hem; torsoWidth
+ *   = garment width at chest level; torsoCenterX = its centre).
+ *   - torso length = hemY − collarBottomY (measured IN THE IMAGE);
+ *   - the quad's TOP edge sits `gapRatio` of torso length below the
+ *     collar's lower edge — gapRatio defaults to 0.135 and is CLAMPED to
+ *     the owner's [0.12, 0.15] band;
+ *   - the quad WIDTH is `widthRatio` of torso width — default 0.40,
+ *     CLAMPED to the owner's [0.35, 0.45] band;
+ *   - the quad is horizontally centred on torsoCenterX;
+ *   - the quad HEIGHT follows from the width via the image aspect so the
+ *     (square-by-default) design is not distorted: h = w · (imgW/imgH) /
+ *     designAspect, all in image-fraction units.
+ * chestQuadFor is kept for legacy/P3-era callers and its own unit tests;
+ * every CURRENT base (photo fixtures + the drawn DEMO figure) derives its
+ * quad through torsoQuadFor so all bases follow ONE rule.
+ */
+export function torsoQuadFor(landmarks, { imgW = 4, imgH = 5, designAspect = 1, gapRatio = 0.135, widthRatio = 0.40 } = {}) {
+  const { collarBottomY, hemY, torsoCenterX, torsoWidth } = landmarks || {};
+  if (!(collarBottomY >= 0 && collarBottomY < 1)) throw new Error('landmarks.collarBottomY phải trong [0,1).');
+  if (!(hemY > collarBottomY && hemY <= 1)) throw new Error('landmarks.hemY phải lớn hơn collarBottomY và ≤ 1.');
+  if (!(torsoCenterX >= 0 && torsoCenterX <= 1)) throw new Error('landmarks.torsoCenterX phải trong [0,1].');
+  if (!(torsoWidth > 0 && torsoWidth <= 1)) throw new Error('landmarks.torsoWidth phải trong (0,1].');
+  if (!(imgW > 0 && imgH > 0 && designAspect > 0)) throw new Error('imgW/imgH/designAspect phải > 0.');
+  const gap = Math.min(0.15, Math.max(0.12, gapRatio));
+  const wr = Math.min(0.45, Math.max(0.35, widthRatio));
+  const torsoLen = hemY - collarBottomY;
+  const top = collarBottomY + gap * torsoLen;
+  const w = wr * torsoWidth;
+  const h = w * (imgW / imgH) / designAspect;
+  return clampQuad([
+    [torsoCenterX - w / 2, top], [torsoCenterX + w / 2, top],
+    [torsoCenterX + w / 2, top + h], [torsoCenterX - w / 2, top + h],
+  ]);
+}
+/**
+ * Measured body landmarks of the built-in garment fixtures (P4.2 round 3:
+ * grid-measured on the actual fixture files — see
+ * docs/AI_STUDIO_QA_REPORT.md, round-3 section). torsoWidth/torsoCenterX
+ * are the garment BODY at chest level (sleeves excluded where separable).
+ * These fixtures are GARMENT reference photos (hanger / back view), not
+ * model bases — the round-3 e-commerce model standard applies to model
+ * photos; no model photo is registered (see PHOTO_BASES in core.js).
+ */
+export const FIXTURE_LANDMARKS = {
+  // White hanger (800×1200): collar lower edge 0.33 (orange inner strip +
+  // neckline curve, P4.2 measurement kept); hem sweeps diagonally on the
+  // hanger — hemY 0.88 is its midpoint; body at chest ≈ x 0.27–0.65.
+  'public/fixtures/real-tee/crew-white-hanger.webp': { collarBottomY: 0.33, hemY: 0.88, torsoCenterX: 0.46, torsoWidth: 0.38, imgW: 800, imgH: 1200 },
+  // Black hanger (1200×800 landscape): collar lower edge 0.26 (size-tag
+  // scan, P4.2 measurement kept); hem ≈ 0.955; body at chest ≈ 0.295–0.685.
+  'public/fixtures/real-tee/crew-black-hanger.webp': { collarBottomY: 0.26, hemY: 0.955, torsoCenterX: 0.49, torsoWidth: 0.39, imgW: 1200, imgH: 800 },
+  // Back view worn (800×1200): back-collar lower edge 0.445 (P4.2 kept);
+  // the hem is BELOW the frame (photo cropped at the hips) — hemY = 1.0
+  // is the frame edge, so the torso length is the VISIBLE torso length;
+  // body at chest ≈ x 0.21–0.93.
+  'public/fixtures/real-tee/crew-white-back-worn.webp': { collarBottomY: 0.445, hemY: 1.0, torsoCenterX: 0.57, torsoWidth: 0.70, imgW: 800, imgH: 1200 },
 };
+/** Calibrated preset quads for the built-in garment fixtures — P4.2
+ * round 3: every quad is derived via torsoQuadFor from the measured
+ * landmarks above (owner's torso rule: gap 12–15% of torso length, width
+ * 35–45% of torso width). The cream flatlay close-up
+ * (crew-white-flatlay.webp) is NOT a base: it is a collar detail photo,
+ * so it has no preset quad.
+ * REMOVED as bases in earlier P4.2 rounds (kept here as a warning):
+ * crew-white-vn-model.webp (Pexels 25471921) — removed in ROUND 3: the
+ * owner rejected it as a close head-and-shoulders portrait that fails
+ * the e-commerce half-body standard (head too big, torso cut off below
+ * the chest, model leaning in, dark room background); the fixture file
+ * is deleted and its licence record is marked superseded.
+ * crew-black-woman.webp (Pexels 9558583) — removed in the supplementary
+ * round: the model HOLDS the shirt stretched (forbidden) and its P2
+ * record is lifestyle-only; the file stays for the SHOP's lifestyle use
+ * only, never as an AI Studio compositing base. */
+export const GARMENT_QUADS = Object.fromEntries(
+  Object.entries(FIXTURE_LANDMARKS).map(([path, lm]) => [path, torsoQuadFor(lm, { imgW: lm.imgW, imgH: lm.imgH })]),
+);
 export function presetQuadFor(fixturePath) {
   const q = GARMENT_QUADS[fixturePath];
   return q ? q.map(p => [...p]) : null;
@@ -132,7 +180,7 @@ export function migrateCompositionConfig(cfg = {}) {
   // 'real' ignores the AI garment input and composites onto the real
   // fixture photo `realBase` with that fixture's calibrated preset quad.
   if (out.garmentSource === undefined) out.garmentSource = 'ai';
-  if (out.realBase === undefined) out.realBase = 'public/fixtures/real-tee/crew-white-vn-model.webp'; // P4.2: default real base = the Vietnamese white model photo
+  if (out.realBase === undefined) out.realBase = 'public/fixtures/real-tee/crew-white-hanger.webp'; // P4.2 round 3: default real base = the white hanger garment photo (the round-2 model photo was removed as a base — owner's e-commerce standard)
   // P4.2: ink opacity (%) — the composited design is drawn at this opacity
   // so the fabric texture/folds under the print stay faintly visible
   // instead of the print looking like a flat sticker. 100 = P4.1 behaviour.

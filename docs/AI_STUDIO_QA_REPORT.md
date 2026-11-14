@@ -188,3 +188,85 @@ Lệnh bổ sung của chủ shop sau khi xem ảnh vòng 1: thay toàn bộ ả
 - **Ảnh oversize trơn trên người mẫu Á: CHƯA CÓ** — cùng lựa chọn như trên.
 - Ảnh trắng mới là khung chân dung GẦN: vùng in nằm thấp hơn trên thân so với ảnh nửa người (đúng quy tắc cổ áo trên chính khung hình đó); nếu chủ shop muốn khung nửa người, cần một ảnh khác đạt chuẩn — ứng viên dự phòng đã xem 25471969 (cùng người mẫu, góc 3/4 nhìn xuống, tay bắt chéo thấp) chưa dùng.
 - Các mục chưa đạt cũ giữ nguyên (AI thật chưa chạy end-to-end — quyết định của chủ shop; P4.2 chưa kiểm chứng trên điện thoại thật; video MP4/minimap…).
+
+## P4.2 vòng 3 — QA chuẩn thương mại điện tử: tìm ảnh, luật torso, prompt nguyên văn (2026-11-14)
+
+Chủ shop BÁC ảnh trắng vòng 2 (Pexels 25471921: chân dung cận đầu–vai, đầu quá to, thân áo bị cắt dưới ngực, ngả vào máy, nền phòng tối) và ban hành chuẩn TMĐT (Uniqlo/Coolmate/Printful) + luật đặt in mới + mẫu prompt nguyên văn. Mục này thay thế kết luận ảnh của hai mục P4.2 trước (luật/ảnh vòng 1–2 chỉ còn giá trị lịch sử).
+
+### Tìm ảnh theo checklist TMĐT — 26 ứng viên tải về và XEM TỪNG ẢNH: không ảnh nào đạt trọn
+
+Checklist: nửa người (đỉnh đầu → qua hông); áo chiếm 60–70% khung, thấy TOÀN BỘ áo (cổ, 2 vai, 2 tay áo, gấu + cạp quần); máy ngang ngực; đứng thẳng nhìn thẳng; tay thả/đút túi; không ngả/không bắt chéo/không tóc phủ ngực; nền studio sáng trung tính trơn; người mẫu Việt/châu Á trưởng thành; áo TRƠN; giấy phép rõ.
+
+| Ứng viên (Pexels) | Hạng | Lý do loại (mục checklist trượt) |
+|---|---|---|
+| 25471921 (vòng 2) | trắng | Chính ảnh bị chủ shop bác: chân dung cận, thân cắt dưới ngực, ngả vào máy, nền phòng tối |
+| 6310890 (+ 6310889 bản ngang) | trắng | GẦN NHẤT: mẫu Á mặc áo trắng trơn, đứng thẳng, thấy toàn bộ áo + cạp quần — NHƯNG nền tường vân đá + sàn gỗ herringbone, không phải nền studio trơn |
+| 6769350 (cottonbro) | trắng | Mẫu Philippines nền studio xám đạt — nhưng góc 3/4 nhìn đi chỗ khác + áo SƠ VIN vào quần (không thấy gấu) |
+| 17781161 | trắng | Tựa tường (ngả), nhìn ngang, áo sơ vin, chân bắt chéo |
+| 17542870 | trắng | Người mẫu không phải người Á; tay chống hông |
+| 6902761 | trắng | Áo CÓ IN (hình cờ); góc 3/4; tay vuốt tóc |
+| 6786614 | trắng | Cắt mất đầu (chỉ tới cằm); khung ngang |
+| 12025472 | trắng | Ảnh trải phẳng, không có người mẫu |
+| 7752451 / 7752454 | trắng | Áo SƠ MI cài nút (không phải áo thun); ngồi/xoay người |
+| 7665789 | trắng | Người mẫu không phải người Á; lưng góc 3/4 |
+| 4066293 / 4066292 / 4066290 | đen | Cắt mất đầu hoàn toàn; nền phòng lò sưởi xanh; không xác minh được dân tộc |
+| 5468621 | đen | Mẫu Á nền trắng trơn — nhưng NHÌN NGHIÊNG hẳn, khung ngang không thấy gấu, dây chuyền trên ngực |
+| 13983321 | đen | Áo có CHỮ "SPORTAND" trên ngực; tựa tường; tay giữ gấu áo |
+| 16103389 | đen | Nền phố đèn lồng; dây túi đeo chéo qua ngực; miếng dán nhãn trên ngực |
+| 8338078 | đen | Ngoài trời (mục mô tả kết quả tìm kiếm: chụp ngoài trời, biểu cảm nghiêm) — không xem tiếp vì nền ngoài trời đã trượt |
+| 39457678 | oversize (trắng) | Áo oversize trắng nền trắng, thấy toàn bộ áo + quần short — NHƯNG cắt mất đầu (khung chỉ từ mũi xuống), không xác minh được người mẫu |
+| 16887185 | oversize | Áo oversize CÓ IN (graphic) + đang cầm kính xem |
+| 9558588 (MART PRODUCTION) | oversize (đen) | Vùng ảnh MART gắn thẻ teen — rủi ro tuổi, cấm dùng theo luật dự án (như 9558713) |
+
+Loại ở mức mô tả (không tải): loạt MART PRODUCTION 9558xxx (teen), 9558910 (mô tả ghi "teenager"), 8217291 (nền sặc sỡ), 21300187 (nền tối, đơn sắc), 19999455 (áo có chữ đỏ), 6373454/6373449 (cầm sổ che ngực, không mặt), 9637854/9637851 (áo anime có in), 36899307 (hồng có in), 3262911/4323710 (ngoài trời), 4859722 (ngồi), 12191323 (tựa khối trắng), 6311578 (người mẫu không phải người Á), 9775824 (nam, cầm hoa, nghiêng).
+
+**Kết luận: TRẮNG / ĐEN / OVERSIZE đều CHƯA ĐẠT ảnh thật.** 25471921 bị gỡ khỏi PHOTO_BASES, fixture đã xóa; `photoBaseFor` trả null cho mọi tổ hợp; DEMO dùng figure vẽ (đã vẽ lại theo khung nửa người, canvas 900×1125) với nhãn trung thực. Ba fixture còn lại trong PHOTO_BASES là ảnh THAM CHIẾU ÁO (móc treo/mặt sau, kind: 'garment') — không phải ảnh người mẫu.
+
+### Landmarks đã đo (lưới trên chính file fixture / hình học figure) và quad suy ra bằng torsoQuadFor
+
+| Nền | collarBottomY | hemY | torsoCenterX | torsoWidth | Quad (torsoQuadFor: gap 0.135, width 0.40) |
+|---|---|---|---|---|---|
+| Figure cổ tròn | 0.275 | 0.760 | 0.50 | 0.44 | [[0.412,0.341],[0.588,0.341],[0.588,0.481],[0.412,0.481]] |
+| Figure oversize | 0.290 | 0.840 | 0.50 | 0.58 | [[0.384,0.364],[0.616,0.364],[0.616,0.550],[0.384,0.550]] |
+| Móc treo trắng 800×1200 | 0.33 | 0.88 (gấu chéo — lấy điểm giữa) | 0.46 | 0.38 (thân ngang ngực ≈ x 0.27–0.65) | [[0.384,0.404],[0.536,0.404],[0.536,0.506],[0.384,0.506]] |
+| Móc treo đen 1200×800 | 0.26 | 0.955 | 0.49 | 0.39 | [[0.412,0.354],[0.568,0.354],[0.568,0.588],[0.412,0.588]] |
+| Mặt sau mặc 800×1200 | 0.445 | 1.00 (gấu ngoài khung — đo tới mép khung) | 0.57 | 0.70 | [[0.430,0.520],[0.710,0.520],[0.710,0.707],[0.430,0.707]] |
+
+### Suite tests/ai-studio-tpl1.mjs (vòng 3) — PASS (2 lượt liên tiếp, số đo của lượt cuối)
+
+Đo bằng bbox màu của hình in đa sắc (hình phủ kín raster ⇒ bbox = vùng in thật) đối chiếu landmarks của chính nền đó:
+
+| Ca | gap đo được (chuẩn 0.12–0.15) | width đo được (chuẩn 0.35–0.45) | tâm X | Rò rỉ | Tương quan | Banner |
+|---|---|---|---|---|---|---|
+| Trắng cổ tròn @1366 + @390 | **0.140** | **0.394** | 0.499 (chuẩn 0.50) | 0 | 0.912 | strip 24 hàng, textPx 1904 |
+| Đen cổ tròn | **0.140** | **0.394** | 0.499 | 0 | 0.910 | strip 24, textPx 1904 |
+| Oversize | **0.135** | **0.391** | 0.499 | 0 | — | strip 24, textPx 1904 |
+| Fallback móc treo trắng (ảnh thật) | **0.139** | **0.385** | 0.458 (chuẩn 0.46) | — | — | — |
+
+- Oversize: span silhouette **0.564** vs cổ tròn **0.424** (rộng hơn 1.33×); dấu chân hình in **1.73×** bản cổ tròn cùng figure — phom rộng thật, không phải in to trên áo thường.
+- GUIDE-REGRESSION: preview 0 pixel, export 0 pixel (quét 952 điểm quanh viền quad, hình in không đỏ).
+- AI-FAIL: đúng 1 request Classic/lượt chạy (mock 500), composition báo lỗi chỉ đường "Ảnh mẫu thật" rồi hoàn thành trên ảnh móc treo thật.
+- Xuất website đúng 1200×1500 ở mọi ca; DEMO figure 900×1125 kèm nhãn "chưa có ảnh chụp thật đã kiểm chứng".
+
+### Prompt nguyên văn (Task 3) — bằng chứng unit test
+
+- Chuỗi CHÍNH XÁC cho trắng/regular và đen/oversize được khẳng định ký tự-từng-ký tự trong `tests/ai-studio-p42.test.mjs` (mục "ROUND 3 — Template 1 prompt is the owner verbatim catalog template"). Template: "Commercial e-commerce apparel catalog photo, medium half-body shot from head to hip of a young Vietnamese model standing upright facing camera, wearing a PLAIN [COLOR] [FIT_TYPE] cotton crew-neck t-shirt, …" — chỉ thay [COLOR] = white/black, [FIT_TYPE] = regular-fit / oversized boxy-fit.
+- Cổng áp dụng: `catalogPrompt: true` CHỈ có trên promptAssistant của Mẫu 1 (mặc định của node là false) — test khẳng định đường legacy (không cờ) vẫn ghép prompt cũ và vẫn nêu "a young Vietnamese female/male model"; Mẫu 2–4 không đổi hành vi (hồi quy P1–P4 PASS).
+
+### Hồi quy đầy đủ
+
+- Unit `npm test`: **110/110 PASS** (107 vòng 2 + pins torsoQuadFor/registry/prompt mới, trừ các pins vòng 2 đã thay thế).
+- Browser: ai-studio.mjs PASS; ai-studio-p2.mjs PASS; ai-studio-p3.mjs PASS (điểm kéo quad trong suite được cập nhật theo góc quad torso mới 41.2%/34.1% kèm chú thích); ai-studio-p4.mjs PASS; ai-studio-tpl1.mjs PASS. Lint PASS; build PASS.
+- Không có bất kỳ lượt gọi Pollinations thật nào (DEMO + mock).
+
+### Tự xem 3 ảnh kết quả (bắt buộc — mắt là chính)
+
+- Cả 3 ảnh (`~/workspace/p42-results/white-crew.png`, `black-crew.png`, `oversize.png`, 1200×1500) là FIGURE VẼ nửa người trên nền xám sáng: banner DEMO một dải đồng nhất trên cùng; huy hiệu "ÁO IN STUDIO" nằm giữa ngực trên, dưới cổ áo một khoảng rõ, chữ trắng đọc rõ trên cả áo đen; thấy toàn bộ áo (cổ, 2 vai, 2 tay áo, gấu) + cạp quần ngay dưới gấu; không khung đứt nét; oversize rộng + dài hơn hẳn bản cổ tròn khi đặt cạnh nhau.
+- **Sự cố tự phát hiện khi xem ảnh nháp đầu:** bản vẽ đầu của vòng 3 bị CỔ QUÁ DÀI (đầu nhỏ + đặt cao, vai thấp) — số đo vẫn PASS vì landmarks tự nhất quán, nhưng mắt thấy sai tỉ lệ người. Đã sửa tỉ lệ đầu/vai (đầu to + thấp hơn, vai cao lên; landmarks suy ra lại: cổ 0.275/0.29) và chạy lại toàn bộ suite + xuất lại ảnh trước khi chốt — ảnh ở trên là bản đã sửa.
+- Đánh giá trung thực: figure vẫn là hình vẽ cách điệu (tay thẳng, mặt tối giản) với nhãn DEMO rõ ràng — ĐẠT vai trò nền DEMO trung thực + đúng luật đặt in, NHƯNG vẫn **CHƯA ĐẠT** yêu cầu "ảnh người mẫu thật đạt chuẩn TMĐT" của chủ shop ở cả 3 hạng mục.
+
+### CHƯA đạt / chưa kiểm chứng ở P4.2 vòng 3 (không báo PASS)
+
+- **Ảnh người mẫu thật đạt chuẩn TMĐT cho trắng, đen, oversize: CHƯA CÓ** sau đợt rà 8 góc truy vấn / 26 ảnh xem trực tiếp (bảng loại ở trên). Cần chủ shop quyết: (a) cung cấp ảnh của shop, hoặc (b) duyệt nới 1 mục checklist (ứng viên gần nhất: 6310890 — chỉ trượt mục nền studio trơn), hoặc (c) giữ figure vẽ như hiện tại.
+- P4.2 vòng 3 chưa kiểm chứng trên điện thoại thật của chủ shop; chưa push/PR/bundle (chờ duyệt ảnh kết quả vòng 3).
+- Các mục cũ giữ nguyên: AI thật chưa chạy end-to-end (quyết định của chủ shop — không tự gọi), P5 chưa bắt đầu.

@@ -1,33 +1,42 @@
 // AI Studio Template 1 browser suite — P4.1 flow (generate the PLAIN garment
-// first, composite the ORIGINAL design afterwards) with the P4.2 visual
-// fixes asserted at pixel level:
-//   * DEMO base for white crew is a REAL studio photo of a VIETNAMESE model
-//     (Pexels 25471921, 960×1200 — the owner's P4.2 localisation order).
-//     Black crew and oversize have NO verified Asian-model photo (an
-//     exhaustive search found only held-up shirts / printed tees /
-//     non-Asian models), so DEMO honestly falls back to the drawn figure
-//     for them — asserted here via the figure's own collar-calibrated
-//     quads and its "no verified photo" label. A regular tee with a
-//     bigger print must NEVER pose as oversize again.
-//   * every chest quad follows the collar rule: top edge 8–12% of image
-//     height BELOW the collar's lower edge, centred on the chest;
-//   * the composited design's pixel bbox respects that rule (top ≥ collar
-//     + 8%, centre inside the base's chest band);
-//   * FIX D: the exported website PNG of ALL THREE cases carries the DEMO
-//     banner (dark strip + light text pixels at the top) — the frame is
-//     re-stamped AFTER the channel crop, so it can no longer be cut off;
-//   * the dashed red guide colour appears NOWHERE near the quad border in
-//     the Preview output or the exported PNG (guide = editor only);
-//   * design colours inside the quad, ZERO design leakage outside it, and
-//     the composited raster still matches the original design raster
-//     (correlation ≥ 0.85 despite the P4.2 fabric blending);
-//   * real-photo fallback (white model photo + white hanger fixture) and
-//     the AI-failure path (mocked Classic HTTP 500, zero paid calls).
+// first, composite the ORIGINAL design afterwards) with the P4.2 fixes and
+// the ROUND-3 e-commerce standard asserted at pixel level:
+//
+// ROUND 3 (owner's e-commerce framing standard — supersedes rounds 1–2):
+//   * The round-2 white MODEL photo (Pexels 25471921) was REJECTED by the
+//     owner: close head-and-shoulders portrait, torso cut off below the
+//     chest, model leaning in, dark room background. A fresh search (8
+//     query angles, 26 candidates downloaded and viewed) found NO photo
+//     passing the full checklist (medium half-body, ENTIRE plain garment
+//     visible incl. hem + waistband, upright facing camera, plain bright
+//     studio background, Vietnamese/Asian adult model) for white, black
+//     or oversize. So DEMO uses the drawn figure for EVERY combo — the
+//     figure itself redrawn to the half-body framing (900×1125) — with
+//     its honest "chưa có ảnh chụp thật đã kiểm chứng" label. These tests
+//     pin that: no photo base may silently return.
+//   * Print placement follows the TORSO RULE (owner, round 3 — replaces
+//     the round-1 collar rule): gap from the collar's LOWER edge to the
+//     print's TOP = 12–15% of TOTAL TORSO LENGTH (collar → hem in the
+//     image); print width = 35–45% of torso width; centred on the torso
+//     centre. The multicolour test design fills its whole raster, so the
+//     composited design's measured colour bbox IS the print area: the
+//     suite measures gap/width ratios against each base's landmarks
+//     (imported from src — no copied constants) and records them.
+//   * Guide: the dashed red guide colour appears NOWHERE near the quad
+//     border in the Preview output or the exported PNG (editor only).
+//   * Design colours inside the quad, ZERO design leakage outside it,
+//     and the composited raster still matches the original design raster
+//     (correlation ≥ 0.85 despite the fabric blending).
+//   * DEMO banner uniform in every export (stamped after channel crop).
+//   * Real-photo fallback = the white HANGER garment fixture with its
+//     torso-rule quad; AI-failure path (mocked Classic HTTP 500, zero
+//     paid calls) still completes on it.
 // No real Pollinations traffic: the P4 suite's mocked routes pattern is
 // reused for the failure case; DEMO mode makes no external requests.
 import { chromium } from 'playwright';
-import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { DEMO_FIGURE } from '../src/ai-studio/core.js';
+import { GARMENT_QUADS, FIXTURE_LANDMARKS } from '../src/ai-studio/warp.js';
 
 const MULTI_SVG = readFileSync(new URL('./fixtures/design-multicolor.svg', import.meta.url), 'utf8');
 
@@ -35,13 +44,13 @@ const BASE = process.env.TEST_URL || 'http://127.0.0.1:5264';
 const results = [];
 function fail(m) { console.error('FAIL:', m); process.exit(1); }
 
-// Calibrated quads + measured collar lower edges (P4.2 + supplementary,
-// see docs/AI_STUDIO_QA_REPORT.md): chestQuadFor(collarBottomY + margin 8–12%).
-const WHITE_QUAD = [[0.27, 0.725], [0.53, 0.725], [0.53, 0.875], [0.27, 0.875]];      // VN model photo: collar 0.64, margin 0.085, centreX 0.40
-const OVER_QUAD = [[0.30, 0.42], [0.70, 0.42], [0.70, 0.62], [0.30, 0.62]];           // drawn figure, oversize fit: collar 0.336, margin 0.084
-const BLACK_QUAD = [[0.325, 0.415], [0.675, 0.415], [0.675, 0.615], [0.325, 0.615]];  // drawn figure, regular fit: collar 0.316, margin 0.099
-const HANGER_QUAD = [[0.315, 0.425], [0.515, 0.425], [0.515, 0.615], [0.315, 0.615]]; // collar 0.33, margin 0.095
-const WHITE_COLLAR = 0.64, BLACK_COLLAR = 0.316, OVER_COLLAR = 0.336;
+// Landmarks + quads come from the source registry itself (DEMO_FIGURE /
+// FIXTURE_LANDMARKS / GARMENT_QUADS) so this suite can never drift from
+// the geometry the app actually uses.
+const FIG_LM = DEMO_FIGURE.landmarks.regular, FIG_QUAD = DEMO_FIGURE.chestQuad;
+const OVER_LM = DEMO_FIGURE.landmarks.oversize, OVER_QUAD = DEMO_FIGURE.chestQuadOversize;
+const HANGER_PATH = 'public/fixtures/real-tee/crew-white-hanger.webp';
+const HANGER_LM = FIXTURE_LANDMARKS[HANGER_PATH], HANGER_QUAD = GARMENT_QUADS[HANGER_PATH];
 const GUIDE_RGB = [182, 73, 47]; // the editor guide's dashed red (editor only!)
 
 let browser;
@@ -108,28 +117,27 @@ function analyse(img, quad, baseImg = null) {
   // skin tones that can sit within tolerance of a design colour — those are
   // the photo, not leaked print). A ±0.6% border band around the quad is
   // ignored entirely: anti-aliased edge pixels land exactly on the border.
+  // The bbox tracks the design colours' full extent (x AND y) so the
+  // torso-rule ratios can be measured from it.
   const px = pxReader(img); const pb = baseImg ? pxReader(baseImg) : null;
   const counts = DESIGN_COLORS.map(() => 0); let leak = 0; const leakPts = []; const total = [0, 0];
   const BAND = 0.006;
   const inBand = (rx, ry) => rx >= quad[0][0] - BAND && rx <= quad[1][0] + BAND && ry >= quad[0][1] - BAND && ry <= quad[2][1] + BAND;
-  let minY = 1, maxY = 0, n = 0;
+  let minY = 1, maxY = 0, minX = 1, maxX = 0, n = 0;
   for (let y = 2; y < img.h - 2; y += 3) for (let x = 2; x < img.w - 2; x += 3) {
     const rx = x / img.w, ry = y / img.h; const c = px(rx, ry); const inside = inQuad(rx, ry, quad);
     if (!inside && inBand(rx, ry)) continue;
     DESIGN_COLORS.forEach((dc, i) => {
       if (!near(c, dc, 46)) return;
-      if (inside) { counts[i]++; if (ry < minY) minY = ry; if (ry > maxY) maxY = ry; n++; }
+      if (inside) { counts[i]++; if (ry < minY) minY = ry; if (ry > maxY) maxY = ry; if (rx < minX) minX = rx; if (rx > maxX) maxX = rx; n++; }
       // Leak = the COMPOSITING introduced the colour: the base must not
       // already carry it AND the output pixel must actually differ from
-      // the base pixel there. (The VN model's lipstick sits ~46–48 from
-      // the design red — exactly on the tolerance edge — and the comp's
-      // 0.9375 rescale nudges 2 samples 2 levels closer; those pixels are
-      // the photo's own lips, identical in base and output, not print.)
+      // the base pixel there.
       else if (!pb || (!near(pb(rx, ry), dc, 46) && !near(c, pb(rx, ry), 46))) { leak++; if (leakPts.length < 8) leakPts.push([+rx.toFixed(3), +ry.toFixed(3), i]); }
     });
     total[inside ? 0 : 1]++;
   }
-  return { counts, leak, leakPts, bbox: n ? { top: minY, bottom: maxY, centre: (minY + maxY) / 2 } : null };
+  return { counts, leak, leakPts, bbox: n ? { top: minY, bottom: maxY, centre: (minY + maxY) / 2, left: minX, right: maxX, centreX: (minX + maxX) / 2 } : null };
 }
 function segDist(px, py, ax, ay, bx, by) {
   const dx = bx - ax, dy = by - ay; const L2 = dx * dx + dy * dy;
@@ -178,7 +186,9 @@ async function propSelect(p, nodeTitle, selId, value) {
   await closeProps(p);
 }
 /** Inject the multicolour test design (5 colours incl. text) as the design
- * node's SVG — the same fixture the P4.1 suite used for its colour checks. */
+ * node's SVG — the same fixture the P4.1 suite used for its colour checks.
+ * Its artwork fills the ENTIRE raster, so the composited colour bbox is
+ * the print area itself (what the torso-rule measurements need). */
 async function setDesign(p, svg = MULTI_SVG) {
   await nodeByTitle(p, 'Hình in (thiết kế)').locator('header strong').click();
   await p.waitForSelector('#pf-svg', { timeout: 10000 });
@@ -225,7 +235,7 @@ async function expectSuccess(p, phase) {
     if (!/st-success/.test(await nodeClass(p, t))) fail(phase + ': node not success: ' + t);
   }
 }
-/** FIX D banner check: the exported PNG must carry the DEMO banner at the
+/** DEMO banner check: the exported PNG must carry the DEMO banner at the
  * very top — a dark strip spanning the width with light (peach) text
  * pixels inside it. Pixel-level, not a screenshot guess. */
 function bannerCheck(img, phase) {
@@ -246,12 +256,12 @@ function bannerCheck(img, phase) {
   if (textPx < 30) fail(`${phase}: DEMO banner text pixels missing at the top of the export (${textPx})`);
   return { stripRows, textPx };
 }
-/** Horizontal span (fraction of width) of the drawn figure's tee colour on
- * one row — the oversize silhouette must be visibly WIDER than regular.
- * The case uses the GREY garment (#8f959b): beige would be camouflaged
- * against the figure's cream background gradient (≈ #d8c3a5 at this row),
- * while grey contrasts with background, skin and trousers alike. */
-function teeSpan(img, hex, ry = 0.80) { // row below the figure's arm rects (they end at y≈0.755 and share the tee's colour family)
+/** Horizontal span (fraction of width) of the figure's tee colour on one
+ * row — the oversize silhouette must be visibly WIDER than regular. The
+ * case uses the GREY garment (#8f959b), which contrasts with the figure's
+ * light-grey backdrop, skin and trousers alike. The row sits just above
+ * each fit's hem (per-fit row passed in from the landmarks). */
+function teeSpan(img, hex, ry) {
   const px = pxReader(img);
   let first = -1, last = -1;
   for (let x = 0; x < img.w; x += 2) {
@@ -260,43 +270,57 @@ function teeSpan(img, hex, ry = 0.80) { // row below the figure's arm rects (the
   }
   return first < 0 ? 0 : last - first;
 }
-function positionCheck(an, quad, collar, band, phase) {
+/** ROUND-3 TORSO RULE, measured on the composited design's colour bbox
+ * (the multicolour design fills its raster, so bbox = print area):
+ *   gapRatio   = (bbox.top − collarBottomY) / (hemY − collarBottomY)
+ *   widthRatio = (bbox.right − bbox.left) / torsoWidth
+ * must sit in the owner's bands [0.12, 0.15] / [0.35, 0.45], and the print
+ * must be centred on torsoCenterX. Tolerances: samples land on a 3px
+ * grid and the warped design's edge pixels are fabric-blended toward the
+ * garment colour, so the detected bbox can shrink ~2 samples inside the
+ * true quad (≈0.007 of height; ≈0.01–0.02 of torso width) — ±0.03 on the
+ * gap and ±0.045 on the width absorb that, while any placement from the
+ * rejected geometries (round-1 collar rule, P4.1 quad) lands 5–10 points
+ * OUTSIDE the bands and still fails. Returns the measured numbers for
+ * the QA report. */
+function torsoCheck(an, lm, phase) {
   if (!an.bbox) fail(phase + ': no design pixels found');
-  if (an.bbox.top < collar + 0.08) fail(`${phase}: design top ${an.bbox.top.toFixed(3)} is above collar+8% (${(collar + 0.08).toFixed(3)}) — print rides onto the neck`);
-  const quadCentre = (quad[0][1] + quad[2][1]) / 2;
-  if (Math.abs(an.bbox.centre - quadCentre) > 0.06) fail(`${phase}: design centre ${an.bbox.centre.toFixed(3)} off the quad centre ${quadCentre.toFixed(3)}`);
-  if (an.bbox.centre < band[0] || an.bbox.centre > band[1]) fail(`${phase}: design centre ${an.bbox.centre.toFixed(3)} outside chest band ${band}`);
+  const torsoLen = lm.hemY - lm.collarBottomY;
+  const gap = (an.bbox.top - lm.collarBottomY) / torsoLen;
+  const wr = (an.bbox.right - an.bbox.left) / lm.torsoWidth;
+  if (gap < 0.12 - 0.03 || gap > 0.15 + 0.03) fail(`${phase}: measured print gap ${gap.toFixed(3)} of torso length outside [0.12, 0.15] ± 0.03 — print rides to the neck or drops to the belly`);
+  if (wr < 0.35 - 0.045 || wr > 0.45 + 0.045) fail(`${phase}: measured print width ${wr.toFixed(3)} of torso width outside [0.35, 0.45] ± 0.045`);
+  if (Math.abs(an.bbox.centreX - lm.torsoCenterX) > 0.02) fail(`${phase}: print centre x ${an.bbox.centreX.toFixed(3)} off the torso centre ${lm.torsoCenterX}`);
+  return { gapRatio: Number(gap.toFixed(3)), widthRatio: Number(wr.toFixed(3)), centreX: Number(an.bbox.centreX.toFixed(3)) };
 }
 
-// ================= CASE 1: white crew — DEMO returns the REAL photo =================
+// ================= CASE 1: white crew — DEMO = drawn figure (no compliant photo exists) =================
 for (const width of [1366, 390]) {
   const { ctx, p, errors } = await newPage(width);
   await loadTpl1(p);
   await runAll(p, width, 'white@' + width);
   await expectSuccess(p, 'white@' + width);
   const gen = await nodeCanvas(p, 'Tạo ảnh AI (DEMO)');
-  if (!gen || gen.w !== 960 || gen.h !== 1200) fail(`white@${width}: DEMO base must be the real white model photo 960×1200, got ${gen && gen.w + '×' + gen.h}`);
+  if (!gen || gen.w !== 900 || gen.h !== 1125) fail(`white@${width}: DEMO base must be the drawn half-body figure 900×1125 (round 3: no compliant model photo), got ${gen && gen.w + '×' + gen.h}`);
   const bodyText = await p.textContent('body');
-  if (!/dùng ảnh chụp thật làm ảnh nền tham chiếu/.test(bodyText || '')) fail(`white@${width}: DEMO photo-base label missing (must honestly say a real photo is used, not AI)`);
+  if (!/chưa có ảnh chụp thật đã kiểm chứng/.test(bodyText || '')) fail(`white@${width}: honest figure-fallback label missing (must say no verified real photo exists)`);
   const comp = await nodeCanvas(p, 'Ghép hình in lên áo');
-  const an = analyse(comp, WHITE_QUAD, gen);
-  if (totalOf(an.counts) < 1500) fail(`white@${width}: design barely present inside the quad: ${an.counts}`);
-  if (an.counts[0] < 300) fail(`white@${width}: design red barely present inside the quad: ${an.counts}`);
-  DESIGN_COLORS.forEach((dc, i) => { if (an.counts[i] < 25) fail(`white@${width}: design colour ${i} barely present: ${an.counts}`); });
+  const an = analyse(comp, FIG_QUAD, gen);
+  if (totalOf(an.counts) < 800) fail(`white@${width}: design barely present inside the quad: ${an.counts}`);
+  DESIGN_COLORS.forEach((dc, i) => { if (an.counts[i] < 20) fail(`white@${width}: design colour ${i} barely present: ${an.counts}`); });
   if (an.leak > 0) fail(`white@${width}: ${an.leak} design-colour samples leaked OUTSIDE the quad`);
-  positionCheck(an, WHITE_QUAD, WHITE_COLLAR, [0.72, 0.88], 'white@' + width);
+  const measured = torsoCheck(an, FIG_LM, 'white@' + width);
   const design = await nodeCanvas(p, 'Hình in (thiết kế)');
-  const corr = correlate(design, comp, WHITE_QUAD);
+  const corr = correlate(design, comp, FIG_QUAD);
   if (corr < 0.85) fail(`white@${width}: composited raster correlation vs original design ${corr.toFixed(3)} < 0.85 (blending must not destroy the original print)`);
-  results.push({ case: 'white-crew', width, gen: 'photo 960×1200 (Pexels 25471921, Vietnamese model)', counts: an.counts, leak: an.leak, bbox: an.bbox, correlation: Number(corr.toFixed(3)) });
+  results.push({ case: 'white-crew', width, gen: 'drawn figure 900×1125 (no compliant photo — UNMET, reported)', counts: an.counts, leak: an.leak, measured, correlation: Number(corr.toFixed(3)) });
   if (width === 1366) {
     // Export node output = the website channel PNG: exactly 1200×1500,
-    // with the design composited (guide scan lives in CASE 6 — see why)
-    // and the DEMO banner present at the top (FIX D).
+    // design composited, DEMO banner present at the top.
     const expImg = await nodeCanvas(p, 'Xuất file');
     if (!expImg || expImg.w !== 1200 || expImg.h !== 1500) fail(`white export: website PNG must be 1200×1500, got ${expImg && expImg.w + '×' + expImg.h}`);
-    const anE = analyse(expImg, WHITE_QUAD);
-    if (totalOf(anE.counts) < 1200) fail('white export: design missing from the exported PNG: ' + anE.counts);
+    const anE = analyse(expImg, FIG_QUAD);
+    if (totalOf(anE.counts) < 900) fail('white export: design missing from the exported PNG: ' + anE.counts);
     const banner = bannerCheck(expImg, 'white export');
     results.push({ case: 'white-export', dims: expImg.w + '×' + expImg.h, counts: anE.counts, banner });
   }
@@ -304,13 +328,12 @@ for (const width of [1366, 390]) {
   await ctx.close();
 }
 
-// ================= CASE 2: black crew — NO verified photo → drawn figure =================
-// P4.2 supplementary: an exhaustive Pexels search found NO verified photo
-// of an Asian model WEARING a plain black crew tee (the round-1 base,
-// 9558583, was a model HOLDING the shirt — forbidden by the owner and
-// lifestyle-only in its P2 record). DEMO must therefore return the drawn
-// figure (768×960) with its honest "no verified photo" label — never a
-// mismatched photo presented as fitting.
+// ================= CASE 2: black crew — drawn figure, logo-readable geometry =================
+// Round 3: black is in the same honest state as white — no verified photo
+// of an Asian model WEARING a plain black crew tee exists (round-1's
+// 9558583 was a held-up shirt; round-3 search found prints, straps,
+// outdoor shots and gaze-away portraits only). DEMO returns the drawn
+// figure (900×1125) with the honest label.
 {
   const { ctx, p, errors } = await newPage(1366);
   await loadTpl1(p);
@@ -318,34 +341,32 @@ for (const width of [1366, 390]) {
   await runAll(p, 1366, 'black');
   await expectSuccess(p, 'black');
   const gen = await nodeCanvas(p, 'Tạo ảnh AI (DEMO)');
-  if (!gen || gen.w !== 768 || gen.h !== 960) fail(`black: with no verified photo, DEMO base must be the drawn figure 768×960, got ${gen && gen.w + '×' + gen.h}`);
+  if (!gen || gen.w !== 900 || gen.h !== 1125) fail(`black: DEMO base must be the drawn figure 900×1125, got ${gen && gen.w + '×' + gen.h}`);
   const bodyText = await p.textContent('body');
   if (!/chưa có ảnh chụp thật đã kiểm chứng/.test(bodyText || '')) fail('black: figure fallback label missing (must honestly say no verified real photo exists for these params)');
   const comp = await nodeCanvas(p, 'Ghép hình in lên áo');
-  const an = analyse(comp, BLACK_QUAD, gen);
+  const an = analyse(comp, FIG_QUAD, gen);
   DESIGN_COLORS.forEach((dc, i) => { if (an.counts[i] < 10) fail(`black: design colour ${i} barely present inside the quad: ${an.counts}`); });
   if (an.leak > 0) fail('black: design leaked outside the quad: ' + an.leak);
-  positionCheck(an, BLACK_QUAD, BLACK_COLLAR, [0.44, 0.59], 'black');
+  const measured = torsoCheck(an, FIG_LM, 'black');
   const design = await nodeCanvas(p, 'Hình in (thiết kế)');
-  const corr = correlate(design, comp, BLACK_QUAD);
+  const corr = correlate(design, comp, FIG_QUAD);
   if (corr < 0.85) fail(`black: correlation vs original design ${corr.toFixed(3)} < 0.85`);
   const expImg = await nodeCanvas(p, 'Xuất file');
   if (!expImg || expImg.w !== 1200 || expImg.h !== 1500) fail(`black export: website PNG must be 1200×1500, got ${expImg && expImg.w + '×' + expImg.h}`);
-  const banner = bannerCheck(expImg, 'black export'); // FIX D: this is the case whose banner the round-1 crop cut off
-  results.push({ case: 'black-crew', gen: 'drawn figure 768×960 (no verified photo — UNMET, reported)', counts: an.counts, leak: an.leak, bbox: an.bbox, correlation: Number(corr.toFixed(3)), banner });
+  const banner = bannerCheck(expImg, 'black export');
+  results.push({ case: 'black-crew', gen: 'drawn figure 900×1125 (no compliant photo — UNMET, reported)', counts: an.counts, leak: an.leak, measured, correlation: Number(corr.toFixed(3)), banner });
   if (errors.length) fail('black: page errors: ' + errors.join(' | '));
   await ctx.close();
 }
 
 // ================= CASE 3: oversize — drawn figure with a REAL oversize silhouette =================
-// P4.2 supplementary: oversize must be a genuinely wider garment, not a
-// regular tee with a bigger print (the round-1 approach the owner
-// rejected). No verified Asian-model oversize PHOTO exists, so DEMO uses
-// the drawn figure — whose oversize torso is drawn wider/longer — and
-// this case proves BOTH the wider silhouette AND the larger print
-// footprint against the SAME figure in regular fit (colour 'xam' has no
-// photo base, so both runs use the figure — and its grey contrasts with
-// the figure's cream background, unlike beige).
+// No compliant oversize PHOTO exists either, so DEMO uses the drawn
+// figure — whose oversize torso is drawn wider AND longer (landmarks:
+// torsoWidth 0.58 vs 0.44, hem 0.87 vs 0.795) — and this case proves BOTH
+// the wider silhouette AND the larger print footprint against the SAME
+// figure in regular fit (colour 'xam' has no photo base; its grey
+// contrasts with the figure's light backdrop, unlike beige).
 {
   const { ctx, p, errors } = await newPage(1366);
   await loadTpl1(p);
@@ -354,12 +375,12 @@ for (const width of [1366, 390]) {
   await runAll(p, 1366, 'oversize');
   await expectSuccess(p, 'oversize');
   const genO = await nodeCanvas(p, 'Tạo ảnh AI (DEMO)');
-  if (!genO || genO.w !== 768 || genO.h !== 960) fail(`oversize: DEMO base must be the drawn figure 768×960, got ${genO && genO.w + '×' + genO.h}`);
-  const spanO = teeSpan(genO, [143, 149, 155]);
+  if (!genO || genO.w !== 900 || genO.h !== 1125) fail(`oversize: DEMO base must be the drawn figure 900×1125, got ${genO && genO.w + '×' + genO.h}`);
+  const spanO = teeSpan(genO, [143, 149, 155], OVER_LM.hemY - 0.03);
   const compO = await nodeCanvas(p, 'Ghép hình in lên áo');
   const anO = analyse(compO, OVER_QUAD, genO);
   if (anO.leak > 0) fail('oversize: design leaked outside the quad: ' + anO.leak + ' at ' + JSON.stringify(anO.leakPts));
-  positionCheck(anO, OVER_QUAD, OVER_COLLAR, [0.44, 0.59], 'oversize');
+  const measured = torsoCheck(anO, OVER_LM, 'oversize');
   const expImg = await nodeCanvas(p, 'Xuất file');
   if (!expImg || expImg.w !== 1200 || expImg.h !== 1500) fail(`oversize export: website PNG must be 1200×1500, got ${expImg && expImg.w + '×' + expImg.h}`);
   const banner = bannerCheck(expImg, 'oversize export');
@@ -368,55 +389,33 @@ for (const width of [1366, 390]) {
   await runAll(p, 1366, 'oversize-baseline-regular');
   await expectSuccess(p, 'oversize-baseline-regular');
   const genR = await nodeCanvas(p, 'Tạo ảnh AI (DEMO)');
-  const spanR = teeSpan(genR, [143, 149, 155]);
+  const spanR = teeSpan(genR, [143, 149, 155], FIG_LM.hemY - 0.03);
   const compR = await nodeCanvas(p, 'Ghép hình in lên áo');
-  const anR = analyse(compR, BLACK_QUAD, genR);
+  const anR = analyse(compR, FIG_QUAD, genR);
   const totalO = totalOf(anO.counts), totalR = totalOf(anR.counts);
   if (!(spanO > spanR * 1.18)) fail(`oversize: garment silhouette span ${spanO.toFixed(3)} not clearly wider than regular ${spanR.toFixed(3)}`);
   if (!(totalO > totalR * 1.08)) fail(`oversize: design footprint ${totalO} not larger than regular ${totalR}`);
-  results.push({ case: 'oversize', gen: 'drawn figure 768×960 (no verified photo — UNMET, reported)', silhouetteSpan: { oversize: Number(spanO.toFixed(3)), regular: Number(spanR.toFixed(3)) }, counts: anO.counts, footprintVsRegularFigure: Number((totalO / totalR).toFixed(2)), bbox: anO.bbox, banner });
+  results.push({ case: 'oversize', gen: 'drawn figure 900×1125 (no compliant photo — UNMET, reported)', silhouetteSpan: { oversize: Number(spanO.toFixed(3)), regular: Number(spanR.toFixed(3)) }, counts: anO.counts, footprintVsRegularFigure: Number((totalO / totalR).toFixed(2)), measured, banner });
   if (errors.length) fail('oversize: page errors: ' + errors.join(' | '));
   await ctx.close();
 }
 
-// ================= CASE 4: real-photo fallback (model photo, then hanger fixture) =================
+// ================= CASE 4: real-photo fallback (white hanger garment fixture) =================
 {
   const { ctx, p, errors } = await newPage(1366);
   await loadTpl1(p);
   await propSelect(p, 'Ghép hình in lên áo', '#pf-garment-source', 'real');
-  await runAll(p, 1366, 'fallback-model');
-  await expectSuccess(p, 'fallback-model');
-  const comp = await nodeCanvas(p, 'Ghép hình in lên áo');
-  // The composition handler caps its output at 900px wide (pre-existing
-  // behaviour): the 960×1200 model photo composites at 900×1125.
-  if (!comp || comp.w !== 900 || comp.h !== 1125) fail(`fallback-model: composition output must be the white model photo at 900×1125, got ${comp && comp.w + '×' + comp.h}`);
-  const px = pxReader(comp);
-  // Plain-tee samples between the collar (0.64 on this close-portrait
-  // fixture) and the print quad's top edge (0.725). This photo's tee is
-  // lit cool (soft daylight shadow): its lit signature measured on the
-  // fixture is ≈ (205,228,241) — pale blue-white, NOT the >200 neutral
-  // white of the old studio photo. (0.47, 0.68) is a fold valley
-  // (158,177,184) and is deliberately avoided.
-  for (const [sx, sy] of [[0.45, 0.67], [0.55, 0.65]]) {
-    const torso = px(sx, sy);
-    if (!(torso[0] > 170 && torso[1] > 190 && torso[2] > 200)) fail(`fallback-model: torso sample at ${sx},${sy} is not the lit white tee: ` + torso);
-  }
-  const an = analyse(comp, WHITE_QUAD);
-  if (totalOf(an.counts) < 1200) fail('fallback-model: design not composited: ' + an.counts);
-  positionCheck(an, WHITE_QUAD, WHITE_COLLAR, [0.72, 0.88], 'fallback-model');
-  // Switch the real base to the white hanger fixture → its own calibrated quad.
-  await propSelect(p, 'Ghép hình in lên áo', '#pf-real-base', 'public/fixtures/real-tee/crew-white-hanger.webp');
   await runAll(p, 1366, 'fallback-hanger');
   await expectSuccess(p, 'fallback-hanger');
-  const comp2 = await nodeCanvas(p, 'Ghép hình in lên áo');
-  if (!comp2 || comp2.w !== 800 || comp2.h !== 1200) fail(`fallback-hanger: output must be the hanger fixture 800×1200, got ${comp2 && comp2.w + '×' + comp2.h}`);
-  const px2 = pxReader(comp2);
-  const garment = px2(0.415, 0.30);
+  const comp = await nodeCanvas(p, 'Ghép hình in lên áo');
+  if (!comp || comp.w !== 800 || comp.h !== 1200) fail(`fallback-hanger: output must be the hanger fixture 800×1200, got ${comp && comp.w + '×' + comp.h}`);
+  const px = pxReader(comp);
+  const garment = px(0.415, 0.30);
   if (!(Math.abs(garment[0] - 226) < 42 && Math.abs(garment[1] - 221) < 42)) fail('fallback-hanger: garment sample off: ' + garment);
-  const an2 = analyse(comp2, HANGER_QUAD);
-  if (totalOf(an2.counts) < 600) fail('fallback-hanger: design not composited on the hanger quad: ' + an2.counts);
-  positionCheck(an2, HANGER_QUAD, 0.33, [0.42, 0.58], 'fallback-hanger');
-  results.push({ case: 'fallback', modelPhoto: '900×1125 OK (900px cap)', hanger: '800×1200 OK', counts: an.counts, hangerCounts: an2.counts });
+  const an = analyse(comp, HANGER_QUAD);
+  if (totalOf(an.counts) < 600) fail('fallback-hanger: design not composited on the hanger quad: ' + an.counts);
+  const measured = torsoCheck(an, HANGER_LM, 'fallback-hanger');
+  results.push({ case: 'fallback', hanger: '800×1200 OK', counts: an.counts, measured });
   if (errors.length) fail('fallback: page errors: ' + errors.join(' | '));
   await ctx.close();
 }
@@ -452,7 +451,7 @@ for (const width of [1366, 390]) {
     }
   }
   if (classicCalls !== 2) fail('ai-fail: expected exactly 1 Classic request per run (2 runs), got ' + classicCalls);
-  results.push({ case: 'ai-fail', classicCallsPerRun: 1, fallback: 'completed on the real photo' });
+  results.push({ case: 'ai-fail', classicCallsPerRun: 1, fallback: 'completed on the real hanger photo' });
   // The mocked HTTP 500 responses surface as console resource errors — they
   // are the intended mock, not page errors; anything else still fails.
   const realErrors = errors.filter(e => !/Failed to load resource.*500/.test(e));
@@ -473,11 +472,11 @@ for (const width of [1366, 390]) {
   await runAll(p, 1366, 'guide');
   await expectSuccess(p, 'guide');
   const prev = await nodeCanvas(p, 'Xem trước'); if (!prev) fail('guide: no preview canvas');
-  const gsP = guideScan(prev, WHITE_QUAD);
+  const gsP = guideScan(prev, FIG_QUAD);
   if (gsP.hits > 0) fail(`guide: preview contains ${gsP.hits} guide-red pixels near the quad border (guide must be editor-only)`);
   const expImg = await nodeCanvas(p, 'Xuất file');
   if (!expImg || expImg.w !== 1200 || expImg.h !== 1500) fail(`guide: export PNG must be 1200×1500, got ${expImg && expImg.w + '×' + expImg.h}`);
-  const gsE = guideScan(expImg, WHITE_QUAD); // uniform 1.25× scale; relative quad unchanged
+  const gsE = guideScan(expImg, FIG_QUAD); // uniform 1.333× scale; relative quad unchanged
   if (gsE.hits > 0) fail(`guide: exported PNG contains ${gsE.hits} guide-red pixels near the quad border`);
   results.push({ case: 'guide-regression', previewGuideHits: gsP.hits, exportGuideHits: gsE.hits, scanned: gsP.scanned });
   if (errors.length) fail('guide: page errors: ' + errors.join(' | '));
@@ -485,4 +484,4 @@ for (const width of [1366, 390]) {
 }
 
 await browser.close();
-console.log(JSON.stringify({ suite: 'ai-studio-tpl1 (P4.2)', pass: true, results }, null, 1));
+console.log(JSON.stringify({ suite: 'ai-studio-tpl1 (P4.2 round 3)', pass: true, results }, null, 1));

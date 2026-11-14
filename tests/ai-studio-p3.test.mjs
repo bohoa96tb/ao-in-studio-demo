@@ -8,7 +8,7 @@ import {
   solveHomography, applyHomography, UNIT_SQUARE, rectToQuad, presetQuadFor,
   migrateCompositionConfig, fieldMean, sampleField, displacementAt,
   buildWarpGrid, fitInto, CHANNEL_PRESETS, channelPreset, channelFileName,
-  chestQuadFor, GARMENT_QUADS,
+  chestQuadFor, GARMENT_QUADS, torsoQuadFor, FIXTURE_LANDMARKS,
 } from '../src/ai-studio/warp.js';
 
 const near = (a, b, eps = 1e-6) => Math.abs(a - b) <= eps;
@@ -120,12 +120,17 @@ test('P1 config with a rotation keeps simple mode (exact P1 rendering preserved)
 });
 
 test('garment preset quads exist for the calibrated hanger fixtures', () => {
-  // P4.2: preset quads were recalibrated with the chestQuadFor collar rule
-  // (the P3-era white-hanger quad top 0.375 sat only ~4.5% below the collar
-  // — the print rode onto the neck; the owner rejected that in P4.2).
-  assert.deepEqual(presetQuadFor('public/fixtures/real-tee/crew-white-hanger.webp'), chestQuadFor({ collarBottomY: 0.33, centerX: 0.415, width: 0.20, height: 0.19 }));
+  // P4.2 round 3: preset quads are derived with torsoQuadFor from the
+  // fixtures' measured LANDMARKS (owner's torso rule — gap 12–15% of
+  // torso length below the collar, width 35–45% of torso width). This
+  // supersedes the round-1 chestQuadFor collar calibration (whose
+  // white-hanger quad the owner still found wrongly placed) and the
+  // P3-era quad (top 0.375, ~4.5% below the collar — print on the neck).
+  const hp = 'public/fixtures/real-tee/crew-white-hanger.webp';
+  assert.deepEqual(presetQuadFor(hp), torsoQuadFor(FIXTURE_LANDMARKS[hp], { imgW: 800, imgH: 1200 }));
   assert.ok(presetQuadFor('public/fixtures/real-tee/crew-black-hanger.webp'));
   assert.equal(presetQuadFor('khong-co.webp'), null);
+  assert.ok(chestQuadFor, 'legacy chestQuadFor remains exported for P1-era callers');
 });
 
 test('node registry: 13 node types including background; defaults carry P3 fields', () => {
