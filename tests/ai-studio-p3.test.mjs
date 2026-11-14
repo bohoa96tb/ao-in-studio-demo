@@ -8,6 +8,7 @@ import {
   solveHomography, applyHomography, UNIT_SQUARE, rectToQuad, presetQuadFor,
   migrateCompositionConfig, fieldMean, sampleField, displacementAt,
   buildWarpGrid, fitInto, CHANNEL_PRESETS, channelPreset, channelFileName,
+  channelFitMode, coverRetainedFraction, COVER_MIN_RETAINED,
   chestQuadFor, GARMENT_QUADS, torsoQuadFor, FIXTURE_LANDMARKS, AI_MODEL_QUADS,
 } from '../src/ai-studio/warp.js';
 
@@ -96,6 +97,24 @@ test('channel presets: the 6 sales channels, unique ids, positive dims', () => {
   assert.equal(channelPreset('khong-co'), null);
   assert.equal(channelFileName(channelPreset('tiktok'), 'jpg'), 'tiktok-1080x1920.jpg');
   assert.equal(channelFileName(channelPreset('shopee'), 'png', 'ao-xuan'), 'ao-xuan-shopee-1024x1024.png');
+});
+
+test('channelFitMode (P4.2 round-4 correction): extreme-aspect cover falls back to contain', () => {
+  const website = channelPreset('website'); // 1200x1500 cover
+  // The AI oversize base 1040x2352: cover would keep 1500/2714 ≈ 55% of
+  // the height — head and hem cut — so it must fall back to contain.
+  assert.ok(coverRetainedFraction(1040, 2352, website.w, website.h) < COVER_MIN_RETAINED);
+  assert.equal(channelFitMode(1040, 2352, website), 'contain');
+  // The crew bases 1280x1920 keep 83% under website cover — unchanged.
+  assert.ok(near(coverRetainedFraction(1280, 1920, website.w, website.h), 1500 / 1800, 1e-9));
+  assert.equal(channelFitMode(1280, 1920, website), 'cover');
+  // Ordinary sources on other cover channels stay cover.
+  assert.equal(channelFitMode(900, 1125, channelPreset('tiktok')), 'cover');
+  assert.equal(channelFitMode(900, 1125, channelPreset('facebook')), 'cover');
+  assert.equal(channelFitMode(800, 1200, channelPreset('shopee')), 'cover');
+  // Preset contain channels are never rewritten.
+  assert.equal(channelFitMode(1040, 2352, channelPreset('website-vuong')), 'contain');
+  assert.equal(channelFitMode(1040, 2352, channelPreset('facebook-ngang')), 'contain');
 });
 
 test('rectToQuad equals the P1 rectangle corners', () => {

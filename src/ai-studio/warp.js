@@ -341,6 +341,29 @@ export const CHANNEL_PRESETS = [
   { id: 'shopee', label: 'Shopee — 1024×1024', w: 1024, h: 1024, fit: 'cover' },
 ];
 export function channelPreset(id) { return CHANNEL_PRESETS.find(c => c.id === id) || null; }
+
+// ---------- channel fit decision (P4.2 round-4 correction) ----------
+/** Minimum fraction of the source a 'cover' channel export must keep.
+ * Cover-cropping an extreme-aspect source amputates the subject: the
+ * 1040×2352 AI oversize base into website 1200×1500 kept only ~55% of
+ * the height — the model's head AND the shirt hem were cut out of the
+ * sales image. Below this threshold the export falls back to 'contain'
+ * and pads with the source's own backdrop colour (the caller samples
+ * it), so the whole garment stays in frame. Ordinary sources are
+ * unaffected: the 1280×1920 crew bases keep 83% under website cover. */
+export const COVER_MIN_RETAINED = 0.6;
+export function coverRetainedFraction(srcW, srcH, dstW, dstH) {
+  const f = fitInto(srcW, srcH, dstW, dstH, 'cover');
+  return (f.sw * f.sh) / (srcW * srcH);
+}
+/** Effective fit for one channel export: the preset's own fit, except a
+ * 'cover' preset whose crop would keep less than COVER_MIN_RETAINED of
+ * the source — that one renders 'contain' (see above). */
+export function channelFitMode(srcW, srcH, preset) {
+  if (!preset) return 'cover';
+  if (preset.fit !== 'cover') return preset.fit;
+  return coverRetainedFraction(srcW, srcH, preset.w, preset.h) >= COVER_MIN_RETAINED ? 'cover' : 'contain';
+}
 export function channelFileName(preset, format, pattern = '') {
   const ext = format === 'jpg' ? 'jpg' : 'png';
   const base = `${preset.id}-${preset.w}x${preset.h}.${ext}`;

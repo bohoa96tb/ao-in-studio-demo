@@ -6,7 +6,7 @@ import { NODE_DEFS, NODE_TYPES, TEMPLATES, emptyGraph, makeNode, findNode, valid
 import { Engine, downstreamOf, upstreamOf } from './engine.js';
 import { nodeCacheKey, isCacheable, RunQueue, validateWorkflow, collectReferencedAssetIds, findOrphanAssets, pruneOldest, formatDuration } from './p2.js';
 import { DemoAdapter, HttpAdapter, PollinationsClassicAdapter, PollinationsKeyedAdapter, setSessionKey, hasSessionKey, BROWSER_KEY_WARNING, POLLINATIONS_KEY_WARNING, AUTO_TOPUP_WARNING, COMMERCIAL_USE_NOTE, PROVIDERS, providerById, modelOf, isRunnableModel, resolveGenerationMode, suppressRetryForMode, sizeForRatio, estimateGenerationCost, describePlannedCalls, describeProvider } from './providers.js';
-import { solveHomography, applyHomography, UNIT_SQUARE, rectToQuad, presetQuadFor, migrateCompositionConfig, torsoQuadFor, framingAspectClass, passesHalfBodyFraming, fieldMean, displacementAt, buildWarpGrid, fitInto, CHANNEL_PRESETS, channelPreset, channelFileName } from './warp.js';
+import { solveHomography, applyHomography, UNIT_SQUARE, rectToQuad, presetQuadFor, migrateCompositionConfig, torsoQuadFor, framingAspectClass, passesHalfBodyFraming, fieldMean, displacementAt, buildWarpGrid, fitInto, channelFitMode, CHANNEL_PRESETS, channelPreset, channelFileName } from './warp.js';
 import { store, storageEstimate } from './store.js';
 
 const $ = (s) => document.querySelector(s);
@@ -69,6 +69,27 @@ function drawDemoBanner(ctx, w, text = 'ẢNH DEMO — chưa kết nối AI', h 
  * over the top of an uncropped image is a no-op visually — the strip
  * height matches the generator's 54px-at-1200 ≈ 4.5% of height.
  */
+/** Backdrop colour of a source image, sampled from the image itself:
+ * two vertical bands at the far left/right edges, 18–34% down — pure
+ * studio backdrop in a garment photo (below the baked DEMO banner,
+ * outside the centred subject; edge-to-edge sampling lower down would
+ * average in arms, sleeves and jeans and darken the pad). Used ONLY to
+ * pad the extreme-aspect channel-export fallback (channelFitMode) so a
+ * contained garment photo sits on its own studio backdrop instead of a
+ * mismatched seam. */
+function sampleBackdropColor(img) {
+  const W = img.naturalWidth || img.width, H = img.naturalHeight || img.height;
+  const pw = Math.max(8, Math.round(W * 0.03)), ph = Math.max(8, Math.round(H * 0.16));
+  const sy = Math.round(H * 0.18);
+  let r = 0, g = 0, b = 0, n = 0;
+  for (const sx of [Math.round(W * 0.01), Math.round(W * 0.99) - pw]) {
+    const c = makeCanvas(pw, ph), x = c.getContext('2d');
+    x.drawImage(img, sx, sy, pw, ph, 0, 0, pw, ph);
+    const d = x.getImageData(0, 0, pw, ph).data;
+    for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i + 1]; b += d[i + 2]; n++; }
+  }
+  return `rgb(${Math.round(r / n)}, ${Math.round(g / n)}, ${Math.round(b / n)})`;
+}
 function stampDemoFrame(ctx, w, h) {
   const sh = Math.max(28, Math.round(h * 0.045));
   ctx.save();
@@ -685,17 +706,27 @@ const handlers = {
     const img = await blobToImg(v.blob);
     const format = node.config.format === 'jpg' ? 'jpg' : 'png';
     const files = [];
+    let backdrop = null; // sampled lazily, only for the extreme-aspect fallback
     for (const p of chans) {
-      const f = fitInto(img.width, img.height, p.w, p.h, p.fit);
+      // P4.2 round-4 correction: a 'cover' preset whose crop would keep
+      // less than COVER_MIN_RETAINED of the source (the 1040×2352 AI
+      // oversize base into website 1200×1500 kept ~55% — head AND hem
+      // cut) falls back to 'contain', padded with the source's OWN
+      // backdrop colour so the whole garment stays in frame. Preset
+      // 'contain' channels keep their established white pad.
+      const mode = channelFitMode(img.width, img.height, p);
+      const padded = mode === 'contain' && p.fit === 'cover';
+      const f = fitInto(img.width, img.height, p.w, p.h, mode);
       const c = makeCanvas(p.w, p.h), x = c.getContext('2d');
-      x.fillStyle = '#ffffff'; x.fillRect(0, 0, p.w, p.h);
+      if (padded && backdrop === null) backdrop = sampleBackdropColor(img);
+      x.fillStyle = padded ? backdrop : '#ffffff'; x.fillRect(0, 0, p.w, p.h);
       x.drawImage(img, f.sx, f.sy, f.sw, f.sh, f.dx, f.dy, f.dw, f.dh);
       // P4.2 supplementary (FIX D): DEMO inputs get the DEMO frame stamped
       // on the FINAL channel image (after crop/resize) — identical banner
       // treatment in every case, never cropped away.
       if (v.demo) stampDemoFrame(x, p.w, p.h);
       const blob = await canvasBlob(c, format === 'jpg' ? 'image/jpeg' : 'image/png', (node.config.jpgQuality || 92) / 100);
-      files.push(valueFromBlob(blob, 'image', { name: channelFileName(p, format, node.config.namePattern), label: `Kênh ${p.label} (${p.fit === 'cover' ? 'cắt phủ khung' : 'vừa khung, chừa nền trắng'})` }));
+      files.push(valueFromBlob(blob, 'image', { name: channelFileName(p, format, node.config.namePattern), label: `Kênh ${p.label} (${mode === 'cover' ? 'cắt phủ khung' : padded ? 'vừa khung, đệm màu nền của ảnh — nguồn quá cao, tránh cắt mất đầu/vạt áo' : 'vừa khung, chừa nền trắng'})` }));
     }
     log('Đã tạo ' + files.length + ' kích thước kênh: ' + files.map(f => f.name).join(', '));
     return { ...v, kind: 'image', blob: files[0].blob, url: files[0].url, mime: files[0].mime, files, label: `Đã xuất ${files.length} kích thước cho kênh bán hàng (xem danh sách file ở Thuộc tính node / trong ZIP)` };
