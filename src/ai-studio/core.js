@@ -426,7 +426,7 @@ export function aiModelBaseFor(garment) {
  * NEVER be silently reused after an upgrade — the chained config/input
  * hash alone does not cover code behaviour. Bump on any behaviour
  * change that alters node outputs for identical configs/inputs. */
-export const AI_STUDIO_BUILD = 'p43';
+export const AI_STUDIO_BUILD = 'p44';
 /** Template 1's own version. Template-1-derived projects carry
  * meta {templateId:'tpl1', tplVersion} (stamped by the template factory
  * and threaded through save/draft/version snapshots). On load, a

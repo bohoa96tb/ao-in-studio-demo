@@ -14,7 +14,8 @@
 //   3. The composition node gains framingGuard: 'strict' (default —
 //      fail → approved-base fallback) | 'allow' (user's explicit choice
 //      to composite onto the off-standard AI image, honestly labelled).
-// Plus the cache-safety build bump: AI_STUDIO_BUILD === 'p43'.
+// Plus the cache-safety build bump: AI_STUDIO_BUILD === 'p43' at P4.3
+// (P4.4 bumps it again to 'p44' — the marker assertion below follows).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { AI_STUDIO_BUILD, TEMPLATES, NODE_DEFS } from '../src/ai-studio/core.js';
@@ -90,6 +91,8 @@ test('P4.3 framingGuard — missing/invalid migrates to strict, allow survives',
 });
 
 // ---------- 4. cache safety ----------
-test('P4.3 build marker — AI_STUDIO_BUILD is p43 (stale compositions can never be served)', () => {
-  assert.equal(AI_STUDIO_BUILD, 'p43');
+test('P4.3 build marker — AI_STUDIO_BUILD was bumped to p43 at P4.3 (stale compositions can never be served)', () => {
+  // P4.4 bumped the marker again to 'p44'; the invariant this test guards
+  // is that the P4.3 bump happened and the marker never went back.
+  assert.ok(AI_STUDIO_BUILD === 'p43' || AI_STUDIO_BUILD === 'p44', 'marker is p43 or a later bump, got ' + AI_STUDIO_BUILD);
 });
