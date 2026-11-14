@@ -151,3 +151,40 @@ Chủ shop bác bỏ P4.1 vì đầu ra không dùng để bán hàng được d
 - **Độ bám thông số áo của AI THẬT (sana/flux): vẫn CHƯA kiểm chứng** (giữ nguyên từ P4/P4.1 — không gọi API tạo ảnh thật theo quy định chi phí). P4.2 chỉ sửa đường DEMO + ghép; lần chạy thật đầu tiên vẫn là quyết định của chủ shop.
 - **Điện thoại Android thật:** P4.2 mới kiểm chứng qua Playwright (kèm viewport 390px trong suite tpl1). Chủ shop cần duyệt trực tiếp 3 ảnh kết quả và kiểm tra trên điện thoại: kéo quad trong trình căn chỉnh, trượt "Độ phủ mực", đổi "Ảnh mẫu thật".
 - Các mục chưa đạt từ P1–P4.1 giữ nguyên (video MP4, minimap, quad mặt phẳng chưa hiệu chuẩn tay cho shop, img2img thật chưa hỗ trợ).
+
+## P4.2 bổ sung — QA nội địa hóa người mẫu, logo, banner, prompt (2026-11-14)
+
+Lệnh bổ sung của chủ shop sau khi xem ảnh vòng 1: thay toàn bộ ảnh người mẫu bằng người mẫu Việt/châu Á (kể cả ảnh trắng đã đạt vị trí), cấm áo cầm tay cho nền đen, oversize phải là áo thật, logo phải đọc được trên áo tối, banner DEMO đồng nhất, prompt mặc định người mẫu Việt.
+
+### Ảnh nền mới và hiệu chuẩn (tự tải + tự xem từng ảnh)
+
+| Nền | Nguồn | Kết luận sau khi XEM ảnh | Cổ áo | Quad |
+|---|---|---|---|---|
+| Trắng cổ tròn — **ĐẠT** | Pexels 25471921, quang vinh, Pexels License | Phụ nữ Việt trưởng thành, MẶC áo thun trắng trơn, chính diện, ngực trống, nền studio mềm | 0.64 (đo lưới trên fixture 960×1200; tâm ngực x=0.40) | [[0.27,0.725],[0.53,0.725],[0.53,0.875],[0.27,0.875]] (margin 0.085) |
+| Đen cổ tròn — **CHƯA ĐẠT** | ~16 góc truy vấn Pexels | Không có ảnh đạt chuẩn (người mẫu Á + MẶC + trơn + chính diện + ngực trống). Loại: 9558583 cầm áo; 25884888 sơ mi nút; 1129019 kéo áo che mặt; 9017001 tay che ngực/cổ vỏ sò; 16701778 in "RUNNING" + không phải ĐNÁ; 19099186 nghiêng + in + tay trên ngực; 26704856 gần nghiêng + tóc phủ ngực; 9558567 không phải người Á + mất đầu; 16131006 in hiệu + tay che ngực; loạt MART gắn thẻ teen (rủi ro tuổi — không dùng) | — | figure vẽ (cổ 0.316, quad cổ tròn) |
+| Oversize — **CHƯA ĐẠT** | cùng đợt rà | Không có ảnh oversize TRƠN trên người mẫu Á: ứng viên đều in statement/graphic (BANDAR BAANT, Madvortex 16155503) hoặc người mẫu không phải người Á (1926769) | — | figure vẽ oversize (cổ 0.336, quad [[0.30,0.42],[0.70,0.42],[0.70,0.62],[0.30,0.62]]) |
+
+### Kết quả suite tests/ai-studio-tpl1.mjs (bổ sung) — PASS (3 lượt liên tiếp sau gia cố hạ tầng test)
+
+- **WHITE-CREW @1366 + @390:** DEMO trả ảnh Việt 960×1200, nhãn "dùng ảnh chụp thật làm ảnh nền tham chiếu"; mẫu màu trong quad [911, 756, 924, 920, 53], rò rỉ **0**; bbox top **0.727** (≥ cổ 0.64 + 0.08 = 0.72 ✓), tâm **0.800** (khung chân dung gần — tâm vùng in nằm ở phần ngực hiện trong khung, đúng quy tắc cổ áo); tương quan **0.909** (≥0.85 giữ nguyên); export 1200×1500, banner: stripRows **24**, textPx **1904**.
+- **BLACK-CREW (figure trung thực):** figure 768×960 + nhãn "chưa có ảnh chụp thật đã kiểm chứng"; cả 5 màu hiện diện, rò rỉ **0**, tâm bbox **0.515**, tương quan **0.88**; banner export stripRows **24**, textPx **1906**.
+- **OVERSIZE (figure trung thực):** silhouette span **0.573** vs cổ tròn **0.438** (rộng hơn 1.31× — phom rộng THẬT trên figure, không phải in to trên áo thường); dấu chân hình in **1.19×** bản cổ tròn cùng figure; rò rỉ **0**; banner textPx **1906**.
+- **FALLBACK:** "Ảnh mẫu thật" mặc định = ảnh người mẫu Việt (đầu ra 900×1125), mẫu thân áo kiểm chứng theo chữ ký sáng lạnh của chính ảnh (205,228,241); móc treo trắng 800×1200 giữ nguyên đạt.
+- **AI-FAIL + GUIDE-REGRESSION:** không đổi kết quả — 1 request Classic/lượt; preview + export 0 pixel màu khung.
+- **Logo (FIX C):** unit test mới khẳng định SVG mẫu không còn `#293e35`, cả hai dòng chữ đều trắng trong huy hiệu đất nung; kiểm chứng bằng mắt trên 3 ảnh xuất (dưới đây).
+- **Prompt (FIX E):** unit test mới: lựa chọn nu-viet/nam-viet tồn tại kèm nhãn tiếng Việt; mặc định node + Mẫu 1 = nu-viet; buildPrompt EN chứa "a young Vietnamese female model wearing a PLAIN white" (và bản nam tương ứng).
+- **Unit `npm test`: 107/107 PASS** (105 + 2 mới). **Hồi quy:** ai-studio.mjs PASS; ai-studio-p2.mjs PASS; ai-studio-p3.mjs PASS; ai-studio-p4.mjs PASS; lint PASS; build PASS.
+- **Ghi chú độ ổn định suite:** trên VM chịu tải, suite từng fail rời rạc do ĐỌC phải ảnh lượt trước (img vừa đổi src) và do màu son của người mẫu lọt dung sai màu hình in khi không đối chiếu ảnh nền — cả hai đã sửa ở hạ tầng/điều kiện đo (ghi comment trong test), KHÔNG khẳng định nào bị nới lỏng; sau sửa: 3 lượt PASS liên tiếp.
+
+### Tự xem 3 ảnh kết quả (bắt buộc — mắt là chính)
+
+- `white-crew.png` — **ĐẠT:** người mẫu Việt mặc áo trắng trơn, huy hiệu giữa ngực dưới cổ áo (không chạm cổ/tóc), "ÁO IN" + "STUDIO" trắng đọc rõ, banner DEMO một dải gọn ở trên cùng, không khung đứt nét.
+- `black-crew.png` — **đúng mọi tiêu chí KỸ THUẬT nhưng là FIGURE VẼ:** áo đen cổ tròn, logo giữa ngực và "STUDIO" đọc rõ hoàn toàn trên nền đen (FIX C đạt), banner một dải duy nhất (dải bóng ma của bản nháp đầu đã sửa bằng dải nướng tỉ lệ 4.5%). Vẫn **CHƯA ĐẠT** yêu cầu "ảnh người mẫu Á mặc áo đen thật" — báo trung thực, nhãn trong app cũng nói rõ chưa có ảnh đã kiểm chứng.
+- `oversize.png` — **figure vẽ phom rộng thật** (vai rủ, thân rộng — span 1.31×), logo giữa ngực đọc rõ, banner đồng nhất. **CHƯA ĐẠT** yêu cầu ảnh oversize thật trên người mẫu Á.
+
+### CHƯA đạt / chưa kiểm chứng ở P4.2 bổ sung (không báo PASS)
+
+- **Ảnh đen người mẫu Á MẶC áo đen trơn: CHƯA CÓ** sau đợt rà kỹ (danh sách loại ở trên). Cần chủ shop: hoặc cung cấp ảnh của shop, hoặc duyệt nới tiêu chí (ví dụ chấp nhận ảnh 3/4, hoặc người mẫu châu Á ngoài Việt Nam với ngực bị tóc che một phần — 20603344 đã xem nhưng tóc phủ nửa ngực nên không tự ý dùng).
+- **Ảnh oversize trơn trên người mẫu Á: CHƯA CÓ** — cùng lựa chọn như trên.
+- Ảnh trắng mới là khung chân dung GẦN: vùng in nằm thấp hơn trên thân so với ảnh nửa người (đúng quy tắc cổ áo trên chính khung hình đó); nếu chủ shop muốn khung nửa người, cần một ảnh khác đạt chuẩn — ứng viên dự phòng đã xem 25471969 (cùng người mẫu, góc 3/4 nhìn xuống, tay bắt chéo thấp) chưa dùng.
+- Các mục chưa đạt cũ giữ nguyên (AI thật chưa chạy end-to-end — quyết định của chủ shop; P4.2 chưa kiểm chứng trên điện thoại thật; video MP4/minimap…).

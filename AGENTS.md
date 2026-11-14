@@ -155,3 +155,27 @@ honestly in the registry). Composition quad resolution: 'real' source →
 the base's calibrated quad; user-dragged/typed quad (quadSource 'user')
 wins in 'ai' mode; otherwise the generated base's own calibrated
 baseQuad wins over the stored quad. No IndexedDB version change (v2).
+P4.2 supplementary (2026-11-14, same branch — owner localisation order
+after seeing round-1 result images; this paragraph SUPERSEDES the
+round-1 photo-base sentences above): ALL AI Studio model photos must
+show Vietnamese/Asian models. White crew base is now Pexels 25471921
+(quang vinh, Vietnamese model WEARING a plain white crew tee; fixture
+crew-white-vn-model.webp, collarBottomY 0.64, centreX 0.40, quad
+[[0.27,0.725],[0.53,0.725],[0.53,0.875],[0.27,0.875]]); the round-1
+white base (10159280, non-Asian model) is DELETED from the repo.
+BLACK and OVERSIZE photo bases are UNMET: no verified photo of an
+Asian model wearing a plain black crew tee / a plain oversize tee met
+the discipline (held shirts, prints, obstructed chests, unverifiable
+age all rejected — list in docs/AI_STUDIO_QA_REPORT.md), so
+photoBaseFor returns null for them and DEMO falls back to the drawn
+figure with the honest "chưa có ảnh chụp thật đã kiểm chứng" label.
+Pexels 9558583 is NOT a compositing base (the round-1 AI-Studio
+exception is withdrawn; its P2 lifestyle-only record stands, shop use
+unchanged, the file stays). Sample logo: ALL text is white INSIDE the
+terracotta badge ("STUDIO" in dark teal outside the badge is gone —
+it vanished on black tees). DEMO banner: baked strip AND export stamp
+are both 4.5% of image height (drawDemoBanner takes h; exportNode
+stamps stampDemoFrame after channel crop/resize via the composition
+value's demo flag) — one uniform banner in every export.
+promptAssistant: model options include nu-viet/nam-viet ("a young
+Vietnamese female/male model"); Template 1's default model is nu-viet.

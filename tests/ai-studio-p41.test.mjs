@@ -77,7 +77,7 @@ test('P4.1 Template 1 structure: generate plain garment FIRST, composite origina
   assert.equal(pa.config.kieuAo, 'co-tron'); assert.equal(pa.config.mauAo, 'trang'); assert.equal(pa.config.gocChup, 'chinh-dien');
   assert.deepEqual(comp.config.quad, DEMO_FIGURE.chestQuad);
   assert.equal(comp.config.garmentSource, 'ai');
-  assert.equal(comp.config.realBase, 'public/fixtures/real-tee/crew-white-model.webp');
+  assert.equal(comp.config.realBase, 'public/fixtures/real-tee/crew-white-vn-model.webp');
   assert.deepEqual(exp.config.channels, ['website'], 'website channel preset = 1200x1500 export');
 });
 
@@ -90,7 +90,7 @@ test('P4.1 templates 2-4 unchanged in flow (tpl4 keeps its comp -> gen chain)', 
 
 test('P4.1 composition migration: garmentSource/realBase defaults, explicit values preserved', () => {
   const m = migrateCompositionConfig({ printX: 50, printY: 42, printW: 34, rotation: 0 });
-  assert.equal(m.garmentSource, 'ai'); assert.equal(m.realBase, 'public/fixtures/real-tee/crew-white-model.webp'); // P4.2 default real base
+  assert.equal(m.garmentSource, 'ai'); assert.equal(m.realBase, 'public/fixtures/real-tee/crew-white-vn-model.webp'); // P4.2 default real base
   const r = migrateCompositionConfig({ garmentSource: 'real', realBase: 'public/fixtures/real-tee/crew-black-hanger.webp' });
   assert.equal(r.garmentSource, 'real'); assert.equal(r.realBase, 'public/fixtures/real-tee/crew-black-hanger.webp');
   assert.ok(presetQuadFor(r.realBase), 'real fallback base has a calibrated preset quad');

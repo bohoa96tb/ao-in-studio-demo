@@ -91,13 +91,22 @@ export const GARMENT_QUADS = {
   // Black hanger (1200×800): collar lower edge 0.26 (size-tag scan),
   // garment centre x 0.495.
   'public/fixtures/real-tee/crew-black-hanger.webp': chestQuadFor({ collarBottomY: 0.26, centerX: 0.495, width: 0.27, height: 0.28 }),
-  // White MODEL front photo (960×1200, Pexels 10159280, cropped to 4:5):
-  // neckline lowest point 0.358, torso centre x 0.486 (visually measured).
-  'public/fixtures/real-tee/crew-white-model.webp': chestQuadFor({ collarBottomY: 0.358, centerX: 0.486, width: 0.24, height: 0.15, margin: 0.085 }),
-  // Black tee displayed by a model (800×1200, Pexels 9558583): collar
-  // lower edge 0.495 (the garment fills the lower half of the frame, so
-  // the chest centre is lower than in an upper-body shot), centre x 0.58.
-  'public/fixtures/real-tee/crew-black-woman.webp': chestQuadFor({ collarBottomY: 0.495, centerX: 0.58, width: 0.30, height: 0.16, margin: 0.09 }),
+  // White MODEL front photo (960×1200, Pexels 25471921, Vietnamese model,
+  // cropped to 4:5 from the top of the 2000×3000 original): neckline
+  // lowest point 0.64 (grid-measured on the fixture — a close portrait,
+  // so the collar sits lower in frame than in an upper-body shot), chest
+  // centre x 0.40 (grid-measured). P4.2 supplementary: replaces Pexels
+  // 10159280 (model not Asian — owner's localisation order).
+  'public/fixtures/real-tee/crew-white-vn-model.webp': chestQuadFor({ collarBottomY: 0.64, centerX: 0.40, width: 0.26, height: 0.15, margin: 0.085 }),
+  // REMOVED (P4.2 supplementary): crew-black-woman.webp (Pexels 9558583)
+  // was round 1's black "model" base, but the model HOLDS the shirt
+  // stretched in front of her — the owner forbids held-up shirts as
+  // compositing bases, and the photo's P2 record is lifestyle-only. The
+  // file stays in the repo for the SHOP's lifestyle/reference use; it is
+  // NOT an AI Studio compositing base and has no quad. No verified photo
+  // of an Asian model wearing a plain black crew tee was found, so black
+  // DEMO uses the drawn figure; the black real-photo fallback is the
+  // calibrated black hanger garment photo above.
   // Back view (800×1200): back-collar lower edge 0.445, centre x 0.52.
   // (Back prints sit lower than front chest prints by convention.)
   'public/fixtures/real-tee/crew-white-back-worn.webp': chestQuadFor({ collarBottomY: 0.445, centerX: 0.52, width: 0.32, height: 0.20, margin: 0.09 }),
@@ -123,7 +132,7 @@ export function migrateCompositionConfig(cfg = {}) {
   // 'real' ignores the AI garment input and composites onto the real
   // fixture photo `realBase` with that fixture's calibrated preset quad.
   if (out.garmentSource === undefined) out.garmentSource = 'ai';
-  if (out.realBase === undefined) out.realBase = 'public/fixtures/real-tee/crew-white-model.webp'; // P4.2: default real base = the white model photo
+  if (out.realBase === undefined) out.realBase = 'public/fixtures/real-tee/crew-white-vn-model.webp'; // P4.2: default real base = the Vietnamese white model photo
   // P4.2: ink opacity (%) — the composited design is drawn at this opacity
   // so the fabric texture/folds under the print stay faintly visible
   // instead of the print looking like a flat sticker. 100 = P4.1 behaviour.

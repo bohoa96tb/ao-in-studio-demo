@@ -16,7 +16,11 @@ export function typesCompatible(outType, inType) {
 let counter = 0;
 export function uid(prefix = 'n') { counter += 1; return `${prefix}-${Date.now().toString(36)}-${counter.toString(36)}-${Math.floor(Math.random() * 1e6).toString(36)}`; }
 
-export const SAMPLE_DESIGN_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600"><circle cx="300" cy="270" r="150" fill="#b6492f"/><text x="300" y="295" font-family="Arial, sans-serif" font-size="64" font-weight="bold" fill="#ffffff" text-anchor="middle">ÁO IN</text><text x="300" y="480" font-family="Arial, sans-serif" font-size="44" font-weight="bold" fill="#293e35" text-anchor="middle">STUDIO</text></svg>`;
+// P4.2 supplementary fix (owner): the old sample logo put "STUDIO" in dark
+// teal (#293e35) BELOW the badge — invisible on black tees. Both words now
+// sit in WHITE inside the terracotta badge (badge grew to an ellipse), so
+// every letter reads on white AND black garments.
+export const SAMPLE_DESIGN_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600"><ellipse cx="300" cy="300" rx="228" ry="192" fill="#b6492f" stroke="#ffffff" stroke-opacity="0.85" stroke-width="6"/><text x="300" y="292" font-family="Arial, sans-serif" font-size="74" font-weight="bold" fill="#ffffff" text-anchor="middle">ÁO IN</text><rect x="238" y="318" width="124" height="5" fill="#ffffff" opacity="0.75"/><text x="300" y="382" font-family="Arial, sans-serif" font-size="47" font-weight="bold" letter-spacing="6" fill="#ffffff" text-anchor="middle">STUDIO</text></svg>`;
 
 // category: input | process | ai | output ; colour per brief §4 (colour-coded nodes)
 export const NODE_DEFS = {
@@ -27,9 +31,9 @@ export const NODE_DEFS = {
   promptInput: { label: 'Prompt', category: 'input', color: '#38618c', inputs: [], outputs: [{ id: 'out', type: 'prompt', label: 'Prompt' }],
     defaults: { text: 'Người mẫu trẻ, thần thái tự nhiên, mỉm cười nhẹ, tóc gọn gàng.' } },
   promptAssistant: { label: 'Trợ lý prompt (quy tắc)', category: 'process', color: '#38618c', inputs: [{ id: 'in', type: 'prompt', label: 'Prompt gốc', required: false }], outputs: [{ id: 'out', type: 'prompt', label: 'Prompt' }],
-    defaults: { style: 'studio', model: 'nu-tre', background: 'studio-kem', lighting: 'mem', angle: 'thang', kieuAo: 'co-tron', mauAo: 'trang', gocChup: 'chinh-dien', extra: '', composed: '' } },
+    defaults: { style: 'studio', model: 'nu-viet', background: 'studio-kem', lighting: 'mem', angle: 'thang', kieuAo: 'co-tron', mauAo: 'trang', gocChup: 'chinh-dien', extra: '', composed: '' } },
   composition: { label: 'Ghép hình in lên áo', category: 'process', color: '#b6492f', inputs: [{ id: 'garment', type: 'image', label: 'Ảnh áo', required: false }, { id: 'design', type: 'design', label: 'Hình in', required: true }], outputs: [{ id: 'out', type: 'image', label: 'Ảnh ghép' }],
-    defaults: { base: 'public/fixtures/real-tee/crew-white-hanger.webp', garmentSource: 'ai', realBase: 'public/fixtures/real-tee/crew-white-model.webp', printX: 50, printY: 55, printW: 30, rotation: 0, mode: 'perspective', quad: [[0.315, 0.425], [0.515, 0.425], [0.515, 0.615], [0.315, 0.615]], wrinkle: 35, shading: 45, inkOpacity: 95, label: 'Ảnh ghép hậu kỳ — hình in là file gốc, không phải AI vẽ lại' } },
+    defaults: { base: 'public/fixtures/real-tee/crew-white-hanger.webp', garmentSource: 'ai', realBase: 'public/fixtures/real-tee/crew-white-vn-model.webp', printX: 50, printY: 55, printW: 30, rotation: 0, mode: 'perspective', quad: [[0.315, 0.425], [0.515, 0.425], [0.515, 0.615], [0.315, 0.615]], wrinkle: 35, shading: 45, inkOpacity: 95, label: 'Ảnh ghép hậu kỳ — hình in là file gốc, không phải AI vẽ lại' } },
   background: { label: 'Nền & bối cảnh', category: 'process', color: '#2f6f6f', inputs: [{ id: 'in', type: 'image', label: 'Ảnh sản phẩm', required: true }], outputs: [{ id: 'out', type: 'image', label: 'Ảnh có nền' }],
     defaults: { mode: 'solid', color: '#f5f1e6', color2: '#d9c6a5', dir: 'down', horizon: 62, shadow: 55, vignette: 25, assetId: '', assetName: '', bgFit: 'cover', bgBlur: 0, scale: 82, posX: 50, posY: 50, framePad: 7 } },
   imageEditor: { label: 'Chỉnh sửa ảnh', category: 'process', color: '#8c6d1f', inputs: [{ id: 'in', type: 'image', label: 'Ảnh', required: true }], outputs: [{ id: 'out', type: 'image', label: 'Ảnh' }],
@@ -90,14 +94,14 @@ export function validateConnection(graph, fromId, toId, toPort) {
 // that was root cause #3 of the wrong Template 1 output.)
 export const PROMPT_OPTIONS = {
   style: { 'studio': 'chụp studio chuyên nghiệp', 'duong-pho': 'phong cách đường phố năng động', 'thien-nhien': 'ngoài trời tự nhiên', 'toi-gian': 'tối giản, nền trơn' },
-  model: { 'nu-tre': 'người mẫu nữ trẻ', 'nam-tre': 'người mẫu nam trẻ', 'cap-doi': 'cặp đôi trẻ', 'khong-nguoi': 'không người mẫu, chỉ sản phẩm áo' },
+  model: { 'nu-viet': 'người mẫu Việt Nam (nữ)', 'nam-viet': 'người mẫu Việt Nam (nam)', 'nu-tre': 'người mẫu nữ trẻ', 'nam-tre': 'người mẫu nam trẻ', 'cap-doi': 'cặp đôi trẻ', 'khong-nguoi': 'không người mẫu, chỉ sản phẩm áo' },
   background: { 'studio-kem': 'nền studio màu kem', 'quan-cafe': 'quán cà phê ấm cúng', 'pho-co': 'phố cổ Việt Nam', 'bien': 'bãi biển nắng nhẹ' },
   lighting: { 'mem': 'ánh sáng mềm dịu', 'nang': 'ánh nắng tự nhiên rực rỡ', 'toi-am': 'ánh sáng ấm, hơi tối' },
   angle: { 'thang': 'góc chụp thẳng chính diện', 'nghieng': 'góc chụp nghiêng 45 độ', 'can-canh': 'cận cảnh hình in trên ngực áo', 'toan-than': 'chụp toàn thân' },
 };
 const PROMPT_OPTIONS_EN = {
   style: { 'studio': 'professional studio photoshoot', 'duong-pho': 'dynamic street-style look', 'thien-nhien': 'natural outdoor setting', 'toi-gian': 'minimalist plain backdrop' },
-  model: { 'nu-tre': 'a young female model', 'nam-tre': 'a young male model', 'cap-doi': 'a young couple, both wearing the same plain t-shirt', 'khong-nguoi': '' },
+  model: { 'nu-viet': 'a young Vietnamese female model', 'nam-viet': 'a young Vietnamese male model', 'nu-tre': 'a young female model', 'nam-tre': 'a young male model', 'cap-doi': 'a young couple, both wearing the same plain t-shirt', 'khong-nguoi': '' },
   background: { 'studio-kem': 'clean light-cream studio background', 'quan-cafe': 'warm cosy café background', 'pho-co': 'Vietnamese old-town street background', 'bien': 'soft sunny beach background' },
   lighting: { 'mem': 'soft diffused studio lighting', 'nang': 'bright natural sunlight', 'toi-am': 'warm, slightly dim lighting' },
 };
@@ -262,23 +266,24 @@ export const DEMO_FIGURE = {
 // adult, Pexels licence, credit recorded. Quads come from GARMENT_QUADS
 // (warp.js), each derived via the chestQuadFor collar-margin rule from
 // the collar position measured on the actual photo.
+//
+// P4.2 SUPPLEMENTARY (owner's localisation order): every MODEL photo must
+// show a Vietnamese/Asian model. The round-1 white base (Pexels 10159280,
+// non-Asian model) and black base (Pexels 9558583, model HOLDING the shirt
+// stretched — and recorded lifestyle-only in P2) are REMOVED. An
+// exhaustive Pexels search (16+ query angles, every candidate viewed)
+// found NO verified photo of an Asian model WEARING a plain black crew
+// tee, nor a genuinely oversize plain tee on an Asian model — so black
+// and oversize have NO photo base: DEMO falls back to the drawn figure
+// with its honest label, and the real-photo fallback for black is the
+// calibrated black HANGER garment photo below. Never substitute a
+// mismatched photo and present it as fitting (owner's rule).
 export const PHOTO_BASES = [
   {
-    id: 'model-white-crew', name: 'Người mẫu mặc áo trắng cổ tròn (ảnh chụp thật)',
-    path: 'public/fixtures/real-tee/crew-white-model.webp', style: 'co-tron', colorKey: 'trang', demoPhoto: true,
-    collarBottomY: 0.358,
-    // Oversize has no verified photo of its own (P4.2 sourcing: every
-    // plain oversize candidate on Pexels carried a print/logo) — the
-    // white base's garment is a relaxed long fit, so oversize uses the
-    // same photo with this wider/larger quad. Stated honestly in the UI.
-    quadOversize: chestQuadFor({ collarBottomY: 0.358, centerX: 0.486, width: 0.30, height: 0.175, margin: 0.085 }),
-    source: { platform: 'Pexels', photoId: '10159280', author: 'ROMAN ODINTSOV', sourceUrl: 'https://www.pexels.com/photo/a-woman-in-white-crew-neck-shirt-10159280/', license: 'Pexels License — free commercial use, attribution not required (given anyway)', note: 'Ảnh gốc 3445×5167; bản fixture cắt phần trên (bỏ 16,7% chiều cao nền trống) về khung 4:5, resize 960×1200 WebP.' },
-  },
-  {
-    id: 'model-black-crew', name: 'Người mẫu với áo đen cổ tròn (ảnh chụp thật)',
-    path: 'public/fixtures/real-tee/crew-black-woman.webp', style: 'co-tron', colorKey: 'den', demoPhoto: true,
-    collarBottomY: 0.495,
-    source: { platform: 'Pexels', photoId: '9558583', author: 'MART PRODUCTION', sourceUrl: 'https://www.pexels.com/photo/woman-in-black-crew-neck-t-shirt-9558583/', license: 'Pexels License — free commercial use, attribution not required (given anyway)', note: 'Ảnh có sẵn trong repo từ P2 (GAR-CREW-BLK-WORN-01): người mẫu cầm căng áo đen trơn trước người — mặt trước áo phẳng, ngực không bị che; P4.2 hiệu chuẩn quad vùng ngực cho AI Studio.' },
+    id: 'model-white-crew', name: 'Người mẫu Việt Nam mặc áo trắng cổ tròn (ảnh chụp thật)',
+    path: 'public/fixtures/real-tee/crew-white-vn-model.webp', style: 'co-tron', colorKey: 'trang', demoPhoto: true,
+    collarBottomY: 0.64,
+    source: { platform: 'Pexels', photoId: '25471921', author: 'quang vinh', sourceUrl: 'https://www.pexels.com/photo/portrait-of-asian-woman-25471921/', license: 'Pexels License — free commercial use, attribution not required (given anyway)', note: 'Người mẫu Việt Nam trưởng thành, mặc áo thun trắng cổ tròn TRƠN, chụp chính diện, ngực rõ không bị che (đã xem và kiểm tra trực tiếp). Ảnh gốc 2000×3000; bản fixture cắt khung 4:5 từ phía trên (1600×2000), resize 960×1200 WebP. Cổ áo đo trên ảnh fixture: mép dưới cổ 0.64, tâm ngực x 0.40.' },
   },
   {
     id: 'hanger-white', name: 'Áo trắng trên móc (ảnh chụp thật)',
@@ -303,16 +308,15 @@ export function photoBaseByPath(path) { return PHOTO_BASES.find(b => b.path === 
 /**
  * The DEMO photo base for structured garment params, or null when no
  * verified photo exists for them (caller falls back to the drawn figure).
- * Front view only — the photo bases are all front shots. Oversize maps
- * to the white base's wider quad (see the note on that registry entry).
+ * Front view only — the photo bases are all front shots. Oversize has NO
+ * photo base (P4.2 supplementary: no verified Asian-model oversize photo
+ * exists; a regular tee with a bigger print is NOT an oversize garment,
+ * so the old quadOversize mapping was removed — never fake the fit).
  * Returns { base, quad } with a fresh quad copy.
  */
 export function photoBaseFor(garment) {
   if (!garment || garment.view !== 'chinh-dien') return null;
-  if (garment.style === 'oversize') {
-    const b = PHOTO_BASES.find(x => x.demoPhoto && x.quadOversize && x.colorKey === garment.colorKey);
-    return b ? { base: b, quad: b.quadOversize.map(p => [...p]) } : null;
-  }
+  if (garment.style === 'oversize') return null;
   const b = PHOTO_BASES.find(x => x.demoPhoto && x.style === garment.style && x.colorKey === garment.colorKey);
   if (!b) return null;
   const q = GARMENT_QUADS[b.path];
@@ -345,9 +349,9 @@ export const TEMPLATES = [
     ['imageInput', 40, 60, { fixture: 'public/fixtures/real-tee/crew-white-hanger.webp' }, 'img'],
     ['designInput', 40, 300, { svgText: SAMPLE_DESIGN_SVG, assetName: 'hinh-in-mau.svg' }, 'des'],
     ['promptInput', 40, 520, {}, 'pin'],
-    ['promptAssistant', 330, 520, { kieuAo: 'co-tron', mauAo: 'trang', gocChup: 'chinh-dien' }, 'pa'],
+    ['promptAssistant', 330, 520, { model: 'nu-viet', kieuAo: 'co-tron', mauAo: 'trang', gocChup: 'chinh-dien' }, 'pa'],
     ['aiImageGen', 620, 430, { ratio: '4:5' }, 'gen'],
-    ['composition', 620, 140, { mode: 'perspective', quad: DEMO_FIGURE.chestQuad.map(p => [...p]), wrinkle: 35, shading: 45, garmentSource: 'ai', realBase: 'public/fixtures/real-tee/crew-white-model.webp' }, 'comp'],
+    ['composition', 620, 140, { mode: 'perspective', quad: DEMO_FIGURE.chestQuad.map(p => [...p]), wrinkle: 35, shading: 45, garmentSource: 'ai', realBase: 'public/fixtures/real-tee/crew-white-vn-model.webp' }, 'comp'],
     ['preview', 900, 140, {}, 'prev'],
     ['exportNode', 1160, 140, { format: 'png', channels: ['website'] }, 'exp'],
   ], [['pin', 'pa', 'in'], ['pa', 'gen', 'prompt'], ['gen', 'comp', 'garment'], ['des', 'comp', 'design'], ['comp', 'prev', 'in'], ['prev', 'exp', 'in']]); } },

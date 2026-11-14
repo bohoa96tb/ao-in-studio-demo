@@ -52,7 +52,33 @@ function makeCanvas(w, h) { const c = document.createElement('canvas'); c.width 
 function valueFromBlob(blob, kind, extra = {}) { return { kind, blob, url: URL.createObjectURL(blob), mime: blob.type, name: extra.name || 'ket-qua', demo: !!extra.demo, label: extra.label || '', svgText: extra.svgText || '', baseQuad: extra.baseQuad || null, photoBase: extra.photoBase || '' }; }
 async function fetchBlob(url) { const r = await fetch(url); if (!r.ok) throw new Error('Không tải được file: ' + url); return r.blob(); }
 function wrapText(ctx, text, x, y, maxW, lh) { const words = String(text).split(/\s+/); let line = '', yy = y; for (const w of words) { const t = line ? line + ' ' + w : w; if (ctx.measureText(t).width > maxW && line) { ctx.fillText(line, x, yy); line = w; yy += lh; } else line = t; } if (line) ctx.fillText(line, x, yy); return yy; }
-function drawDemoBanner(ctx, w, text = 'ẢNH DEMO — chưa kết nối AI') { ctx.save(); ctx.fillStyle = 'rgba(32,32,32,0.88)'; ctx.fillRect(0, 0, w, 54); ctx.fillStyle = '#ffb59d'; ctx.font = 'bold 26px Arial'; ctx.textAlign = 'center'; ctx.fillText(text, w / 2, 37); ctx.restore(); }
+function drawDemoBanner(ctx, w, text = 'ẢNH DEMO — chưa kết nối AI', h = 0) { ctx.save(); const stripH = h > 0 ? Math.max(30, Math.round(h * 0.045)) : 54; const fontPx = h > 0 ? Math.round(stripH * 0.48) : 26; ctx.fillStyle = 'rgba(32,32,32,0.88)'; ctx.fillRect(0, 0, w, stripH); ctx.fillStyle = '#ffb59d'; ctx.font = `bold ${fontPx}px Arial`; ctx.textAlign = 'center'; ctx.fillText(text, w / 2, Math.round(stripH * 0.685)); ctx.restore(); }
+// P4.2 supplementary (FIX D): when h is given, the strip is 4.5% of the
+// canvas height — the SAME fraction stampDemoFrame stamps onto channel
+// exports — so the export stamp covers the baked strip exactly (one
+// clean banner). The old fixed 54px was 5.6% of the 960px-tall figure
+// canvas vs 4.5% of the 1200px photo, leaving a ghost strip under the
+// stamp in figure-based exports.
+/**
+ * P4.2 supplementary (FIX D): the DEMO frame (dark banner strip + text +
+ * terracotta border) is re-stamped on the FINAL channel image, AFTER the
+ * crop/resize — sized relative to the final image so every export carries
+ * the SAME treatment. (Round 1 baked the banner into the generated image
+ * only: the website cover-crop then cut the black case's banner off the
+ * top while white/oversize kept theirs.) Stamping the identical strip
+ * over the top of an uncropped image is a no-op visually — the strip
+ * height matches the generator's 54px-at-1200 ≈ 4.5% of height.
+ */
+function stampDemoFrame(ctx, w, h) {
+  const sh = Math.max(28, Math.round(h * 0.045));
+  ctx.save();
+  ctx.fillStyle = 'rgba(32,32,32,0.88)'; ctx.fillRect(0, 0, w, sh);
+  ctx.fillStyle = '#ffb59d'; ctx.font = `bold ${Math.round(sh * 0.48)}px Arial`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('ẢNH DEMO — chưa kết nối AI', w / 2, sh / 2 + 1);
+  ctx.strokeStyle = '#b6492f'; ctx.lineWidth = Math.max(4, Math.round(w * 0.0083));
+  const inset = ctx.lineWidth / 2; ctx.strokeRect(inset, inset, w - ctx.lineWidth, h - ctx.lineWidth);
+  ctx.restore();
+}
 
 // ---------- demo provider implementation (canvas-derived, honestly labelled) ----------
 /**
@@ -139,21 +165,21 @@ const demoImpl = {
         const photo = await blobToImg(await fetchBlob(pb.base.path));
         const pc = makeCanvas(photo.width, photo.height), px = pc.getContext('2d');
         px.drawImage(photo, 0, 0);
-        drawDemoBanner(px, pc.width);
+        drawDemoBanner(px, pc.width, 'ẢNH DEMO — chưa kết nối AI', pc.height);
         px.strokeStyle = '#b6492f'; px.lineWidth = 10; px.strokeRect(5, 5, pc.width - 10, pc.height - 10);
         return valueFromBlob(await canvasBlob(pc), 'image', { demo: true, baseQuad: pb.quad, photoBase: pb.base.id, label: `DEMO — dùng ảnh chụp thật làm ảnh nền tham chiếu, chưa gọi AI. Ảnh: ${pb.base.name} (Pexels ${pb.base.source.photoId}, tác giả ${pb.base.source.author}). Áo trong ảnh là áo TRƠN; hình in gốc được ghép hậu kỳ.` });
       }
       // No verified photo for these params → the drawn figure, with its
       // own collar-calibrated quad for the composition to use.
       drawDemoFigure(x, rw, rh, prompt.garment);
-      drawDemoBanner(x, rw);
+      drawDemoBanner(x, rw, 'ẢNH DEMO — chưa kết nối AI', rh);
       x.strokeStyle = '#b6492f'; x.lineWidth = 10; x.strokeRect(5, 5, rw - 10, rh - 10);
       const figQuad = prompt.garment.style === 'oversize' ? DEMO_FIGURE.chestQuadOversize : DEMO_FIGURE.chestQuad;
       return valueFromBlob(await canvasBlob(c), 'image', { demo: true, baseQuad: figQuad.map(p => [...p]), label: 'Ảnh DEMO mô phỏng — người mẫu vẽ bằng canvas mặc áo thun TRƠN đúng màu/phom đã chọn (chưa có ảnh chụp thật đã kiểm chứng cho thông số này); hình in gốc được ghép hậu kỳ, đây không phải ảnh sản phẩm thật' });
     }
     const g = x.createLinearGradient(0, 0, 0, rh); g.addColorStop(0, '#f3ead9'); g.addColorStop(1, '#d9c6a5'); x.fillStyle = g; x.fillRect(0, 0, rw, rh);
     if (image?.blob) { const img = await blobToImg(image.blob); const s = Math.max(rw / img.width, rh / img.height); x.drawImage(img, (rw - img.width * s) / 2, (rh - img.height * s) / 2, img.width * s, img.height * s); x.fillStyle = 'rgba(243,234,217,0.18)'; x.fillRect(0, 0, rw, rh); }
-    drawDemoBanner(x, rw);
+    drawDemoBanner(x, rw, 'ẢNH DEMO — chưa kết nối AI', rh);
     x.fillStyle = 'rgba(32,32,32,0.82)'; x.fillRect(0, rh - 120, rw, 120); x.fillStyle = '#fff'; x.font = '22px Arial'; x.textAlign = 'left';
     wrapText(x, (prompt?.text || 'Không có prompt') + '', 24, rh - 82, rw - 48, 28);
     x.strokeStyle = '#b6492f'; x.lineWidth = 10; x.strokeRect(5, 5, rw - 10, rh - 10);
@@ -164,7 +190,7 @@ const demoImpl = {
     if (variant === 'can-canh') { const w = img.width / 2, h = img.height / 2; x.drawImage(img, img.width / 4, img.height / 4, w, h, 0, 0, img.width, img.height); }
     else if (variant === 'goc-khac') { const s = 1.3; x.drawImage(img, (img.width - img.width * s) / 2, (img.height - img.height * s) / 2, img.width * s, img.height * s); }
     else { x.drawImage(img, 0, 0); x.fillStyle = 'rgba(182,73,47,0.16)'; x.fillRect(0, 0, img.width, img.height); x.filter = 'saturate(1.25)'; x.drawImage(img, 0, 0); x.filter = 'none'; }
-    drawDemoBanner(x, img.width, 'BIẾN THỂ DEMO — chưa kết nối AI');
+    drawDemoBanner(x, img.width, 'BIẾN THỂ DEMO — chưa kết nối AI', img.height);
     return valueFromBlob(await canvasBlob(c), 'image', { demo: true, label: 'Biến thể DEMO (biến đổi canvas thật từ ảnh gốc) — không phải AI tạo' });
   },
   async demoVideo({ image, motion, duration, ratio }, onProgress) {
@@ -175,7 +201,7 @@ const demoImpl = {
     const chunks = []; rec.ondataavailable = e => e.data.size && chunks.push(e.data);
     const done = new Promise(r => rec.onstop = r);
     rec.start(200); const t0 = performance.now(); const total = Math.min(6, Math.max(1, duration || 3)) * 1000;
-    await new Promise(res => { const tick = () => { const t = (performance.now() - t0) / total; if (t >= 1) return res(); const s = Math.max(w / img.width, h / img.height) * (1 + 0.12 * t); x.fillStyle = '#efe7d7'; x.fillRect(0, 0, w, h); x.drawImage(img, (w - img.width * s) / 2, (h - img.height * s) / 2, img.width * s, img.height * s); drawDemoBanner(x, w, 'VIDEO DEMO (WebM)'); onProgress?.(Math.round(t * 100)); requestAnimationFrame(tick); }; tick(); });
+    await new Promise(res => { const tick = () => { const t = (performance.now() - t0) / total; if (t >= 1) return res(); const s = Math.max(w / img.width, h / img.height) * (1 + 0.12 * t); x.fillStyle = '#efe7d7'; x.fillRect(0, 0, w, h); x.drawImage(img, (w - img.width * s) / 2, (h - img.height * s) / 2, img.width * s, img.height * s); drawDemoBanner(x, w, 'VIDEO DEMO (WebM)', h); onProgress?.(Math.round(t * 100)); requestAnimationFrame(tick); }; tick(); });
     rec.stop(); await done;
     const blob = new Blob(chunks, { type: 'video/webm' });
     return valueFromBlob(blob, 'video', { demo: true, name: 'video-demo.webm', label: 'Video DEMO định dạng WebM (ghi từ canvas) — không phải MP4, chưa kết nối AI video' });
@@ -401,7 +427,7 @@ const handlers = {
       const pw = W * (cfg.printW / 100), px = W * (cfg.printX / 100) - pw / 2, py = H * (cfg.printY / 100) - pw / 2;
       x.save(); x.translate(px + pw / 2, py + pw / 2); x.rotate((cfg.rotation || 0) * Math.PI / 180); const ds = Math.min(pw / dImg.width, pw / dImg.height); x.globalAlpha = Math.min(100, Math.max(50, cfg.inkOpacity ?? 95)) / 100; x.drawImage(dImg, -dImg.width * ds / 2, -dImg.height * ds / 2, dImg.width * ds, dImg.height * ds); x.restore();
       log('Đã ghép file hình in GỐC lên ảnh áo (chế độ đơn giản P1) — nội dung hình in không bị AI vẽ lại.');
-      return valueFromBlob(await canvasBlob(c), 'image', { label: cfg.label + srcNote });
+      return valueFromBlob(await canvasBlob(c), 'image', { label: cfg.label + srcNote, demo: !useReal && !!inputs.garment?.demo });
     }
     // P3 perspective mode: homography warp onto the 4-point quad + wrinkle
     // displacement + garment shading. The design drawn is the ORIGINAL file.
@@ -427,7 +453,10 @@ const handlers = {
     // as an overlay in this node's alignment editor (drawQuadPreview).
     x.save(); x.globalAlpha = Math.min(100, Math.max(50, cfg.inkOpacity ?? 95)) / 100; x.drawImage(layer, 0, 0); x.restore();
     log(`Đã ghép file hình in GỐC theo phối cảnh 4 điểm (cong nếp vải ${cfg.wrinkle || 0}%, bóng vải ${cfg.shading || 0}%, độ phủ mực ${cfg.inkOpacity ?? 95}%) — mô phỏng bằng hình học, không phải ảnh sản phẩm thật.`);
-    return valueFromBlob(await canvasBlob(c), 'image', { label: cfg.label + ' · phối cảnh 4 điểm + cong theo nếp vải (mô phỏng)' + srcNote });
+    // P4.2 supplementary (FIX D): propagate the DEMO flag from the garment
+    // input so the export node can re-stamp the DEMO frame AFTER the
+    // channel crop/resize (uniform banner in every exported file).
+    return valueFromBlob(await canvasBlob(c), 'image', { label: cfg.label + ' · phối cảnh 4 điểm + cong theo nếp vải (mô phỏng)' + srcNote, demo: !useReal && !!inputs.garment?.demo });
   },
   async background(node, { inputs, log }) {
     const v = inputs.in; if (!v?.blob) throw new Error('Thiếu ảnh đầu vào.');
@@ -559,6 +588,10 @@ const handlers = {
       const c = makeCanvas(p.w, p.h), x = c.getContext('2d');
       x.fillStyle = '#ffffff'; x.fillRect(0, 0, p.w, p.h);
       x.drawImage(img, f.sx, f.sy, f.sw, f.sh, f.dx, f.dy, f.dw, f.dh);
+      // P4.2 supplementary (FIX D): DEMO inputs get the DEMO frame stamped
+      // on the FINAL channel image (after crop/resize) — identical banner
+      // treatment in every case, never cropped away.
+      if (v.demo) stampDemoFrame(x, p.w, p.h);
       const blob = await canvasBlob(c, format === 'jpg' ? 'image/jpeg' : 'image/png', (node.config.jpgQuality || 92) / 100);
       files.push(valueFromBlob(blob, 'image', { name: channelFileName(p, format, node.config.namePattern), label: `Kênh ${p.label} (${p.fit === 'cover' ? 'cắt phủ khung' : 'vừa khung, chừa nền trắng'})` }));
     }
