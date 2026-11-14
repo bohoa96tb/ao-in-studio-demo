@@ -130,3 +130,133 @@ chest quad). Composition gained garmentSource 'ai'|'real' + realBase:
 'real' composites onto the real fixture with its calibrated quad and
 must run even when aiImageGen failed (engine ignoreFailedUpstream
 hook). No IndexedDB version change (still v2).
+P4.2 (2026-11-14, branch feature/ai-studio-p42): visual/compositing fixes
+after the owner rejected P4.1's output on sight (workflow said "0 errors"
+but the print sat on the model's neck). Standing rules from P4.2:
+(1) Print-area geometry follows the COLLAR RULE via `chestQuadFor`
+(warp.js): quad top edge 8–12% of image height BELOW the collar's lower
+edge, horizontally centred on the chest — applies to the DEMO figure,
+every photo base and the simple-mode defaults; never hand-place a quad
+without recording its measured collarBottomY. (2) The dashed red guide
+exists ONLY in the composition node's alignment editor — never draw it
+(or any guide) into a node output/preview/export; tests/ai-studio-tpl1.mjs
+CASE 6 scans preview + export for the guide colour with a red-free design.
+(3) Blending: design pixels are modulated by RELATIVE garment luminance
+(safe on dark garments — no absolute multiply), pulled 6% toward their
+own luminance, drawn at inkOpacity (default 95%, panel-configurable);
+the original-design correlation assertion stays ≥0.85. (4) Real photo
+bases live in core.js PHOTO_BASES (Pexels, credits + collar calibration
+recorded there and in docs/P2_ASSET_LICENSES.md); DEMO generation returns
+the matching REAL photo for white/black crew front params, labelled
+"DEMO — dùng ảnh chụp thật làm ảnh nền tham chiếu, chưa gọi AI" — never
+claim a photo base is AI-generated. No verified plain oversize photo
+exists yet: oversize reuses the white base with a wider quad (recorded
+honestly in the registry). Composition quad resolution: 'real' source →
+the base's calibrated quad; user-dragged/typed quad (quadSource 'user')
+wins in 'ai' mode; otherwise the generated base's own calibrated
+baseQuad wins over the stored quad. No IndexedDB version change (v2).
+P4.2 supplementary (2026-11-14, same branch — owner localisation order
+after seeing round-1 result images; this paragraph SUPERSEDES the
+round-1 photo-base sentences above): ALL AI Studio model photos must
+show Vietnamese/Asian models. White crew base is now Pexels 25471921
+(quang vinh, Vietnamese model WEARING a plain white crew tee; fixture
+crew-white-vn-model.webp, collarBottomY 0.64, centreX 0.40, quad
+[[0.27,0.725],[0.53,0.725],[0.53,0.875],[0.27,0.875]]); the round-1
+white base (10159280, non-Asian model) is DELETED from the repo.
+BLACK and OVERSIZE photo bases are UNMET: no verified photo of an
+Asian model wearing a plain black crew tee / a plain oversize tee met
+the discipline (held shirts, prints, obstructed chests, unverifiable
+age all rejected — list in docs/AI_STUDIO_QA_REPORT.md), so
+photoBaseFor returns null for them and DEMO falls back to the drawn
+figure with the honest "chưa có ảnh chụp thật đã kiểm chứng" label.
+Pexels 9558583 is NOT a compositing base (the round-1 AI-Studio
+exception is withdrawn; its P2 lifestyle-only record stands, shop use
+unchanged, the file stays). Sample logo: ALL text is white INSIDE the
+terracotta badge ("STUDIO" in dark teal outside the badge is gone —
+it vanished on black tees). DEMO banner: baked strip AND export stamp
+are both 4.5% of image height (drawDemoBanner takes h; exportNode
+stamps stampDemoFrame after channel crop/resize via the composition
+value's demo flag) — one uniform banner in every export.
+promptAssistant: model options include nu-viet/nam-viet ("a young
+Vietnamese female/male model"); Template 1's default model is nu-viet.
+P4.2 round 3 (2026-11-14, same branch — owner E-COMMERCE STANDARD; this
+paragraph SUPERSEDES the round-1 collar-rule sentence in the P4.2
+paragraph and the supplementary paragraph's photo-base sentences): the
+round-2 white base (Pexels 25471921) is REJECTED by the owner (close
+head-and-shoulders portrait — head too big, torso cut off below the
+chest, model leaning in, dark room background) and REMOVED as a base
+(fixture deleted; licence record kept, marked superseded). ALL model
+bases must now pass the e-commerce checklist: medium half-body (top of
+head → past hips), ENTIRE plain garment visible (collar, both
+shoulders, both sleeves, bottom hem + trousers waistband), camera at
+chest height, upright facing camera, arms relaxed or hands in pockets,
+no leaning/crossed arms/hair over chest, plain bright neutral studio
+background, Vietnamese/Asian adult model, verified licence. Round-3
+search (8 query angles, 26 candidates viewed) found NO compliant photo
+for white/black/oversize → PHOTO_BASES holds garment reference photos
+only (kind: 'garment'), photoBaseFor returns null for every combo, and
+DEMO uses the drawn figure (redrawn to the half-body framing, 900×1125)
+with the honest no-verified-photo label. Print placement now follows
+the TORSO RULE via `torsoQuadFor` (warp.js) from measured landmarks
+{collarBottomY, hemY, torsoCenterX, torsoWidth}: gap collar→print top
+= 12–15% of TOTAL TORSO LENGTH, print width = 35–45% of torso width,
+centred on the torso — for fixtures AND the figure (one rule);
+chestQuadFor remains as a legacy export only. Template 1's generation
+prompt is the owner's VERBATIM catalog template
+(CATALOG_PROMPT_TEMPLATE in core.js; only [COLOR]/[FIT_TYPE]
+substituted; gated by config catalogPrompt: true, set only on
+Template 1; other templates keep the composed prompt).
+P4.2 round 4 (2026-11-14, same branch — owner APPROVED AI-GENERATED model
+bases; this paragraph SUPERSEDES the round-3 "DEMO uses the drawn figure
+for every combo" sentence for the three mapped combos): after three
+rounds found no licence-verified photo passing the e-commerce checklist,
+the owner directed the Template 1 model layer to be AI-GENERATED images
+and approved all three on 2026-11-14 (incl. the black-crew MALE model):
+`AI_MODEL_BASES` in core.js (kind 'ai-model') — (trang, co-tron) → female
+white crew 1280×1920, (den, co-tron) → MALE black crew 1280×1920,
+(trang, oversize) → female white oversize 1040×2352, files under
+public/fixtures/ai-model/. HONESTY: these are AI-generated, NEVER real
+photos — the label "Ảnh người mẫu do AI tạo (chưa phải ảnh chụp thật)"
+rides the node output, registry names and the properties-panel select;
+provenance lives in docs/AI_MODEL_ASSETS.md and they must NEVER be
+entered into docs/P2_ASSET_LICENSES.md. PHOTO_BASES stays garment-only
+(photoBaseFor still null everywhere). Per-image landmarks measured on
+the actual pixels live in warp.js AI_MODEL_LANDMARKS; quads derive via
+torsoQuadFor like everything else. Unmapped combos keep the drawn
+figure. REAL-AI FRAMING GUARD: a real (Classic/Keyed) garment output
+whose aspect class is not 'portrait-half-body' (h/w in [1.10, 2.05];
+square/landscape/extreme all fail) is REFUSED by composition, which
+falls back to the approved AI base for those params and records
+"Ảnh AI thật không đạt khung hình — đã dùng nền người mẫu đã duyệt" in
+the log + result label; the guard is aspect-class only (a portrait
+close-up can still pass — documented limitation, no fake landmark
+detection). OLD-DRAFT SAFETY: Template 1 projects carry
+meta {templateId, tplVersion} (current TPL1_VERSION in core.js) and the
+node-cache key mixes AI_STUDIO_BUILD (p2.js) — loading an older
+Template 1 project/draft refreshes its template-owned defaults
+(catalog flag, retired bases, default quad unless user-edited), purges
+that project's cache and shows a note (refreshTpl1Graph in core.js);
+user content is never touched. A fresh Template 1 instance must run to
+the correct result with ZERO manual edits — tests/ai-studio-tpl1.mjs
+CASE 8 proves it on a virgin IndexedDB (fresh-* exports byte-identical
+to the standard previews).
+P4.2 round-4 double-frame fix (2026-11-14 — this SUPERSEDES the
+supplementary paragraph's "baked strip AND export stamp" sentence):
+the owner approved the white + black previews as-is and rejected only
+the oversize export because the DEMO frame was stamped TWICE — the
+generator baked a banner + terracotta border into its output, and the
+contain export path kept that baked frame INSIDE the export stamp
+(two-tone banner strip spanning only the contained column + two
+full-height terracotta lines at the column edges). RULE from now on:
+the DEMO frame is applied EXACTLY ONCE, by `stampDemoFrame` in the
+export node on the final channel image; `demoImage` bakes NO banner
+and NO border into any intermediate (AI-model base, photo base,
+figure, legacy wash) — in-app honesty rides the value's demo flag +
+text label. `drawDemoBanner` survives only in the demo variation /
+demo video paths, whose outputs are final artefacts, not compositing
+inputs. Verified non-regression: the real-path driver regenerates the
+approved white/black exports byte-identically (in cover exports the
+baked strip was always cropped away and the baked border fully
+covered by the stamp border); the fixed oversize pair keeps gap
+0.136 / width 0.394 / centre 0 with zero terracotta pixels at the
+contain column edges.

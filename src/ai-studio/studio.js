@@ -2,11 +2,11 @@
 // workflow execution via engine.js, project persistence in IndexedDB
 // `ao-in-ai-studio`. AI nodes run the DEMO adapter until a real provider is
 // configured; every demo output is visibly labelled.
-import { NODE_DEFS, NODE_TYPES, TEMPLATES, emptyGraph, makeNode, findNode, validateConnection, buildPrompt, garmentParams, garmentSummaryVi, GARMENT_OPTIONS, DEMO_FIGURE, PROMPT_OPTIONS, PROMPT_TEMPLATES, checkSvgSafety, zipWrite, zipRead, uid, SAMPLE_DESIGN_SVG } from './core.js';
+import { NODE_DEFS, NODE_TYPES, TEMPLATES, emptyGraph, makeNode, findNode, validateConnection, buildPrompt, garmentParams, garmentSummaryVi, GARMENT_OPTIONS, DEMO_FIGURE, PHOTO_BASES, photoBaseFor, AI_MODEL_BASES, aiModelBaseFor, refreshTpl1Graph, PROMPT_OPTIONS, PROMPT_TEMPLATES, checkSvgSafety, zipWrite, zipRead, uid, SAMPLE_DESIGN_SVG } from './core.js';
 import { Engine, downstreamOf, upstreamOf } from './engine.js';
 import { nodeCacheKey, isCacheable, RunQueue, validateWorkflow, collectReferencedAssetIds, findOrphanAssets, pruneOldest, formatDuration } from './p2.js';
 import { DemoAdapter, HttpAdapter, PollinationsClassicAdapter, PollinationsKeyedAdapter, setSessionKey, hasSessionKey, BROWSER_KEY_WARNING, POLLINATIONS_KEY_WARNING, AUTO_TOPUP_WARNING, COMMERCIAL_USE_NOTE, PROVIDERS, providerById, modelOf, isRunnableModel, resolveGenerationMode, suppressRetryForMode, sizeForRatio, estimateGenerationCost, describePlannedCalls, describeProvider } from './providers.js';
-import { solveHomography, applyHomography, UNIT_SQUARE, rectToQuad, presetQuadFor, migrateCompositionConfig, fieldMean, displacementAt, buildWarpGrid, fitInto, CHANNEL_PRESETS, channelPreset, channelFileName } from './warp.js';
+import { solveHomography, applyHomography, UNIT_SQUARE, rectToQuad, presetQuadFor, migrateCompositionConfig, torsoQuadFor, framingAspectClass, passesHalfBodyFraming, fieldMean, displacementAt, buildWarpGrid, fitInto, channelFitMode, CHANNEL_PRESETS, channelPreset, channelFileName } from './warp.js';
 import { store, storageEstimate } from './store.js';
 
 const $ = (s) => document.querySelector(s);
@@ -49,49 +49,121 @@ const loadImg = (src) => new Promise((res, rej) => { const i = new Image(); i.on
 async function blobToImg(blob) { const url = URL.createObjectURL(blob); try { return await loadImg(url); } finally { /* keep url alive during draw; revoked by GC of blob url pool */ } }
 const canvasBlob = (c, type = 'image/png', q = 0.92) => new Promise(r => c.toBlob(r, type, q));
 function makeCanvas(w, h) { const c = document.createElement('canvas'); c.width = Math.max(2, Math.round(w)); c.height = Math.max(2, Math.round(h)); return c; }
-function valueFromBlob(blob, kind, extra = {}) { return { kind, blob, url: URL.createObjectURL(blob), mime: blob.type, name: extra.name || 'ket-qua', demo: !!extra.demo, label: extra.label || '', svgText: extra.svgText || '' }; }
+function valueFromBlob(blob, kind, extra = {}) { return { kind, blob, url: URL.createObjectURL(blob), mime: blob.type, name: extra.name || 'ket-qua', demo: !!extra.demo, label: extra.label || '', svgText: extra.svgText || '', baseQuad: extra.baseQuad || null, photoBase: extra.photoBase || '', baseKind: extra.baseKind || '', garment: extra.garment || null, realAi: !!extra.realAi }; }
 async function fetchBlob(url) { const r = await fetch(url); if (!r.ok) throw new Error('Không tải được file: ' + url); return r.blob(); }
 function wrapText(ctx, text, x, y, maxW, lh) { const words = String(text).split(/\s+/); let line = '', yy = y; for (const w of words) { const t = line ? line + ' ' + w : w; if (ctx.measureText(t).width > maxW && line) { ctx.fillText(line, x, yy); line = w; yy += lh; } else line = t; } if (line) ctx.fillText(line, x, yy); return yy; }
-function drawDemoBanner(ctx, w, text = 'ẢNH DEMO — chưa kết nối AI') { ctx.save(); ctx.fillStyle = 'rgba(32,32,32,0.88)'; ctx.fillRect(0, 0, w, 54); ctx.fillStyle = '#ffb59d'; ctx.font = 'bold 26px Arial'; ctx.textAlign = 'center'; ctx.fillText(text, w / 2, 37); ctx.restore(); }
+function drawDemoBanner(ctx, w, text = 'ẢNH DEMO — chưa kết nối AI', h = 0) { ctx.save(); const stripH = h > 0 ? Math.max(30, Math.round(h * 0.045)) : 54; const fontPx = h > 0 ? Math.round(stripH * 0.48) : 26; ctx.fillStyle = 'rgba(32,32,32,0.88)'; ctx.fillRect(0, 0, w, stripH); ctx.fillStyle = '#ffb59d'; ctx.font = `bold ${fontPx}px Arial`; ctx.textAlign = 'center'; ctx.fillText(text, w / 2, Math.round(stripH * 0.685)); ctx.restore(); }
+// P4.2 round-4 FIX (double frame): drawDemoBanner is NO LONGER used by
+// the aiImageGen DEMO outputs — generation must not bake any frame into
+// an intermediate image (see stampDemoFrame below). It remains only for
+// the demo VARIATION and demo VIDEO paths, whose outputs are final
+// artefacts of those nodes rather than compositing inputs.
+/**
+ * P4.2 supplementary (FIX D) + round-4 FIX: the DEMO frame (dark banner
+ * strip + text + terracotta border) is stamped EXACTLY ONCE, here, on
+ * the FINAL channel image, AFTER the crop/resize — sized relative to
+ * the final image so every export carries the SAME treatment.
+ * History: round 1–3 ALSO baked a banner+border into the generated
+ * image; cover-cropped exports happened to crop/cover it, but the
+ * round-4 contain fallback for the extreme-aspect oversize base kept
+ * the baked frame INSIDE the frame — banner strip spanning only the
+ * contained column and the baked border's left/right edges surviving
+ * as two full-height terracotta lines (the owner's double-frame
+ * rejection). Generation outputs now carry NO frame at all; in-app
+ * honesty rides the value's demo flag + text label, and this stamp is
+ * the one and only frame an exported file ever gets.
+ */
+/** Backdrop colour of a source image, sampled from the image itself:
+ * two vertical bands at the far left/right edges, 18–34% down — pure
+ * studio backdrop in a garment photo (below the baked DEMO banner,
+ * outside the centred subject; edge-to-edge sampling lower down would
+ * average in arms, sleeves and jeans and darken the pad). Used ONLY to
+ * pad the extreme-aspect channel-export fallback (channelFitMode) so a
+ * contained garment photo sits on its own studio backdrop instead of a
+ * mismatched seam. */
+function sampleBackdropColor(img) {
+  const W = img.naturalWidth || img.width, H = img.naturalHeight || img.height;
+  const pw = Math.max(8, Math.round(W * 0.03)), ph = Math.max(8, Math.round(H * 0.16));
+  const sy = Math.round(H * 0.18);
+  let r = 0, g = 0, b = 0, n = 0;
+  for (const sx of [Math.round(W * 0.01), Math.round(W * 0.99) - pw]) {
+    const c = makeCanvas(pw, ph), x = c.getContext('2d');
+    x.drawImage(img, sx, sy, pw, ph, 0, 0, pw, ph);
+    const d = x.getImageData(0, 0, pw, ph).data;
+    for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i + 1]; b += d[i + 2]; n++; }
+  }
+  return `rgb(${Math.round(r / n)}, ${Math.round(g / n)}, ${Math.round(b / n)})`;
+}
+function stampDemoFrame(ctx, w, h) {
+  const sh = Math.max(28, Math.round(h * 0.045));
+  ctx.save();
+  ctx.fillStyle = 'rgba(32,32,32,0.88)'; ctx.fillRect(0, 0, w, sh);
+  ctx.fillStyle = '#ffb59d'; ctx.font = `bold ${Math.round(sh * 0.48)}px Arial`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('ẢNH DEMO — chưa kết nối AI', w / 2, sh / 2 + 1);
+  ctx.strokeStyle = '#b6492f'; ctx.lineWidth = Math.max(4, Math.round(w * 0.0083));
+  const inset = ctx.lineWidth / 2; ctx.strokeRect(inset, inset, w - ctx.lineWidth, h - ctx.lineWidth);
+  ctx.restore();
+}
 
 // ---------- demo provider implementation (canvas-derived, honestly labelled) ----------
 /**
- * P4.1 DEMO model figure: a simple stylised model (head / shoulders / torso)
- * wearing a PLAIN t-shirt in the garment params' colour and fit (oversize =
- * visibly wider + longer silhouette). Fully deterministic — geometry comes
- * from DEMO_FIGURE (core.js), so Template 1's composition chest quad matches
- * the figure exactly and the original design lands on the chest in tests.
+ * DEMO model figure (P4.1; redrawn in P4.2 ROUND 3 to the owner's
+ * e-commerce framing): a simple stylised model in MEDIUM HALF-BODY
+ * framing — top of head → past the hips, camera at chest height, plain
+ * light-grey studio backdrop (#F2F2F2 family), standing upright and
+ * facing the camera, arms relaxed along the body, hair NOT over the
+ * chest, the ENTIRE plain t-shirt visible (collar, both shoulders, both
+ * sleeves, bottom hem + trousers waistband below it). Oversize = a
+ * genuinely wider + longer silhouette. Fully deterministic — geometry
+ * comes from DEMO_FIGURE (core.js) landmarks, so the composition quad
+ * (torsoQuadFor) matches the figure exactly. This is a DRAWING, honestly
+ * labelled as such — it exists because no verified real photo currently
+ * passes the owner's model-photo checklist.
  */
 function drawDemoFigure(x, W, H, garment) {
-  const fit = garment.style === 'oversize' ? DEMO_FIGURE.torso.oversize : DEMO_FIGURE.torso.regular;
+  const fitKey = garment.style === 'oversize' ? 'oversize' : 'regular';
+  const fit = DEMO_FIGURE.torso[fitKey];
+  const lm = DEMO_FIGURE.landmarks[fitKey];
   const [tx0, tx1] = fit.span;
   const shY = fit.shoulderY * H, hemY = fit.hemY * H;
   const X = (f) => f * W, Y = (f) => f * H;
-  // clean studio-ish background + floor band
+  // plain bright neutral studio backdrop (#F2F2F2 → slightly deeper floor)
   const bg = x.createLinearGradient(0, 0, 0, H);
-  bg.addColorStop(0, '#f2ecdf'); bg.addColorStop(0.78, '#e0d2b6'); bg.addColorStop(1, '#c9b48d');
+  bg.addColorStop(0, '#f4f4f2'); bg.addColorStop(0.8, '#ececea'); bg.addColorStop(1, '#dededb');
   x.fillStyle = bg; x.fillRect(0, 0, W, H);
-  x.fillStyle = 'rgba(120,95,60,0.16)'; x.fillRect(0, Y(0.9), W, H - Y(0.9));
+  x.fillStyle = 'rgba(90,90,90,0.10)'; x.fillRect(0, Y(0.94), W, H - Y(0.94));
   const skin = '#eec39f', skinDark = '#c98f5f', hair = '#3a2a20';
-  // arms (skin) behind the sleeves
+  // arms (skin) hanging relaxed ALONGSIDE the body, below the sleeves:
+  // from just under the sleeve ends down to hip level, hands included.
   x.fillStyle = skin;
-  const armW = 0.045 * W;
-  x.fillRect(X(tx0) + 2, shY + 0.16 * H, armW, 0.3 * H);
-  x.fillRect(X(tx1) - armW - 2, shY + 0.16 * H, armW, 0.3 * H);
-  // trousers below the hem
-  x.fillStyle = '#45454e'; x.fillRect(X(tx0 + 0.07), hemY, X(tx1 - 0.07) - X(tx0 + 0.07), H - hemY);
-  // neck + head + simple face
-  x.fillStyle = skin; x.fillRect(X(0.468), Y(0.185), X(0.532) - X(0.468), Y(0.3) - Y(0.185));
-  x.beginPath(); x.arc(X(0.5), Y(0.148), 0.072 * H, 0, Math.PI * 2); x.fillStyle = skin; x.fill();
+  const armW = 0.042 * W, sleeveEndY = shY + 0.185 * H;
+  x.fillRect(X(tx0) - armW - 0.004 * W, sleeveEndY - 0.02 * H, armW, (hemY + 0.10 * H) - sleeveEndY);
+  x.fillRect(X(tx1) + 0.004 * W, sleeveEndY - 0.02 * H, armW, (hemY + 0.10 * H) - sleeveEndY);
+  x.beginPath(); x.arc(X(tx0) - armW / 2 - 0.004 * W, hemY + 0.105 * H, armW * 0.55, 0, Math.PI * 2); x.fill();
+  x.beginPath(); x.arc(X(tx1) + armW / 2 + 0.004 * W, hemY + 0.105 * H, armW * 0.55, 0, Math.PI * 2); x.fill();
+  // trousers below the hem — with a visible WAISTBAND strip right under
+  // the hem, so the garment's length can be judged (round-3 standard).
+  x.fillStyle = '#45454e'; x.fillRect(X(tx0 + 0.03), hemY, X(tx1 - 0.03) - X(tx0 + 0.03), H - hemY);
+  x.fillStyle = '#33333c'; x.fillRect(X(tx0 + 0.03), hemY, X(tx1 - 0.03) - X(tx0 + 0.03), 0.02 * H);
+  x.fillStyle = 'rgba(255,255,255,0.20)'; x.fillRect(X(0.5) - 0.014 * W, hemY + 0.004 * H, 0.028 * W, 0.012 * H); // waistband button hint
+  // neck + head + simple face — head sized for half-body framing
+  // (centre 0.13, radius 0.068·H: top of head 0.062, chin ≈ 0.198; the
+  // exposed neck is only ≈0.05 of height — an earlier draft put the
+  // shoulders at 0.315+ with a smaller, higher head and produced a
+  // giraffe neck that visual review rejected).
+  x.fillStyle = skin; x.fillRect(X(0.474), Y(0.185), X(0.526) - X(0.474), shY + 0.012 * H - Y(0.185));
+  x.beginPath(); x.arc(X(0.5), Y(0.13), 0.068 * H, 0, Math.PI * 2); x.fillStyle = skin; x.fill();
   x.fillStyle = '#2b2b2b';
-  for (const sgn of [-1, 1]) { x.beginPath(); x.arc(X(0.5) + sgn * 0.026 * H, Y(0.15), 0.006 * H, 0, Math.PI * 2); x.fill(); }
-  x.beginPath(); x.arc(X(0.5), Y(0.166), 0.02 * H, Math.PI * 0.15, Math.PI * 0.85); x.strokeStyle = skinDark; x.lineWidth = Math.max(2, 0.004 * H); x.stroke();
-  // hair: cap + side locks
+  for (const sgn of [-1, 1]) { x.beginPath(); x.arc(X(0.5) + sgn * 0.024 * H, Y(0.132), 0.005 * H, 0, Math.PI * 2); x.fill(); }
+  x.beginPath(); x.arc(X(0.5), Y(0.144), 0.018 * H, Math.PI * 0.15, Math.PI * 0.85); x.strokeStyle = skinDark; x.lineWidth = Math.max(2, 0.0035 * H); x.stroke();
+  // hair: cap + SHORT side locks ending at the jaw line — nothing hangs
+  // over the shoulders or the chest (round-3 standard).
   x.fillStyle = hair;
-  x.beginPath(); x.arc(X(0.5), Y(0.14), 0.074 * H, Math.PI * 1.03, Math.PI * 1.97); x.lineTo(X(0.5) + 0.074 * H, Y(0.128)); x.lineTo(X(0.5) - 0.074 * H, Y(0.128)); x.closePath(); x.fill();
-  x.fillRect(X(0.5) - 0.076 * H, Y(0.125), 0.018 * H, 0.085 * H);
-  x.fillRect(X(0.5) + 0.058 * H, Y(0.125), 0.018 * H, 0.085 * H);
-  // the PLAIN t-shirt silhouette
+  x.beginPath(); x.arc(X(0.5), Y(0.122), 0.07 * H, Math.PI * 1.02, Math.PI * 1.98); x.lineTo(X(0.5) + 0.07 * H, Y(0.112)); x.lineTo(X(0.5) - 0.07 * H, Y(0.112)); x.closePath(); x.fill();
+  x.fillRect(X(0.5) - 0.07 * H, Y(0.10), 0.016 * H, 0.088 * H);
+  x.fillRect(X(0.5) + 0.054 * H, Y(0.10), 0.016 * H, 0.088 * H);
+  // the PLAIN t-shirt silhouette — full garment: collar, both shoulders,
+  // both sleeves, straight body down to the hem at hemY.
   const sx0 = X(tx0), sx1 = X(tx1);
   const tee = new Path2D();
   tee.moveTo(X(0.455), shY - 0.012 * H);
@@ -106,7 +178,7 @@ function drawDemoFigure(x, W, H, garment) {
   tee.lineTo(sx1 + 0.018 * W, shY + 0.035 * H);
   tee.lineTo(sx1 - 0.028 * W, shY);
   tee.lineTo(X(0.545), shY - 0.012 * H);
-  tee.quadraticCurveTo(X(0.5), shY + 0.045 * H, X(0.455), shY - 0.012 * H);
+  tee.quadraticCurveTo(X(0.5), shY + 0.052 * H, X(0.455), shY - 0.012 * H);
   tee.closePath();
   x.fillStyle = garment.colorHex || '#f4f4f2'; x.fill(tee);
   // soft side shading + gentle fold strokes, clipped to the tee
@@ -116,31 +188,78 @@ function drawDemoFigure(x, W, H, garment) {
   sh.addColorStop(0.5, 'rgba(255,255,255,0.05)'); sh.addColorStop(0.82, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(0,0,0,0.13)');
   x.fillStyle = sh; x.fillRect(0, 0, W, H);
   x.strokeStyle = 'rgba(0,0,0,0.05)'; x.lineWidth = Math.max(2, 0.006 * H);
-  for (const fy of [0.52, 0.63, 0.74]) { x.beginPath(); x.moveTo(sx0 + 0.05 * W, Y(fy)); x.quadraticCurveTo(X(0.5), Y(fy) + 0.012 * H, sx1 - 0.05 * W, Y(fy)); x.stroke(); }
+  const torsoLen = lm.hemY - lm.collarBottomY;
+  for (const fr of [0.45, 0.72]) { const fy = lm.collarBottomY + fr * torsoLen; x.beginPath(); x.moveTo(sx0 + 0.05 * W, Y(fy)); x.quadraticCurveTo(X(0.5), Y(fy) + 0.012 * H, sx1 - 0.05 * W, Y(fy)); x.stroke(); }
   x.restore();
-  // crew-neck collar band
-  x.beginPath(); x.moveTo(X(0.455), shY - 0.012 * H); x.quadraticCurveTo(X(0.5), shY + 0.045 * H, X(0.545), shY - 0.012 * H);
+  // crew-neck collar band — its curve dip (0.02) + stroke place the
+  // collar's lower edge at DEMO_FIGURE.landmarks collarBottomY.
+  x.beginPath(); x.moveTo(X(0.455), shY - 0.012 * H); x.quadraticCurveTo(X(0.5), shY + 0.052 * H, X(0.545), shY - 0.012 * H);
   x.strokeStyle = 'rgba(0,0,0,0.28)'; x.lineWidth = Math.max(3, 0.009 * H); x.stroke();
+  // hem stitch line just above the bottom hem
+  x.beginPath(); x.moveTo(sx0 + 0.008 * W, hemY - 0.014 * H); x.lineTo(sx1 - 0.008 * W, hemY - 0.014 * H);
+  x.strokeStyle = 'rgba(0,0,0,0.16)'; x.lineWidth = Math.max(2, 0.0035 * H); x.stroke();
 }
 const demoImpl = {
   async demoImage({ prompt, image }) {
     const [rw, rh] = { '4:5': [768, 960], '1:1': [864, 864], '9:16': [720, 1280], '16:9': [1280, 720] }[prompt?.ratio || '4:5'] || [768, 960];
     const c = makeCanvas(rw, rh), x = c.getContext('2d');
-    // P4.1: garment params + NO reference image → the deterministic demo
-    // figure in a PLAIN tee. A wired reference image keeps the legacy
-    // P1–P4 wash behaviour (templates 2–4 unchanged).
+    // P4.1: garment params + NO reference image → a PLAIN-tee garment base.
+    // A wired reference image keeps the legacy P1–P4 wash behaviour
+    // (templates 2–4 unchanged).
     if (prompt?.garment && !image?.blob) {
-      drawDemoFigure(x, rw, rh, prompt.garment);
-      drawDemoBanner(x, rw);
-      x.strokeStyle = '#b6492f'; x.lineWidth = 10; x.strokeRect(5, 5, rw - 10, rh - 10);
-      return valueFromBlob(await canvasBlob(c), 'image', { demo: true, label: 'Ảnh DEMO mô phỏng — người mẫu vẽ bằng canvas mặc áo thun TRƠN đúng màu/phom đã chọn; hình in gốc được ghép hậu kỳ, đây không phải ảnh sản phẩm thật' });
+      // P4.2 ROUND 4: when an owner-approved AI-GENERATED MODEL image
+      // exists for these garment params (AI_MODEL_BASES in core.js —
+      // white crew / black crew / white oversize), DEMO returns THAT
+      // image as the model base with its torso-rule quad. The label
+      // says plainly that the model image is AI-generated (it is NOT a
+      // photograph and is never presented as one); the run itself made
+      // no AI call — the images were generated once from the owner's
+      // verbatim catalog prompt and approved by the owner 2026-11-14.
+      const ab = aiModelBaseFor(prompt.garment);
+      if (ab) {
+        const photo = await blobToImg(await fetchBlob(ab.base.path));
+        const pc = makeCanvas(photo.width, photo.height), px = pc.getContext('2d');
+        px.drawImage(photo, 0, 0);
+        // NO baked DEMO frame here (round-4 double-frame fix): the frame
+        // is stamped exactly once, at export time (stampDemoFrame). The
+        // demo flag + label below carry the honesty in-app.
+        return valueFromBlob(await canvasBlob(pc), 'image', { demo: true, baseQuad: ab.quad, photoBase: ab.base.id, baseKind: 'ai-model', label: `Ảnh người mẫu do AI tạo (chưa phải ảnh chụp thật) — hình in ghép hậu kỳ bằng file gốc. Người mẫu AI mặc áo thun TRƠN đúng màu/phom đã chọn, ngực trống; ảnh được tạo bằng prompt catalogue nguyên văn của chủ shop và được chủ shop duyệt 2026-11-14. Lượt chạy DEMO này chưa gọi AI.` });
+      }
+      // When a VERIFIED REAL MODEL PHOTO exists for these garment params
+      // (kind 'model' in PHOTO_BASES — round 3: currently NONE, see
+      // core.js), DEMO returns that photo as the reference base
+      // (labelled — never claimed to be AI-generated) with its
+      // torso-rule quad, so the composition lands centre-chest.
+      const pb = photoBaseFor(prompt.garment);
+      if (pb) {
+        const photo = await blobToImg(await fetchBlob(pb.base.path));
+        const pc = makeCanvas(photo.width, photo.height), px = pc.getContext('2d');
+        px.drawImage(photo, 0, 0);
+        // NO baked DEMO frame (round-4 double-frame fix, as above).
+        return valueFromBlob(await canvasBlob(pc), 'image', { demo: true, baseQuad: pb.quad, photoBase: pb.base.id, baseKind: 'photo', label: `DEMO — dùng ảnh chụp thật làm ảnh nền tham chiếu, chưa gọi AI. Ảnh: ${pb.base.name} (Pexels ${pb.base.source.photoId}, tác giả ${pb.base.source.author}). Áo trong ảnh là áo TRƠN; hình in gốc được ghép hậu kỳ.` });
+      }
+      // No approved AI model image and no verified photo for these
+      // params → the drawn figure (unmapped combos only in round 4:
+      // other colours, black oversize, 3/4 view). The figure canvas is 900×1125 at the 4:5 ratio
+      // so its aspect matches the photo fixtures; its quad is derived
+      // from the figure landmarks via torsoQuadFor at the canvas's own
+      // aspect — the same torso rule as every other base.
+      const fitKey = prompt.garment.style === 'oversize' ? 'oversize' : 'regular';
+      const [fw, fh] = (prompt.ratio || '4:5') === '4:5' ? [900, 1125] : [rw, rh];
+      const fc = makeCanvas(fw, fh), fx = fc.getContext('2d');
+      drawDemoFigure(fx, fw, fh, prompt.garment);
+      // NO baked DEMO frame (round-4 double-frame fix, as above): the
+      // bare figure is the intermediate; the frame exists only at export.
+      const figQuad = torsoQuadFor(DEMO_FIGURE.landmarks[fitKey], { imgW: fw, imgH: fh });
+      return valueFromBlob(await canvasBlob(fc), 'image', { demo: true, baseQuad: figQuad.map(p => [...p]), baseKind: 'figure', label: 'Ảnh DEMO mô phỏng — người mẫu VẼ bằng canvas (khung nửa người theo chuẩn thương mại điện tử) mặc áo thun TRƠN đúng màu/phom đã chọn; chưa có ảnh người mẫu cho thông số này (chưa có ảnh AI tạo đã duyệt, chưa có ảnh chụp thật đã kiểm chứng đạt chuẩn của chủ shop); hình in gốc được ghép hậu kỳ, đây không phải ảnh sản phẩm thật' });
     }
     const g = x.createLinearGradient(0, 0, 0, rh); g.addColorStop(0, '#f3ead9'); g.addColorStop(1, '#d9c6a5'); x.fillStyle = g; x.fillRect(0, 0, rw, rh);
     if (image?.blob) { const img = await blobToImg(image.blob); const s = Math.max(rw / img.width, rh / img.height); x.drawImage(img, (rw - img.width * s) / 2, (rh - img.height * s) / 2, img.width * s, img.height * s); x.fillStyle = 'rgba(243,234,217,0.18)'; x.fillRect(0, 0, rw, rh); }
-    drawDemoBanner(x, rw);
+    // NO baked DEMO banner/border (round-4 double-frame fix, as above);
+    // the prompt caption block at the bottom stays — it is the P1 demo
+    // content itself, not a frame.
     x.fillStyle = 'rgba(32,32,32,0.82)'; x.fillRect(0, rh - 120, rw, 120); x.fillStyle = '#fff'; x.font = '22px Arial'; x.textAlign = 'left';
     wrapText(x, (prompt?.text || 'Không có prompt') + '', 24, rh - 82, rw - 48, 28);
-    x.strokeStyle = '#b6492f'; x.lineWidth = 10; x.strokeRect(5, 5, rw - 10, rh - 10);
     return valueFromBlob(await canvasBlob(c), 'image', { demo: true, label: 'Ảnh DEMO mô phỏng — không phải ảnh sản phẩm thật, chưa kết nối AI' });
   },
   async demoVariation({ image, variant }) {
@@ -148,7 +267,7 @@ const demoImpl = {
     if (variant === 'can-canh') { const w = img.width / 2, h = img.height / 2; x.drawImage(img, img.width / 4, img.height / 4, w, h, 0, 0, img.width, img.height); }
     else if (variant === 'goc-khac') { const s = 1.3; x.drawImage(img, (img.width - img.width * s) / 2, (img.height - img.height * s) / 2, img.width * s, img.height * s); }
     else { x.drawImage(img, 0, 0); x.fillStyle = 'rgba(182,73,47,0.16)'; x.fillRect(0, 0, img.width, img.height); x.filter = 'saturate(1.25)'; x.drawImage(img, 0, 0); x.filter = 'none'; }
-    drawDemoBanner(x, img.width, 'BIẾN THỂ DEMO — chưa kết nối AI');
+    drawDemoBanner(x, img.width, 'BIẾN THỂ DEMO — chưa kết nối AI', img.height);
     return valueFromBlob(await canvasBlob(c), 'image', { demo: true, label: 'Biến thể DEMO (biến đổi canvas thật từ ảnh gốc) — không phải AI tạo' });
   },
   async demoVideo({ image, motion, duration, ratio }, onProgress) {
@@ -159,7 +278,7 @@ const demoImpl = {
     const chunks = []; rec.ondataavailable = e => e.data.size && chunks.push(e.data);
     const done = new Promise(r => rec.onstop = r);
     rec.start(200); const t0 = performance.now(); const total = Math.min(6, Math.max(1, duration || 3)) * 1000;
-    await new Promise(res => { const tick = () => { const t = (performance.now() - t0) / total; if (t >= 1) return res(); const s = Math.max(w / img.width, h / img.height) * (1 + 0.12 * t); x.fillStyle = '#efe7d7'; x.fillRect(0, 0, w, h); x.drawImage(img, (w - img.width * s) / 2, (h - img.height * s) / 2, img.width * s, img.height * s); drawDemoBanner(x, w, 'VIDEO DEMO (WebM)'); onProgress?.(Math.round(t * 100)); requestAnimationFrame(tick); }; tick(); });
+    await new Promise(res => { const tick = () => { const t = (performance.now() - t0) / total; if (t >= 1) return res(); const s = Math.max(w / img.width, h / img.height) * (1 + 0.12 * t); x.fillStyle = '#efe7d7'; x.fillRect(0, 0, w, h); x.drawImage(img, (w - img.width * s) / 2, (h - img.height * s) / 2, img.width * s, img.height * s); drawDemoBanner(x, w, 'VIDEO DEMO (WebM)', h); onProgress?.(Math.round(t * 100)); requestAnimationFrame(tick); }; tick(); });
     rec.stop(); await done;
     const blob = new Blob(chunks, { type: 'video/webm' });
     return valueFromBlob(blob, 'video', { demo: true, name: 'video-demo.webm', label: 'Video DEMO định dạng WebM (ghi từ canvas) — không phải MP4, chưa kết nối AI video' });
@@ -171,12 +290,12 @@ const demoImpl = {
 // when the value is served back. API keys are never part of a cache record.
 async function cachePutRecord(key, node, value) {
   if (!value || (value.kind !== 'prompt' && !(value.blob instanceof Blob))) return;
-  await store.putCache({ key, projectId, nodeId: node.id, nodeType: node.type, createdAt: Date.now(), kind: value.kind, label: value.label || '', demo: !!value.demo, name: value.name || '', mime: value.mime || '', svgText: value.svgText || '', text: value.text || '', garment: value.garment || null, blob: value.blob instanceof Blob ? value.blob : null });
+  await store.putCache({ key, projectId, nodeId: node.id, nodeType: node.type, createdAt: Date.now(), kind: value.kind, label: value.label || '', demo: !!value.demo, name: value.name || '', mime: value.mime || '', svgText: value.svgText || '', text: value.text || '', garment: value.garment || null, baseQuad: value.baseQuad || null, photoBase: value.photoBase || '', baseKind: value.baseKind || '', realAi: !!value.realAi, blob: value.blob instanceof Blob ? value.blob : null });
 }
 async function cacheGetRecord(key) {
   const r = await store.getCache(key); if (!r) return null;
   if (r.kind === 'prompt') return { kind: 'prompt', text: r.text, garment: r.garment || null };
-  if (r.blob) return valueFromBlob(r.blob, r.kind, { name: r.name, demo: r.demo, label: r.label, svgText: r.svgText });
+  if (r.blob) return valueFromBlob(r.blob, r.kind, { name: r.name, demo: r.demo, label: r.label, svgText: r.svgText, baseQuad: r.baseQuad || null, photoBase: r.photoBase || '', baseKind: r.baseKind || '', garment: r.garment || null, realAi: !!r.realAi });
   return null;
 }
 /** Latest cached output per node id for this project (used to seed a resumed run). */
@@ -278,8 +397,15 @@ function renderWarpedLayer(garmentCanvas, designImg, quadRel, { wrinkle = 0, sha
     drawTri(lx, designImg, [v10.u * sw, v10.v * sh], [v11.u * sw, v11.v * sh], [v01.u * sw, v01.v * sh], v10.dst, v11.dst, v01.dst);
   }
   if (shading > 0) {
-    // Multiply garment shading into the design pixels: pixels darken where
-    // the garment is darker than its quad mean (folds) — hue is preserved.
+    // P4.2 blending (was P3 shading, strengthened): modulate the design by
+    // the garment's RELATIVE luminance under the print — the factor is
+    // local-luminance / quad-mean, so folds darken/lighten the print while
+    // the garment's absolute brightness cancels out. That is why this is
+    // safe on DARK garments too: a multiply-by-absolute-luminance pass
+    // would blacken the design on a black tee; the relative factor stays
+    // ≈1 there. Hue is preserved by the multiply; a gentle 6% pull of each
+    // channel toward the pixel's own luminance softens the print's
+    // contrast so it reads as ink in fabric, not a pasted sticker.
     const sAmt = Math.min(100, shading) / 100;
     const xs = quadPx.map(p => p[0]), ys = quadPx.map(p => p[1]);
     const bx = Math.max(0, Math.floor(Math.min(...xs))), by = Math.max(0, Math.floor(Math.min(...ys)));
@@ -290,16 +416,21 @@ function renderWarpedLayer(garmentCanvas, designImg, quadRel, { wrinkle = 0, sha
       for (let o = 0; o < px.length; o += 4) {
         if (px[o + 3] === 0) continue;
         const lum = (0.2126 * gData[o] + 0.7152 * gData[o + 1] + 0.0722 * gData[o + 2]) / 255;
-        const f = Math.min(1.15, Math.max(0.4, lum / (mean || 0.5)));
+        const f = Math.min(1.2, Math.max(0.35, lum / (mean || 0.5)));
         const m = 1 + (f - 1) * sAmt;
-        px[o] *= m; px[o + 1] *= m; px[o + 2] *= m;
+        let r = px[o] * m, g = px[o + 1] * m, bch = px[o + 2] * m;
+        const dl = 0.2126 * r + 0.7152 * g + 0.0722 * bch;
+        px[o] = r * 0.94 + dl * 0.06; px[o + 1] = g * 0.94 + dl * 0.06; px[o + 2] = bch * 0.94 + dl * 0.06;
       }
       lx.putImageData(imgData, bx, by);
     }
   }
   return { layer, quadPx };
 }
-/** Stroke the dashed safe-print-area quad (the P1 safe-area guide, now a quad). */
+/** Stroke the dashed safe-print-area quad. EDITOR ONLY (P4.2): this guide
+ * may be drawn solely on the composition node's alignment-editor canvas
+ * (drawQuadPreview) while the user adjusts the quad. It must NEVER be
+ * drawn into a node output image — previews and exports stay guide-free. */
 function strokeQuad(x, quadPx) {
   x.save(); x.strokeStyle = 'rgba(182,73,47,0.9)'; x.setLineDash([8, 6]); x.lineWidth = 2;
   x.beginPath(); quadPx.forEach(([px, py], i) => i ? x.lineTo(px, py) : x.moveTo(px, py)); x.closePath(); x.stroke(); x.restore();
@@ -320,6 +451,25 @@ function migrateGraph(g) {
     if (n.type === 'exportNode') { n.config.channels ??= []; n.config.jpgQuality ??= 92; n.config.namePattern ??= ''; }
   }
   return g;
+}
+/**
+ * P4.2 ROUND 4 (R4) — adopt a graph loaded from storage (project open,
+ * version restore, draft recovery): run the config migration, then the
+ * Template 1 version refresh. If the project was created under an older
+ * Template 1 version, its template-owned defaults are refreshed AND
+ * this project's persisted node cache is purged (on top of the global
+ * build-marker in every cache key), with a user-visible note — an old
+ * draft can never silently resurrect pre-P4.2 behaviour.
+ */
+async function adoptLoadedGraph(g) {
+  migrateGraph(g);
+  const oldV = g.meta?.tplVersion || 0;
+  const r = refreshTpl1Graph(g);
+  if (!r.refreshed) return g;
+  for (const c of (await store.listCache()).filter(c => c.projectId === projectId)) await store.deleteCache(c.key);
+  logLine(`Đã cập nhật dự án Mẫu 1 từ phiên bản mẫu cũ (v${oldV}) lên v${r.graph.meta.tplVersion}: ${r.notes.join('; ')}. Đã xóa toàn bộ kết quả đệm cũ của dự án để không dùng lại kết quả của bản cũ.`);
+  message('Đã cập nhật dự án Mẫu 1 lên phiên bản mẫu mới nhất và xóa kết quả đệm cũ.');
+  return r.graph;
 }
 
 // ---------- node handlers ----------
@@ -362,26 +512,77 @@ const handlers = {
       }
     }
     const srcNote = useReal ? ' · ghép lên ẢNH MẪU THẬT' : '';
-    const g = await blobToImg(garmentBlob);
+    let g = await blobToImg(garmentBlob);
+    // P4.2 ROUND 4 (R2) — REAL-AI FRAMING GUARD. The owner's live failure
+    // (2026-11-14): a real-AI (Classic sana) garment photo arrived as a
+    // close-up whose framing broke compositing, and nothing checked it.
+    // Rule: a garment value flagged realAi (produced by a real provider
+    // in aiImageGen) is UNVALIDATED until this node checks its framing
+    // class (aspect heuristic — framingAspectClass in warp.js; landmark
+    // detection client-side is not reliable enough to gate on). If it
+    // fails, composition NEVER composites onto it: it falls back to the
+    // owner-approved AI model base for the same garment params, records
+    // the fallback in this node's log (persisted in the P2 run history)
+    // and in the result label. With no approved base for the params it
+    // errors honestly instead of producing a wrong composite.
+    let framingNote = '';
+    if (!useReal && inputs.garment?.realAi) {
+      if (passesHalfBodyFraming(g.width, g.height)) {
+        log(`Ảnh AI thật đạt kiểm tra khung hình (chân dung nửa người, ${g.width}×${g.height}) — ghép lên chính ảnh AI này.`);
+      } else {
+        const ab = aiModelBaseFor(inputs.garment.garment);
+        if (!ab) throw new Error(`Ảnh AI thật không đạt khung hình (${g.width}×${g.height} — lớp "${framingAspectClass(g.width, g.height)}", cần chân dung nửa người) và chưa có nền người mẫu đã duyệt cho thông số áo này. Hãy chuyển "Nguồn ảnh áo" sang "Ảnh mẫu thật", hoặc đổi tỉ lệ ảnh ở node Tạo ảnh AI rồi chạy lại.`);
+        log(`Ảnh AI thật không đạt khung hình (${g.width}×${g.height} — lớp "${framingAspectClass(g.width, g.height)}", cần chân dung nửa người) — đã dùng nền người mẫu đã duyệt thay thế; KHÔNG ghép lên ảnh AI sai khung.`);
+        framingNote = ' · Ảnh AI thật không đạt khung hình — đã dùng nền người mẫu đã duyệt';
+        garmentBlob = await fetchBlob(ab.base.path);
+        g = await blobToImg(garmentBlob);
+        quadOverride = ab.quad;
+        log(`Nền thay thế: ${ab.base.name} — vùng in theo mốc thân áo đã hiệu chuẩn của nền này; kết quả được đóng dấu DEMO vì lớp người mẫu là nền DEMO đã duyệt, không phải ảnh AI thật vừa tạo.`);
+      }
+    }
     const scale = Math.min(1, 900 / g.width); const W = Math.round(g.width * scale), H = Math.round(g.height * scale);
     const c = makeCanvas(W, H), x = c.getContext('2d'); x.drawImage(g, 0, 0, W, H);
     const dImg = await blobToImg(design.blob);
     if (cfg.mode === 'simple') {
-      // P1 behaviour, unchanged: rectangle + rotation, dashed safe-area box.
+      // P1 behaviour: rectangle + rotation. P4.2: the dashed safe-area box
+      // is NO LONGER drawn into the output image (the owner saw the guide
+      // baked into previews/exports) — guides live only in the editor.
       const pw = W * (cfg.printW / 100), px = W * (cfg.printX / 100) - pw / 2, py = H * (cfg.printY / 100) - pw / 2;
-      x.save(); x.translate(px + pw / 2, py + pw / 2); x.rotate((cfg.rotation || 0) * Math.PI / 180); const ds = Math.min(pw / dImg.width, pw / dImg.height); x.drawImage(dImg, -dImg.width * ds / 2, -dImg.height * ds / 2, dImg.width * ds, dImg.height * ds); x.restore();
-      x.save(); x.strokeStyle = 'rgba(182,73,47,0.9)'; x.setLineDash([8, 6]); x.lineWidth = 2; x.strokeRect(px, py, pw, pw); x.restore();
+      x.save(); x.translate(px + pw / 2, py + pw / 2); x.rotate((cfg.rotation || 0) * Math.PI / 180); const ds = Math.min(pw / dImg.width, pw / dImg.height); x.globalAlpha = Math.min(100, Math.max(50, cfg.inkOpacity ?? 95)) / 100; x.drawImage(dImg, -dImg.width * ds / 2, -dImg.height * ds / 2, dImg.width * ds, dImg.height * ds); x.restore();
       log('Đã ghép file hình in GỐC lên ảnh áo (chế độ đơn giản P1) — nội dung hình in không bị AI vẽ lại.');
-      return valueFromBlob(await canvasBlob(c), 'image', { label: cfg.label + srcNote });
+      return valueFromBlob(await canvasBlob(c), 'image', { label: cfg.label + srcNote + framingNote, demo: !useReal && (!!inputs.garment?.demo || !!framingNote) });
     }
     // P3 perspective mode: homography warp onto the 4-point quad + wrinkle
     // displacement + garment shading. The design drawn is the ORIGINAL file.
-    const quad = quadOverride || ((Array.isArray(cfg.quad) && cfg.quad.length === 4) ? cfg.quad : (presetQuadFor(cfg.base) || rectToQuad(cfg.printX, cfg.printY, cfg.printW)));
-    const { layer, quadPx } = renderWarpedLayer(c, dImg, quad, { wrinkle: cfg.wrinkle || 0, shading: cfg.shading || 0 });
-    x.drawImage(layer, 0, 0);
-    strokeQuad(x, quadPx);
-    log(`Đã ghép file hình in GỐC theo phối cảnh 4 điểm (cong nếp vải ${cfg.wrinkle || 0}%, bóng vải ${cfg.shading || 0}%) — mô phỏng bằng hình học, không phải ảnh sản phẩm thật.`);
-    return valueFromBlob(await canvasBlob(c), 'image', { label: cfg.label + ' · phối cảnh 4 điểm + cong theo nếp vải (mô phỏng)' + srcNote });
+    // P4.2 quad resolution: a generated base that carries its own collar-
+    // calibrated quad (photo base / demo figure from aiImageGen) wins over
+    // the node's stored quad — the stored quad cannot know which base the
+    // generator produced. A quad the user explicitly dragged/typed in the
+    // editor (quadSource 'user') wins over the calibrated one.
+    let quad;
+    if (quadOverride) quad = quadOverride; // 'real' source preset — or the R2 framing-fallback base's calibrated quad
+    else if (useReal) quad = cfg.quad;
+    else if (cfg.quadSource === 'user' && Array.isArray(cfg.quad) && cfg.quad.length === 4) quad = cfg.quad;
+    else if (Array.isArray(inputs.garment?.baseQuad) && inputs.garment.baseQuad.length === 4) {
+      quad = inputs.garment.baseQuad;
+      log(`Dùng quad vùng in đã hiệu chuẩn theo mốc thân áo của ảnh nền (${inputs.garment.baseKind === 'ai-model' ? 'ảnh người mẫu do AI tạo' : inputs.garment.photoBase ? 'ảnh chụp thật' : 'hình DEMO vẽ'}) — hình in nằm giữa ngực trên, cách mép dưới cổ áo 12–15% chiều dài thân áo (luật torso).`);
+    }
+    else quad = (Array.isArray(cfg.quad) && cfg.quad.length === 4) ? cfg.quad : (presetQuadFor(cfg.base) || rectToQuad(cfg.printX, cfg.printY, cfg.printW));
+    const { layer } = renderWarpedLayer(c, dImg, quad, { wrinkle: cfg.wrinkle || 0, shading: cfg.shading || 0 });
+    // P4.2 blending: draw the print layer at ink opacity (<100%) so the
+    // fabric texture and folds under the print stay faintly visible — the
+    // print sits IN the fabric instead of looking like a flat sticker.
+    // P4.2 guide rule: NO dashed guide is drawn here — the output image
+    // (preview + every export) is guide-free; the dashed quad exists only
+    // as an overlay in this node's alignment editor (drawQuadPreview).
+    x.save(); x.globalAlpha = Math.min(100, Math.max(50, cfg.inkOpacity ?? 95)) / 100; x.drawImage(layer, 0, 0); x.restore();
+    log(`Đã ghép file hình in GỐC theo phối cảnh 4 điểm (cong nếp vải ${cfg.wrinkle || 0}%, bóng vải ${cfg.shading || 0}%, độ phủ mực ${cfg.inkOpacity ?? 95}%) — mô phỏng bằng hình học, không phải ảnh sản phẩm thật.`);
+    // P4.2 supplementary (FIX D): propagate the DEMO flag from the garment
+    // input so the export node can stamp the DEMO frame AFTER the
+    // channel crop/resize (uniform banner in every exported file).
+    // Round-4 fix: that export stamp is the ONLY frame — generation no
+    // longer bakes one into the garment image this node consumes.
+    return valueFromBlob(await canvasBlob(c), 'image', { label: cfg.label + ' · phối cảnh 4 điểm + cong theo nếp vải (mô phỏng)' + srcNote + framingNote, demo: !useReal && (!!inputs.garment?.demo || !!framingNote) });
   },
   async background(node, { inputs, log }) {
     const v = inputs.in; if (!v?.blob) throw new Error('Thiếu ảnh đầu vào.');
@@ -475,7 +676,11 @@ const handlers = {
     log(`Đang gọi AI THẬT: ${p.name} · model ${model.name} · ${w}×${h} · chi phí ${model.pricePerImage === 0 ? '0 (miễn phí)' : '~' + model.pricePerImage + ' Pollen'}…`);
     const res = await p.generateImage({ prompt: promptText, width: w, height: h, seed: -1 });
     noteRealCall(res);
-    return valueFromBlob(res.blob, 'image', { name: 'anh-ai-that', label: res.label });
+    // P4.2 ROUND 4 (R2): real-AI outputs are flagged realAi + carry the
+    // garment params, so the composition node can run its framing guard
+    // before compositing (an unvalidated real-AI garment photo is never
+    // composited onto blindly — see the guard in the composition handler).
+    return valueFromBlob(res.blob, 'image', { name: 'anh-ai-that', label: res.label, realAi: true, garment: inputs.prompt?.garment || null });
   },
   async aiVariation(node, { inputs, log }) {
     const p = currentProvider();
@@ -508,13 +713,28 @@ const handlers = {
     const img = await blobToImg(v.blob);
     const format = node.config.format === 'jpg' ? 'jpg' : 'png';
     const files = [];
+    let backdrop = null; // sampled lazily, only for the extreme-aspect fallback
     for (const p of chans) {
-      const f = fitInto(img.width, img.height, p.w, p.h, p.fit);
+      // P4.2 round-4 correction: a 'cover' preset whose crop would keep
+      // less than COVER_MIN_RETAINED of the source (the 1040×2352 AI
+      // oversize base into website 1200×1500 kept ~55% — head AND hem
+      // cut) falls back to 'contain', padded with the source's OWN
+      // backdrop colour so the whole garment stays in frame. Preset
+      // 'contain' channels keep their established white pad.
+      const mode = channelFitMode(img.width, img.height, p);
+      const padded = mode === 'contain' && p.fit === 'cover';
+      const f = fitInto(img.width, img.height, p.w, p.h, mode);
       const c = makeCanvas(p.w, p.h), x = c.getContext('2d');
-      x.fillStyle = '#ffffff'; x.fillRect(0, 0, p.w, p.h);
+      if (padded && backdrop === null) backdrop = sampleBackdropColor(img);
+      x.fillStyle = padded ? backdrop : '#ffffff'; x.fillRect(0, 0, p.w, p.h);
       x.drawImage(img, f.sx, f.sy, f.sw, f.sh, f.dx, f.dy, f.dw, f.dh);
+      // P4.2 supplementary (FIX D) + round-4 fix: DEMO inputs get the
+      // DEMO frame stamped HERE ONLY — on the FINAL channel image (after
+      // crop/resize) — identical banner treatment in every case, never
+      // cropped away, and never doubled by a frame baked upstream.
+      if (v.demo) stampDemoFrame(x, p.w, p.h);
       const blob = await canvasBlob(c, format === 'jpg' ? 'image/jpeg' : 'image/png', (node.config.jpgQuality || 92) / 100);
-      files.push(valueFromBlob(blob, 'image', { name: channelFileName(p, format, node.config.namePattern), label: `Kênh ${p.label} (${p.fit === 'cover' ? 'cắt phủ khung' : 'vừa khung, chừa nền trắng'})` }));
+      files.push(valueFromBlob(blob, 'image', { name: channelFileName(p, format, node.config.namePattern), label: `Kênh ${p.label} (${mode === 'cover' ? 'cắt phủ khung' : padded ? 'vừa khung, đệm màu nền của ảnh — nguồn quá cao, tránh cắt mất đầu/vạt áo' : 'vừa khung, chừa nền trắng'})` }));
     }
     log('Đã tạo ' + files.length + ' kích thước kênh: ' + files.map(f => f.name).join(', '));
     return { ...v, kind: 'image', blob: files[0].blob, url: files[0].url, mime: files[0].mime, files, label: `Đã xuất ${files.length} kích thước cho kênh bán hàng (xem danh sách file ở Thuộc tính node / trong ZIP)` };
@@ -557,7 +777,7 @@ function summary(node) { const c = node.config; return node.type === 'imageInput
 function def0(t) { const gm = generationMode().mode; const aiTxt = gm === 'classic' ? 'AI THẬT — Pollinations Classic (miễn phí)' : gm === 'keyed' ? 'AI THẬT — Pollinations (key + Pollen)' : gm === 'blocked' ? 'AI thật đang BỊ KHÓA — mở bảng Nhà cung cấp AI' : gm === 'http' ? 'HTTP stub — chưa cấu hình (sẽ báo lỗi)' : 'DEMO — chưa kết nối AI'; return { promptAssistant: 'Trợ lý quy tắc — không phải AI', composition: 'Ghép hình in gốc hậu kỳ', background: 'Thêm nền / bối cảnh cho ảnh sản phẩm', imageEditor: 'Cắt / xoay / sáng / tương phản', aiImageGen: aiTxt, aiVariation: aiTxt, aiVideoGen: 'DEMO — WebM từ canvas', preview: 'Xem ảnh / video kết quả', exportNode: 'Tải PNG/JPG/SVG/ZIP + nhiều kích thước kênh', saveProject: 'Lưu vào IndexedDB' }[t] || ''; }
 function aiModeHint() {
   const gm = generationMode();
-  if (gm.mode === 'demo') return '<p class="hint warn">DEMO: chưa kết nối AI thật — kết quả là ảnh canvas có đóng dấu DEMO. Muốn tạo ảnh thật: bỏ chọn node để mở bảng "Nhà cung cấp AI", bật Chế độ AI thật và chọn Pollinations.</p>';
+  if (gm.mode === 'demo') return '<p class="hint warn">DEMO: chưa kết nối AI thật — kết quả mang nhãn DEMO và file xuất được đóng khung DEMO. Muốn tạo ảnh thật: bỏ chọn node để mở bảng "Nhà cung cấp AI", bật Chế độ AI thật và chọn Pollinations.</p>';
   if (gm.mode === 'blocked') return `<p class="hint warn">AI THẬT đang BỊ KHÓA: ${gm.reason}</p>`;
   if (gm.mode === 'http') return '<p class="hint warn">Đang chọn HTTP stub (P1) — node sẽ báo lỗi cấu hình rõ ràng, không tạo ảnh giả.</p>';
   const m = selectedModel();
@@ -566,9 +786,9 @@ function aiModeHint() {
 function renderAll() { renderNodes(); applyView(); renderProperties(); }
 
 // ---------- history / persistence ----------
-function snapshot() { return JSON.stringify({ nodes: graph.nodes.map(n => ({ id: n.id, type: n.type, x: n.x, y: n.y, config: n.config })), edges: graph.edges }); }
+function snapshot() { return JSON.stringify({ nodes: graph.nodes.map(n => ({ id: n.id, type: n.type, x: n.x, y: n.y, config: n.config })), edges: graph.edges, meta: graph.meta || null }); }
 function pushHistory() { history = history.slice(0, historyIdx + 1); history.push(snapshot()); if (history.length > 60) history.shift(); historyIdx = history.length - 1; updateUndoBtns(); }
-function restore(s) { const g = JSON.parse(s); graph = { nodes: g.nodes.map(n => ({ ...n, status: 'idle', logs: [], error: '' })), edges: g.edges }; selectedId = null; selectedEdgeId = null; outputs = new Map(); renderAll(); scheduleSave(); }
+function restore(s) { const g = JSON.parse(s); graph = { nodes: g.nodes.map(n => ({ ...n, status: 'idle', logs: [], error: '' })), edges: g.edges, meta: g.meta || null }; selectedId = null; selectedEdgeId = null; outputs = new Map(); renderAll(); scheduleSave(); }
 function updateUndoBtns() { $('#ais-undo').disabled = historyIdx <= 0; $('#ais-redo').disabled = historyIdx >= history.length - 1; }
 let saveTimer = null;
 // P2 draft semantics: AUTOSAVE writes only a draft record (store 'drafts').
@@ -598,7 +818,7 @@ async function saveProjectNow(opts = {}) {
 }
 async function refreshProjectList() { const list = (await store.listProjects()).sort((a, b) => b.updatedAt - a.updatedAt); const sel = $('#ais-project-select'); sel.innerHTML = list.map(p => `<option value="${p.id}" ${p.id === projectId ? 'selected' : ''}>${p.name} — ${new Date(p.updatedAt).toLocaleDateString('vi-VN')}</option>`).join('') || '<option value="">(chưa có dự án)</option>'; }
 async function refreshStorage() { const e = await storageEstimate(); const assets = await store.listAssets(); const el = $('#ais-storage-info'); if (el) el.textContent = `Dung lượng trình duyệt đã dùng: ${(e.usage / 1048576).toFixed(1)} MB${e.quota ? ' / ' + (e.quota / 1073741824).toFixed(1) + ' GB' : ''} · ${assets.length} file đã lưu trong AI Studio`; }
-async function openProject(id) { const p = await store.getProject(id); if (!p) return message('Không tìm thấy dự án.', true); projectId = p.id; $('#ais-project-name').value = p.name; graph = { nodes: p.graph.nodes.map(n => ({ ...n, status: 'idle', logs: [], error: '' })), edges: p.graph.edges }; migrateGraph(graph); outputs = new Map(); lastFailedNodeId = null; updateResumeBtn(); history = []; historyIdx = -1; pushHistory(); selectedId = null; renderAll(); await renderHistory(); await renderVersions(); await renderStoragePanel(); message('Đã mở dự án "' + p.name + '"'); }
+async function openProject(id) { const p = await store.getProject(id); if (!p) return message('Không tìm thấy dự án.', true); projectId = p.id; $('#ais-project-name').value = p.name; graph = { nodes: p.graph.nodes.map(n => ({ ...n, status: 'idle', logs: [], error: '' })), edges: p.graph.edges, meta: p.graph.meta || null }; graph = await adoptLoadedGraph(graph); outputs = new Map(); lastFailedNodeId = null; updateResumeBtn(); history = []; historyIdx = -1; pushHistory(); selectedId = null; renderAll(); await renderHistory(); await renderVersions(); await renderStoragePanel(); message('Đã mở dự án "' + p.name + '"'); }
 
 // ---------- properties panel ----------
 function field(label, inner) { return `<label class="pf"><span>${label}</span>${inner}</label>`; }
@@ -628,20 +848,25 @@ function renderProperties() {
   if (node.type === 'composition') {
     const cm = migrateCompositionConfig(c);
     h += field('Nguồn ảnh áo', sel('pf-garment-source', [['ai', 'Ảnh từ node Tạo ảnh AI (áo trơn do AI tạo)'], ['real', 'Ảnh mẫu thật — bỏ qua ảnh AI']], cm.garmentSource));
-    if (cm.garmentSource === 'real') h += field('Ảnh mẫu thật dùng làm nền ghép', sel('pf-real-base', FIXTURES, cm.realBase));
+    if (cm.garmentSource === 'real') h += field('Ảnh nền dùng để ghép (mẫu thật / người mẫu AI tạo)', sel('pf-real-base', [...PHOTO_BASES, ...AI_MODEL_BASES].map(b => [b.path, b.name]), cm.realBase));
     h += '<p class="hint">Nếu ảnh AI sai kiểu áo/màu áo → chuyển Nguồn ảnh áo sang \'Ảnh mẫu thật\' để ghép lên ảnh áo thật. Ở chế độ Ảnh mẫu thật, vùng in dùng quad đã hiệu chuẩn sẵn của ảnh mẫu đó và node này vẫn chạy được kể cả khi node AI bị lỗi.</p>';
     h += field('Ảnh áo nền (khi không có dây vào)', sel('pf-base', FIXTURES, c.base));
     h += field('Chế độ ghép', sel('pf-comp-mode', [['perspective', 'Phối cảnh 4 điểm (P3)'], ['simple', 'Đơn giản — chữ nhật (P1)']], cm.mode));
     if (cm.mode === 'perspective') {
       h += `<div class="pf-quad-wrap"><canvas id="ais-quad-canvas" width="300" height="380"></canvas><p class="hint">Kéo 4 núm tròn ở góc vùng in để chỉnh phối cảnh (chạm được trên điện thoại). Ô số = tọa độ % theo ảnh áo.</p></div>`;
       const names = ['Góc trên-trái (1)', 'Góc trên-phải (2)', 'Góc dưới-phải (3)', 'Góc dưới-trái (4)'];
-      for (let i = 0; i < 4; i++) h += `<div class="pf-quad-row"><span>${names[i]}</span><label>X% <input type="number" id="pf-q${i}x" value="${(cm.quad[i][0] * 100).toFixed(1)}" step="0.5" min="0" max="100"></label><label>Y% <input type="number" id="pf-q${i}y" value="${(cm.quad[i][1] * 100).toFixed(1)}" step="0.5" min="0" max="100"></label></div>`;
+      // P4.2: the numeric inputs show the EFFECTIVE quad (the calibrated
+      // quad of the current base, or the user's edited quad) — editing one
+      // materialises it as a user quad (see bindProperties).
+      const effQ = effectiveQuad(node, cm) || cm.quad;
+      for (let i = 0; i < 4; i++) h += `<div class="pf-quad-row"><span>${names[i]}</span><label>X% <input type="number" id="pf-q${i}x" value="${(effQ[i][0] * 100).toFixed(1)}" step="0.5" min="0" max="100"></label><label>Y% <input type="number" id="pf-q${i}y" value="${(effQ[i][1] * 100).toFixed(1)}" step="0.5" min="0" max="100"></label></div>`;
       h += '<button id="pf-quad-preset">↺ Dùng quad mẫu của ảnh áo này</button>';
       h += field('Cong theo nếp vải % (mô phỏng)', `<span class="pf-range"><input type="range" id="pf-wrinkle" min="0" max="100" value="${cm.wrinkle}"><output id="pf-wrinkle-v">${cm.wrinkle}%</output></span>`);
       h += field('Bóng vải phủ lên hình in %', `<span class="pf-range"><input type="range" id="pf-shading" min="0" max="100" value="${cm.shading}"><output id="pf-shading-v">${cm.shading}%</output></span>`);
-      h += '<p class="hint">Khung đứt nét đỏ = vùng in an toàn. Cong nếp vải + bóng vải là MÔ PHỎNG thị giác theo độ sáng ảnh áo — không phải mô hình vải vật lý; ảnh ghép không phải ảnh sản phẩm thật. File hình in gốc không bị sửa.</p>';
+      h += field('Độ phủ mực % (100 = đặc như sticker)', `<span class="pf-range"><input type="range" id="pf-ink" min="50" max="100" value="${cm.inkOpacity ?? 95}"><output id="pf-ink-v">${cm.inkOpacity ?? 95}%</output></span>`);
+      h += '<p class="hint">Khung đứt nét đỏ = vùng in an toàn, CHỈ hiện trong khung căn chỉnh này — không bao giờ xuất hiện ở Xem trước hay file xuất ra. Vùng in mặc định nằm giữa ngực, cách mép dưới cổ áo 8–12% chiều cao ảnh (quy tắc P4.2). Cong nếp vải + bóng vải là MÔ PHỎNG thị giác theo độ sáng tương đối của ảnh áo — không phải mô hình vải vật lý; ảnh ghép không phải ảnh sản phẩm thật. File hình in gốc không bị sửa.</p>';
     } else {
-      h += field('Vị trí in X %', num('pf-printX', c.printX, 'min="5" max="95"')) + field('Vị trí in Y %', num('pf-printY', c.printY, 'min="5" max="95"')) + field('Rộng vùng in %', num('pf-printW', c.printW, 'min="5" max="80"')) + field('Xoay hình in (độ)', num('pf-rotation', c.rotation, 'min="-45" max="45"')) + '<p class="hint">Khung đứt nét đỏ = vùng in an toàn. File hình in gốc không bị sửa.</p>';
+      h += field('Vị trí in X %', num('pf-printX', c.printX, 'min="5" max="95"')) + field('Vị trí in Y %', num('pf-printY', c.printY, 'min="5" max="95"')) + field('Rộng vùng in %', num('pf-printW', c.printW, 'min="5" max="80"')) + field('Xoay hình in (độ)', num('pf-rotation', c.rotation, 'min="-45" max="45"')) + '<p class="hint">Vị trí Y mặc định (55%) đặt vùng in giữa ngực, dưới cổ áo — chế độ đơn giản không vẽ khung hướng dẫn vào ảnh kết quả. File hình in gốc không bị sửa.</p>';
     }
   }
   if (node.type === 'background') {
@@ -785,19 +1010,26 @@ function bindProperties(node) {
     // NOTE: write through node.config, NOT the captured `c` — setupQuadEditor
     // (called just below) replaces node.config with a migrated copy, which
     // would orphan any writes made through the older object reference.
-    on('pf-garment-source', 'change', e => { node.config.garmentSource = e.target.value; node.config = migrateCompositionConfig(node.config); pushHistory(); renderAll(); scheduleSave(); });
-    on('pf-real-base', 'change', e => { node.config.realBase = e.target.value; renderNodes(); scheduleSave(); });
+    on('pf-garment-source', 'change', e => { node.config.garmentSource = e.target.value; delete node.config.quadSource; node.config = migrateCompositionConfig(node.config); pushHistory(); renderAll(); scheduleSave(); });
+    on('pf-real-base', 'change', e => { node.config.realBase = e.target.value; delete node.config.quadSource; renderNodes(); scheduleSave(); });
     on('pf-comp-mode', 'change', e => { c.mode = e.target.value; if (c.mode === 'perspective') node.config = migrateCompositionConfig(node.config); pushHistory(); renderAll(); scheduleSave(); });
     if (document.getElementById('ais-quad-canvas')) {
       setupQuadEditor(node);
       for (let i = 0; i < 4; i++) for (const ax of ['x', 'y']) on('pf-q' + i + ax, 'change', e => {
         node.config = migrateCompositionConfig(node.config);
+        // P4.2: typing a coordinate also materialises the effective quad
+        // first (same rule as dragging), then marks it user-edited.
+        if (node.config.quadSource !== 'user') { node.config.quad = effectiveQuad(node, node.config).map(pt => [...pt]); node.config.quadSource = 'user'; }
         node.config.quad[i][ax === 'x' ? 0 : 1] = Math.min(100, Math.max(0, Number(e.target.value) || 0)) / 100;
         drawQuadPreview(node); scheduleSave();
       });
-      on('pf-quad-preset', 'click', () => { const q = presetQuadFor(c.base); if (q) { node.config.quad = q; pushHistory(); renderAll(); scheduleSave(); } else message('Ảnh áo này chưa có quad mẫu — hãy kéo tay 4 góc.', true); });
+      on('pf-quad-preset', 'click', () => { const q = effectiveQuad(node, { ...node.config, quadSource: '' }); if (q) { node.config.quad = q.map(pt => [...pt]); delete node.config.quadSource; pushHistory(); renderAll(); scheduleSave(); } else message('Ảnh áo này chưa có quad mẫu — hãy kéo tay 4 góc.', true); });
       const range = (id, outId, key) => on(id, 'input', e => { c[key] = Number(e.target.value); const o = document.getElementById(outId); if (o) o.textContent = e.target.value + '%'; drawQuadPreview(node); scheduleSave(); });
       range('pf-wrinkle', 'pf-wrinkle-v', 'wrinkle'); range('pf-shading', 'pf-shading-v', 'shading');
+      // P4.2: write ink opacity through node.config (NOT the captured `c` —
+      // setupQuadEditor replaced node.config with a migrated copy, so a
+      // write through `c` would be orphaned; see the P4.1 note above).
+      on('pf-ink', 'input', e => { node.config = migrateCompositionConfig(node.config); node.config.inkOpacity = Number(e.target.value); const o = document.getElementById('pf-ink-v'); if (o) o.textContent = e.target.value + '%'; scheduleSave(); });
     }
   }
   // ---- P3 background node ----
@@ -835,6 +1067,19 @@ function bindProperties(node) {
 }
 
 // ---------- P3: quad editor (draggable corner handles in properties) ----------
+/** The quad the composition handler will actually use for this node right
+ * now (P4.2 resolution order, mirrored from the handler): 'real' source →
+ * the real base's calibrated preset; a user-edited quad (quadSource
+ * 'user') → the stored quad; a generated base carrying its own collar-
+ * calibrated quad → that quad; otherwise the stored quad / base preset. */
+function effectiveQuad(node, cfg) {
+  if (cfg.garmentSource === 'real') return presetQuadFor(cfg.realBase || cfg.base) || cfg.quad;
+  if (cfg.quadSource === 'user' && Array.isArray(cfg.quad) && cfg.quad.length === 4) return cfg.quad;
+  const gEdge = graph.edges.find(e => e.to === node.id && e.toPort === 'garment');
+  const bq = gEdge ? outputs.get(gEdge.from)?.baseQuad : null;
+  if (Array.isArray(bq) && bq.length === 4) return bq;
+  return (Array.isArray(cfg.quad) && cfg.quad.length === 4) ? cfg.quad : (presetQuadFor(cfg.base) || rectToQuad(cfg.printX, cfg.printY, cfg.printW));
+}
 let quadDrawToken = 0;
 async function drawQuadPreview(node) {
   const canvas = document.getElementById('ais-quad-canvas'); if (!canvas) return;
@@ -844,8 +1089,9 @@ async function drawQuadPreview(node) {
   const dEdge = graph.edges.find(e => e.to === node.id && e.toPort === 'design');
   // P4.1: in 'real' source mode the preview shows the real fixture photo and
   // its calibrated preset quad (the quad the handler will actually use).
-  let gSrc, quadUsed = cfg.quad;
-  if (cfg.garmentSource === 'real') { gSrc = cfg.realBase || cfg.base; quadUsed = presetQuadFor(gSrc) || cfg.quad; }
+  let gSrc;
+  const quadUsed = effectiveQuad(node, cfg);
+  if (cfg.garmentSource === 'real') { gSrc = cfg.realBase || cfg.base; }
   else { gSrc = gEdge ? outputs.get(gEdge.from)?.url : null; if (!gSrc) gSrc = cfg.base; }
   let dSrc = dEdge ? outputs.get(dEdge.from)?.url : null;
   if (!dSrc && dEdge) { const dn = findNode(graph, dEdge.from); if (dn?.config.svgText) dSrc = URL.createObjectURL(new Blob([dn.config.svgText], { type: 'image/svg+xml' })); }
@@ -874,9 +1120,15 @@ function setupQuadEditor(node) {
   canvas.style.touchAction = 'none';
   const pos = (e) => { const r = canvas.getBoundingClientRect(); return { x: (e.clientX - r.left) * canvas.width / r.width, y: (e.clientY - r.top) * canvas.height / r.height }; };
   canvas.addEventListener('pointerdown', (e) => {
-    const p = pos(e); const quadPx = node.config.quad.map(([qx, qy]) => [qx * canvas.width, qy * canvas.height]);
+    const p = pos(e); const quadPx = effectiveQuad(node, node.config).map(([qx, qy]) => [qx * canvas.width, qy * canvas.height]);
     dragI = quadPx.findIndex(([hx, hy]) => Math.hypot(hx - p.x, hy - p.y) <= 26); // ≥26px hit area for touch
-    if (dragI >= 0) { canvas.setPointerCapture(e.pointerId); e.preventDefault(); }
+    if (dragI >= 0) {
+      // P4.2: dragging materialises the effective (calibrated) quad into
+      // the node's own quad and marks it user-edited, so the handler will
+      // honour the user's adjustment over the calibrated default.
+      if (node.config.quadSource !== 'user') { node.config.quad = effectiveQuad(node, node.config).map(pt => [...pt]); node.config.quadSource = 'user'; }
+      canvas.setPointerCapture(e.pointerId); e.preventDefault();
+    }
   });
   canvas.addEventListener('pointermove', (e) => {
     if (dragI < 0) return; const p = pos(e);
@@ -932,8 +1184,9 @@ async function importFile(file) {
 function applyImported(wf) {
   const g = wf.graph || wf; if (!g.nodes || !g.edges) throw new Error('File không chứa workflow hợp lệ.');
   projectId = uid('project'); $('#ais-project-name').value = wf.name || 'Dự án nhập vào';
-  graph = { nodes: g.nodes.map(n => ({ ...n, status: 'idle', logs: [], error: '' })), edges: g.edges };
+  graph = { nodes: g.nodes.map(n => ({ ...n, status: 'idle', logs: [], error: '' })), edges: g.edges, meta: g.meta || null };
   migrateGraph(graph);
+  { const r = refreshTpl1Graph(graph); if (r.refreshed) { graph = r.graph; logLine(`Workflow nhập vào thuộc Mẫu 1 phiên bản cũ — đã tự cập nhật: ${r.notes.join('; ')}.`); } }
   outputs = new Map(); pushHistory(); renderAll(); scheduleSave(); message('Đã nhập workflow. Hãy bấm Lưu / chờ tự lưu.');
 }
 
@@ -1098,7 +1351,7 @@ async function renderVersions() {
   box.querySelectorAll('[data-restore-version]').forEach(b => b.addEventListener('click', async () => {
     const v = (await store.listVersions(projectId)).find(x => x.id === b.dataset.restoreVersion); if (!v) return;
     if (!confirm('Khôi phục phiên bản ' + new Date(v.createdAt).toLocaleString('vi-VN') + '? Trạng thái hiện tại sẽ được thay bằng phiên bản này (việc khôi phục cũng được ghi thành 1 phiên bản mới).')) return;
-    graph = { nodes: v.graph.nodes.map(n => ({ ...n, status: 'idle', logs: [], error: '' })), edges: v.graph.edges }; migrateGraph(graph);
+    graph = { nodes: v.graph.nodes.map(n => ({ ...n, status: 'idle', logs: [], error: '' })), edges: v.graph.edges, meta: v.graph.meta || null }; graph = await adoptLoadedGraph(graph);
     $('#ais-project-name').value = v.name || $('#ais-project-name').value;
     outputs = new Map(); selectedId = null; selectedEdgeId = null; history = []; historyIdx = -1; pushHistory(); renderAll();
     await saveProjectNow({ version: true, note: 'Khôi phục từ phiên bản ' + new Date(v.createdAt).toLocaleString('vi-VN') });
@@ -1246,7 +1499,7 @@ document.querySelectorAll('.ais-tabs [data-tab]').forEach(b => b.addEventListene
 $('#ais-recovery-restore').addEventListener('click', async () => {
   if (!pendingDraft) return;
   projectId = pendingDraft.projectId; $('#ais-project-name').value = pendingDraft.name;
-  graph = { nodes: pendingDraft.graph.nodes.map(n => ({ ...n, status: 'idle', logs: [], error: '' })), edges: pendingDraft.graph.edges }; migrateGraph(graph);
+  graph = { nodes: pendingDraft.graph.nodes.map(n => ({ ...n, status: 'idle', logs: [], error: '' })), edges: pendingDraft.graph.edges, meta: pendingDraft.graph.meta || null }; graph = await adoptLoadedGraph(graph);
   outputs = new Map(); selectedId = null; history = []; historyIdx = -1; pushHistory(); renderAll();
   $('#ais-recovery').hidden = true; const d = pendingDraft; pendingDraft = null;
   await refreshProjectList(); await renderHistory(); await renderVersions();
@@ -1269,5 +1522,5 @@ $('#ais-run-mobile')?.addEventListener('click', () => runNodes('all'));
   await checkRecovery();
   updateModeBadge();
   document.body.dataset.ready = 'true'; document.documentElement.dataset.ready = 'true';
-  logLine('AI Studio P4.1 sẵn sàng: Mẫu 1 đã thiết kế lại — AI tạo ảnh người mẫu mặc áo thun TRƠN (đúng kiểu/màu ở Trợ lý prompt) TRƯỚC, node Ghép hình in ghép file hình in GỐC lên sau; nếu ảnh AI sai kiểu/màu, chuyển node Ghép hình sang nguồn "Ảnh mẫu thật". AI thật qua Pollinations (P4) sau công tắc "Chế độ AI thật" — mặc định TẮT, đang ở DEMO.');
+  logLine('AI Studio P4.2 sẵn sàng: vùng in hiệu chuẩn theo mốc thân áo (giữa ngực trên, cách mép dưới cổ 12–15% chiều dài thân áo, rộng 35–45% bề ngang thân), khung đứt nét CHỈ còn trong trình căn chỉnh (không dính vào Xem trước/file xuất), hòa trộn mực theo bóng vải + độ phủ mực 95%. DEMO dùng ẢNH NGƯỜI MẪU DO AI TẠO đã được chủ shop duyệt cho áo trắng/đen cổ tròn và áo trắng oversize (nhãn node ghi rõ "do AI tạo", không phải ảnh chụp thật); thông số chưa có ảnh người mẫu thì dùng hình vẽ DEMO. Nếu ảnh AI sai kiểu/màu, chuyển node Ghép hình sang nguồn "Ảnh mẫu thật". AI thật qua Pollinations (P4) sau công tắc "Chế độ AI thật" — mặc định TẮT, đang ở DEMO.');
 })();
