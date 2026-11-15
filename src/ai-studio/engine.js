@@ -80,8 +80,20 @@ export class Engine {
     node.error = ''; node.cached = false;
     // Cache key first: it chains upstream keys, so it is computed for every
     // node (even pass-through ones) before deciding whether to serve cache.
+    // P4.5: keyFor may be async (the host mixes content fingerprints of
+    // source bytes into source-node keys).
     let key = null;
-    if (this.hooks.keyFor) { key = this.hooks.keyFor(node, this.inputKeysFor(node)); if (key) this.keys.set(node.id, key); }
+    if (this.hooks.keyFor) { key = await this.hooks.keyFor(node, this.inputKeysFor(node)); if (key) this.keys.set(node.id, key); }
+    // P4.5: once this node has a value (fresh or cache-served), mix a
+    // CONTENT fingerprint of that value into the chain key downstream
+    // nodes will see — so a downstream key changes whenever the actual
+    // image bytes it consumes change, even if every config string stayed
+    // the same. The node's OWN cache lookup keeps using the plain key
+    // (the fingerprint is only known after the value exists).
+    const chainValue = async (value) => {
+      if (!key || !this.hooks.valueFingerprint) return;
+      try { const fp = await this.hooks.valueFingerprint(value); if (fp) this.keys.set(node.id, key + '|fp:' + fp); } catch { /* fingerprinting must never break a run */ }
+    };
     const cacheable = key && this.hooks.cacheGet && (this.hooks.cacheable ? this.hooks.cacheable(node) : true);
     if (cacheable) {
       try {
@@ -90,10 +102,17 @@ export class Engine {
           this.outputs.set(node.id, hit);
           node.status = 'cached'; node.cached = true; node.durationMs = 0;
           this.records.set(node.id, { status: 'cached', durationMs: 0, attempts: 0, error: '', cached: true });
-          this.log(node, 'Dùng kết quả trong bộ nhớ đệm (cấu hình và đầu vào không đổi — không chạy lại).');
+          this.log(node, 'Cache HIT — dùng kết quả trong bộ nhớ đệm (cấu hình và đầu vào không đổi — không chạy lại).');
+          await chainValue(hit);
           this.hooks.onNode?.(node);
           return hit;
         }
+        // Cache MISS: say WHY the node re-runs (host-computed reason:
+        // first run / config changed / input image changed / upstream
+        // changed / cache record gone) — a silent re-run and a silent
+        // cache hit were both part of the P4.5 confusion.
+        const reason = this.hooks.missReasonFor ? this.hooks.missReasonFor(node, key) : '';
+        this.log(node, 'Cache MISS — chạy lại' + (reason ? `: ${reason}` : '.'));
       } catch { /* a broken cache must never break a run: fall through and execute */ }
     }
     node.status = 'running'; this.log(node, 'Đang chạy…'); this.hooks.onNode?.(node);
@@ -111,6 +130,7 @@ export class Engine {
       try {
         const out = await withTimeout(Promise.resolve().then(() => handler(node, { inputs: this.inputsFor(node), log: (m) => this.log(node, m), engine: this })), timeoutMs, label);
         this.outputs.set(node.id, out);
+        await chainValue(out);
         node.status = 'success'; node.durationMs = Date.now() - t0;
         this.records.set(node.id, { status: 'success', durationMs: node.durationMs, attempts: attempt, error: '', cached: false });
         this.log(node, attempt > 1 ? `Hoàn thành (sau ${attempt} lần thử).` : 'Hoàn thành.');

@@ -18,6 +18,43 @@ export function fnv1a(str) {
 }
 export function hashOf(v) { return fnv1a(stableStringify(v)); }
 
+// ---------- content fingerprints (P4.5) ----------
+// A node's identity must include the CONTENT of the images it consumes,
+// not just config strings: replacing an asset's bytes under the same
+// assetId (a ZIP re-import does exactly that) or changing a fixture
+// file's bytes leaves every config hash unchanged, so a config-only
+// cache key silently serves the old image's results. Fingerprints are
+// computed from the actual bytes — never from a filename, URL or
+// assetId — so identical bytes always give the same fingerprint (even
+// after a rename) and different bytes give a different one.
+/** FNV-1a over raw bytes (sync, deterministic; the fallback when
+ * WebCrypto is unavailable and the shape of the value in tests). */
+export function fnv1aBytes(bytes) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < bytes.length; i++) { h ^= bytes[i] & 0xff; h = Math.imul(h, 0x01000193); }
+  return ('0000000' + (h >>> 0).toString(16)).slice(-8);
+}
+/** SHA-256 hex of raw bytes via WebCrypto (present in browsers and
+ * Node ≥ 19); falls back to the FNV-1a byte hash where subtle crypto
+ * is unavailable. The prefix records which algorithm produced it, so a
+ * fingerprint is never compared across algorithms. */
+export async function fingerprintBytes(bytes) {
+  const subtle = globalThis.crypto?.subtle;
+  if (subtle) {
+    try {
+      const digest = await subtle.digest('SHA-256', bytes);
+      return 'sha256:' + [...new Uint8Array(digest)].map(x => x.toString(16).padStart(2, '0')).join('');
+    } catch { /* fall through to the deterministic byte hash */ }
+  }
+  return 'fnv1a:' + fnv1aBytes(bytes);
+}
+/** Content fingerprint of a Blob's bytes (its name/type are ignored —
+ * only the bytes identify the image). */
+export async function fingerprintBlob(blob) {
+  if (!(blob instanceof Blob)) return null;
+  return fingerprintBytes(new Uint8Array(await blob.arrayBuffer()));
+}
+
 // ---------- node output cache keys ----------
 // Config fields that are derived at run time (or pure display) must not change
 // a node's identity: promptAssistant writes its composed prompt back into its
@@ -89,7 +126,19 @@ export function validateWorkflow(graph) {
     const c = n.config || {};
     const add = (message) => problems.push({ nodeId: n.id, nodeLabel: label, message });
     if (n.type === 'designInput' && !c.assetId && !c.svgText) add(`Node "${label}" chưa có hình in: hãy tải PNG/SVG hoặc dùng hình in mẫu.`);
-    if (n.type === 'imageInput' && !c.assetId && !c.fixture) add(`Node "${label}" chưa có ảnh: hãy chọn ảnh có sẵn hoặc tải ảnh lên.`);
+    // P4.5: an imageInput with NO image selected is only a problem when
+    // its output feeds a REQUIRED input port (e.g. aiVariation). When it
+    // feeds only optional ports (aiImageGen's reference image), an empty
+    // selection is a legitimate state — the consumer runs without a
+    // reference (Template 1 then uses its approved model bases).
+    if (n.type === 'imageInput' && !c.assetId && !c.fixture) {
+      const feedsRequired = graph.edges.some(e => {
+        if (e.from !== n.id) return false;
+        const target = graph.nodes.find(x => x.id === e.to);
+        return NODE_DEFS[target?.type]?.inputs?.find(i => i.id === e.toPort)?.required;
+      });
+      if (feedsRequired) add(`Node "${label}" chưa có ảnh: hãy chọn ảnh có sẵn hoặc tải ảnh lên.`);
+    }
     if (n.type === 'promptInput' && !String(c.text || '').trim()) add(`Node "${label}" đang để trống nội dung prompt.`);
     if (n.type === 'composition' && !graph.edges.some(e => e.to === n.id && e.toPort === 'garment') && !c.base) add(`Node "${label}" không có ảnh áo nền (chưa nối dây và chưa chọn ảnh dự phòng).`);
   }
