@@ -38,7 +38,7 @@ export const NODE_DEFS = {
     defaults: { mode: 'solid', color: '#f5f1e6', color2: '#d9c6a5', dir: 'down', horizon: 62, shadow: 55, vignette: 25, assetId: '', assetName: '', bgFit: 'cover', bgBlur: 0, scale: 82, posX: 50, posY: 50, framePad: 7 } },
   imageEditor: { label: 'Chỉnh sửa ảnh', category: 'process', color: '#8c6d1f', inputs: [{ id: 'in', type: 'image', label: 'Ảnh', required: true }], outputs: [{ id: 'out', type: 'image', label: 'Ảnh' }],
     defaults: { crop: 0, rotate: 0, resizeW: 900, brightness: 100, contrast: 100 } },
-  aiImageGen: { label: 'Tạo ảnh AI (DEMO)', category: 'ai', color: '#a03d63', inputs: [{ id: 'prompt', type: 'prompt', label: 'Prompt', required: false }, { id: 'image', type: 'image', label: 'Ảnh tham chiếu', required: false }], outputs: [{ id: 'out', type: 'image', label: 'Ảnh DEMO' }],
+  aiImageGen: { label: 'Tạo ảnh AI (DEMO)', category: 'ai', color: '#a03d63', inputs: [{ id: 'prompt', type: 'prompt', label: 'Prompt', required: false }, { id: 'image', type: 'image', label: 'image / reference_image', required: false }], outputs: [{ id: 'out', type: 'image', label: 'Ảnh DEMO' }],
     defaults: { ratio: '4:5', count: 1 } },
   aiVariation: { label: 'Biến thể ảnh (DEMO)', category: 'ai', color: '#a03d63', inputs: [{ id: 'in', type: 'image', label: 'Ảnh', required: true }], outputs: [{ id: 'out', type: 'image', label: 'Biến thể DEMO' }],
     defaults: { variant: 'boi-canh', count: 1 } },
@@ -426,12 +426,16 @@ export function aiModelBaseFor(garment) {
  * NEVER be silently reused after an upgrade — the chained config/input
  * hash alone does not cover code behaviour. Bump on any behaviour
  * change that alters node outputs for identical configs/inputs. */
-export const AI_STUDIO_BUILD = 'p44';
+export const AI_STUDIO_BUILD = 'p45';
 /** Template 1's own version. Template-1-derived projects carry
  * meta {templateId:'tpl1', tplVersion} (stamped by the template factory
  * and threaded through save/draft/version snapshots). On load, a
  * project whose marker is older is refreshed by refreshTpl1Graph. */
-export const TPL1_VERSION = 4;
+export const TPL1_VERSION = 5;
+/** Template 2's own version (P4.5) — same refresh-on-load contract as
+ * Template 1: tpl2-derived projects carry meta {templateId:'tpl2',
+ * tplVersion} and older copies are refreshed by refreshTpl2Graph. */
+export const TPL2_VERSION = 1;
 /** The current Template 1 default print quad = the torso-rule quad of
  * the default garment case (white crew → the approved AI model base). */
 export const TPL1_DEFAULT_QUAD_PATH = 'public/fixtures/ai-model/model-white-crew.webp';
@@ -472,7 +476,49 @@ export function refreshTpl1Graph(graph) {
       }
     }
   }
+  // P4.5: wire Ảnh đầu vào → aiImageGen's image / reference_image port.
+  // Pre-P4.5 Template 1 shipped the imageInput node UNWIRED, so changing
+  // its photo changed nothing downstream (the owner's bug report). Add
+  // the wire to older projects too — without touching the user's chosen
+  // image or any other node — when the port is still free.
+  const imgN = (g.nodes || []).find(n => n.type === 'imageInput');
+  const genN = (g.nodes || []).find(n => n.type === 'aiImageGen');
+  if (imgN && genN && !g.edges.some(e => e.to === genN.id && e.toPort === 'image') && !g.edges.some(e => e.from === imgN.id && e.to === genN.id)) {
+    g.edges = [...(g.edges || []), { id: uid('edge'), from: imgN.id, to: genN.id, toPort: 'image' }];
+    notes.push('Tạo ảnh AI: đã nối dây Ảnh đầu vào → cổng "image / reference_image" để ảnh tham chiếu thật sự tham gia quá trình tạo ảnh (P4.5)');
+  }
   g.meta = { ...g.meta, tplVersion: TPL1_VERSION };
+  return { graph: g, refreshed: true, notes };
+}
+/**
+ * P4.5 — refresh a Template-2-derived project created before the
+ * reference-image rewiring: pre-P4.5, aiImageGen's image port was fed
+ * by the aiVariation node, so the raw product photo never reached the
+ * generation node directly (and in real keyed mode the variation's
+ * local blob could only ever hit the honest no-public-URL error). The
+ * refresh points that port at the imageInput node instead; the
+ * variation keeps feeding the editor/background chain untouched. Pure
+ * + non-mutating, same contract as refreshTpl1Graph.
+ */
+export function refreshTpl2Graph(graph) {
+  if (!graph || graph.meta?.templateId !== 'tpl2' || (graph.meta.tplVersion || 0) >= TPL2_VERSION) {
+    return { graph, refreshed: false, notes: [] };
+  }
+  const g = JSON.parse(JSON.stringify(graph));
+  const notes = [];
+  const imgN = (g.nodes || []).find(n => n.type === 'imageInput');
+  const genN = (g.nodes || []).find(n => n.type === 'aiImageGen');
+  if (imgN && genN) {
+    const varEdge = (g.edges || []).find(e => e.to === genN.id && e.toPort === 'image' && e.from !== imgN.id);
+    if (varEdge) {
+      varEdge.from = imgN.id;
+      notes.push('Tạo ảnh AI: chuyển dây cổng "image / reference_image" từ node Biến thể sang thẳng node Ảnh đầu vào để ảnh sản phẩm gốc thật sự là ảnh tham chiếu (P4.5)');
+    } else if (!g.edges.some(e => e.to === genN.id && e.toPort === 'image')) {
+      g.edges = [...(g.edges || []), { id: uid('edge'), from: imgN.id, to: genN.id, toPort: 'image' }];
+      notes.push('Tạo ảnh AI: đã nối dây Ảnh đầu vào → cổng "image / reference_image" (P4.5)');
+    }
+  }
+  g.meta = { ...g.meta, tplVersion: TPL2_VERSION };
   return { graph: g, refreshed: true, notes };
 }
 
@@ -492,12 +538,20 @@ export const TEMPLATES = [
   // preview → export. (Pre-P4.1 the composition ran BEFORE aiImageGen and
   // its pixel-accurate result was fed into a text-to-image node and thrown
   // away — root cause #1 of the wrong output.)
-  // The imageInput node is a standalone reference/sample photo: it is NOT
-  // wired into aiImageGen, because every real generation mode here is
-  // text-to-image and cannot use a reference photo. To composite onto a
-  // real photo instead of the AI photo, set the composition node's
-  // garmentSource to 'real' — its realBase defaults to the white hanger
-  // garment photo (PHOTO_BASES), selectable per base in the panel.
+  // P4.5 (supersedes the P4.1–P4.4 "not wired" note): the imageInput
+  // node IS wired into aiImageGen's image / reference_image port — the
+  // owner's bug report was that changing its photo changed nothing.
+  // Per-mode behaviour of that reference is explicit, never silent:
+  // DEMO uses the input photo itself as the garment base (the approved
+  // AI-model bases apply only when NO image is selected — the template
+  // therefore ships with the image unselected, fixture ''); Cloudflare
+  // klein uploads it to the owner's own Worker (img2img); Pollinations
+  // keyed klein/kontext receive it via the `image` URL parameter when
+  // it has a public URL (a same-origin fixture) and error honestly for
+  // local uploads; Classic sana cannot use it and logs that plainly.
+  // To composite onto a real photo instead of the generated photo, set
+  // the composition node's garmentSource to 'real' — its realBase
+  // defaults to the white hanger garment photo (PHOTO_BASES).
   // P4.2 round 3: this template's promptAssistant carries
   // catalogPrompt: true, so its generation prompt is the owner's VERBATIM
   // e-commerce catalog template (CATALOG_PROMPT_TEMPLATE).
@@ -510,7 +564,7 @@ export const TEMPLATES = [
   // be detected and refreshed on load ( refreshTpl1Graph, R4 ). A fresh
   // instance therefore runs correctly with ZERO manual edits.
   { id: 'tpl1', name: 'Mẫu 1 — Ảnh người mẫu mặc áo', make() { const g = tpl([
-    ['imageInput', 40, 60, { fixture: 'public/fixtures/real-tee/crew-white-hanger.webp' }, 'img'],
+    ['imageInput', 40, 60, { fixture: '' }, 'img'],
     ['designInput', 40, 300, { svgText: SAMPLE_DESIGN_SVG, assetName: 'hinh-in-mau.svg' }, 'des'],
     ['promptInput', 40, 520, {}, 'pin'],
     ['promptAssistant', 330, 520, { model: 'nu-viet', kieuAo: 'co-tron', mauAo: 'trang', gocChup: 'chinh-dien', catalogPrompt: true }, 'pa'],
@@ -518,8 +572,14 @@ export const TEMPLATES = [
     ['composition', 620, 140, { mode: 'perspective', quad: AI_MODEL_QUADS[TPL1_DEFAULT_QUAD_PATH].map(p => [...p]), wrinkle: 35, shading: 45, garmentSource: 'ai', realBase: 'public/fixtures/real-tee/crew-white-hanger.webp' }, 'comp'],
     ['preview', 900, 140, {}, 'prev'],
     ['exportNode', 1160, 140, { format: 'png', channels: ['website'] }, 'exp'],
-  ], [['pin', 'pa', 'in'], ['pa', 'gen', 'prompt'], ['gen', 'comp', 'garment'], ['des', 'comp', 'design'], ['comp', 'prev', 'in'], ['prev', 'exp', 'in']]); g.meta = { templateId: 'tpl1', tplVersion: TPL1_VERSION }; return g; } },
-  { id: 'tpl2', name: 'Mẫu 2 — Bộ ảnh sản phẩm', make() { return tpl([
+  ], [['pin', 'pa', 'in'], ['pa', 'gen', 'prompt'], ['img', 'gen', 'image'], ['gen', 'comp', 'garment'], ['des', 'comp', 'design'], ['comp', 'prev', 'in'], ['prev', 'exp', 'in']]); g.meta = { templateId: 'tpl1', tplVersion: TPL1_VERSION }; return g; } },
+  // P4.5: aiImageGen's image / reference_image port is wired STRAIGHT
+  // to the imageInput node (pre-P4.5 it was fed by aiVariation, so the
+  // generation node never saw the raw product photo). The variation
+  // still feeds the editor → background → export chain. The graph is
+  // stamped meta {templateId:'tpl2', tplVersion} so older copies are
+  // refreshed on load (refreshTpl2Graph).
+  { id: 'tpl2', name: 'Mẫu 2 — Bộ ảnh sản phẩm', make() { const g = tpl([
     ['imageInput', 40, 200, { fixture: 'public/fixtures/real-tee/crew-white-flatlay.webp' }, 'img'],
     ['aiVariation', 320, 200, { variant: 'boi-canh' }, 'var'],
     ['aiImageGen', 580, 60, { ratio: '4:5' }, 'front'],
@@ -527,7 +587,7 @@ export const TEMPLATES = [
     ['background', 840, 320, { mode: 'scene' }, 'bg'],
     ['preview', 860, 60, {}, 'prev'],
     ['exportNode', 1120, 320, { format: 'jpg', channels: ['website-vuong', 'shopee'] }, 'exp'],
-  ], [['img', 'var', 'in'], ['var', 'front', 'image'], ['var', 'edit', 'in'], ['edit', 'bg', 'in'], ['front', 'prev', 'in'], ['bg', 'exp', 'in']]); } },
+  ], [['img', 'var', 'in'], ['img', 'front', 'image'], ['var', 'edit', 'in'], ['edit', 'bg', 'in'], ['front', 'prev', 'in'], ['bg', 'exp', 'in']]); g.meta = { templateId: 'tpl2', tplVersion: TPL2_VERSION }; return g; } },
   { id: 'tpl3', name: 'Mẫu 3 — Video quảng cáo', make() { return tpl([
     ['imageInput', 40, 120, { fixture: 'public/fixtures/real-tee/crew-white-hanger.webp' }, 'img'],
     ['promptInput', 40, 360, {}, 'pin'],

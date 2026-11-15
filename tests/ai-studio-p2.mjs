@@ -76,7 +76,14 @@ for (const width of [430, 1366]) {
   if (/st-cached/.test(await nodeClass(p, 'Tạo ảnh AI (DEMO)'))) fail('aiImageGen should have re-run after prompt edit @' + width);
   if (/st-cached/.test(await nodeClass(p, 'Ghép hình in lên áo'))) fail('composition should re-run after prompt edit (P4.1: it composites onto the regenerated AI garment) @' + width);
   if (!/st-success/.test(await nodeClass(p, 'Ghép hình in lên áo'))) fail('composition not success after prompt edit @' + width);
-  if (!/st-cached/.test(await nodeClass(p, 'Ảnh đầu vào'))) fail('imageInput should stay cached @' + width);
+  // P4.5 topology note: Template 1's imageInput now ships with NO image
+  // selected (it is the optional reference for aiImageGen's image port).
+  // An unselected input produces no value, so there is nothing to serve
+  // from cache — it re-runs trivially as 'success' and, crucially, does
+  // NOT invalidate anything. The invariant this block protects (an
+  // unrelated input is not disturbed by a prompt edit) is asserted via
+  // designInput below, which carries real content and must stay cached.
+  if (!/st-success/.test(await nodeClass(p, 'Ảnh đầu vào'))) fail('imageInput (unselected reference) should run clean as success @' + width);
   if (!/st-cached/.test(await nodeClass(p, 'Hình in (thiết kế)'))) fail('designInput should stay cached @' + width);
   // Versions: two explicit saves -> two versions; add a node; restore v1 -> back to 8 nodes
   await p.click('#ais-save'); await p.waitForFunction(() => document.querySelector('#ais-save-status').textContent.includes('Đã lưu'));

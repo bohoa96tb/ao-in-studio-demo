@@ -329,3 +329,50 @@ the Worker end-to-end (panel switching, run, resume-from-failure,
 framing guard, adapter img2img) — never call a real Worker URL in
 tests. AI_STUDIO_BUILD is now 'p44'. DEMO path untouched (approved
 exports byte-identical). No IndexedDB version change (still v2).
+P4.5 (2026-11-15, branch feature/ai-studio-p45): fixes the owner's
+live bug "đổi ảnh ở node Ảnh đầu vào mà kết quả không đổi" (Templates
+1 + 2). Root causes found by measurement, not guesswork: (1) Template
+1 shipped imageInput wired to NOTHING (a P4.1-era design note), so
+every downstream node legitimately served cache; (2) cache keys
+hashed config strings only — never image CONTENT — so replacing an
+asset's bytes under the same assetId (ZIP re-import does this) or a
+fixture's bytes kept every key valid; (3) the Pollinations keyed
+img2img mechanism (adapter `imageUrl`) existed but was never wired,
+and image values carried no provenance. Standing rules from P4.5:
+aiImageGen's image port is labelled `image / reference_image` and
+Templates 1 AND 2 ship the imageInput → aiImageGen.image wire in
+their graph definitions (persisted in project JSON). Template 1
+ships with NO image selected: an empty imageInput yields no value,
+validation blocks an empty input only when it feeds a REQUIRED port,
+and the no-reference DEMO path stays byte-identical to the approved
+P4.2 exports. Template 2's gen reference port is fed DIRECTLY by
+imageInput (aiVariation keeps the editor/background chain). Old
+projects gain the wire on load (TPL1_VERSION 5 via refreshTpl1Graph;
+TPL2_VERSION 1 via the new refreshTpl2Graph) without touching user
+content. Per-mode reference behaviour is explicit, never silent:
+DEMO uses the input photo itself as the garment base (a shop fixture
+carries its calibrated GARMENT_QUADS quad; an upload falls back to
+the composition node's configured quad); Cloudflare klein uploads
+the real bytes as input_image_0 to the owner's Worker; Pollinations
+keyed klein/kontext receive the reference ONLY via the `image` URL
+parameter when the value carries a public URL (same-origin shop
+fixtures attach sourceUrl) — local uploads keep the honest
+no-public-URL error, user assets are never uploaded anywhere;
+Classic sana stays text-only and logs that the reference is
+unsupported and was not sent. Cache is content-addressed: p2.js
+`fingerprintBytes`/`fingerprintBlob` (SHA-256 of the bytes, FNV-1a
+byte fallback, algorithm-prefixed; identity NEVER from filename/
+URL/assetId); source nodes mix the fingerprint of the bytes they
+read into their own key (studioKeyFor/sourceFingerprint), and the
+engine mixes every node's OUTPUT-value fingerprint into the chain
+key its dependents see (valueFingerprint hook; keyFor is awaited).
+Changing an image therefore invalidates exactly the affected
+subtree; unchanged branches stay cached. Run logs distinguish
+`Cache HIT` from `Cache MISS — chạy lại: <reason>` (first run /
+config changed / input image changed / input port changed / build
+changed / cache record gone; missReasonFor hook + per-node key-parts
+tracking in studio.js). AI_STUDIO_BUILD is now 'p45'. No IndexedDB
+version change (still v2; cache records only gained sourcePath/
+sourceUrl fields). New suites: tests/ai-studio-p45.test.mjs (unit)
++ tests/ai-studio-p45.mjs (browser, all providers mocked — never a
+real call).

@@ -29,6 +29,7 @@ jobs:
           TEST_URL=http://127.0.0.1:5264 node tests/ai-studio-p3.mjs
           TEST_URL=http://127.0.0.1:5264 node tests/ai-studio-p4.mjs
           TEST_URL=http://127.0.0.1:5264 node tests/ai-studio-p44.mjs
+          TEST_URL=http://127.0.0.1:5264 node tests/ai-studio-p45.mjs
           TEST_URL=http://127.0.0.1:5264 node tests/ai-studio-tpl1.mjs
           TEST_URL=http://127.0.0.1:5264 node scripts/performance.mjs
           ok=0; for i in 1 2 3; do if git fetch origin 434ce99dd76b210b77738d308b255caf4876d177; then ok=1; break; fi; sleep 5; done; test "$ok" = 1

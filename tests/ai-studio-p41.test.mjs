@@ -69,7 +69,15 @@ test('P4.1 Template 1 structure: generate plain garment FIRST, composite origina
   assert.ok(has(comp, prev, 'in'), 'composition -> preview');
   assert.ok(has(prev, exp, 'in'), 'preview -> export');
   assert.ok(!t1.edges.some(e => e.from === comp.id && e.to === gen.id), 'NO composition -> aiImageGen edge (the P4.1 root-cause fix)');
-  assert.ok(!t1.edges.some(e => e.from === img.id), 'reference photo is standalone — NOT wired into the text-to-image node');
+  // P4.5 SUPERSEDES the P4.1 "standalone reference" sentence: the owner
+  // reported that changing the reference photo changed nothing, so the
+  // imageInput is now wired into aiImageGen's image / reference_image
+  // port (per-mode behaviour is explicit in studio.js — DEMO uses it as
+  // the garment base, klein img2img, kontext via public URL, sana logs
+  // that it cannot use it). The P4.1 invariant that matters is kept:
+  // generation still happens FIRST and compositing AFTER (no
+  // composition -> aiImageGen edge above).
+  assert.ok(has(img, gen, 'image'), 'P4.5: reference photo IS wired into aiImageGen.image (image / reference_image)');
   // garment params present on the assistant; the real-photo fallback
   // defaults to a real photo base (P4.1: the crew-white hanger; P4.2
   // round 2: the white crew MODEL photo; P4.2 ROUND 3: back to the
