@@ -94,5 +94,5 @@ test('P4.3 framingGuard — missing/invalid migrates to strict, allow survives',
 test('P4.3 build marker — AI_STUDIO_BUILD was bumped to p43 at P4.3 (stale compositions can never be served)', () => {
   // P4.4 bumped the marker again to 'p44'; the invariant this test guards
   // is that the P4.3 bump happened and the marker never went back.
-  assert.ok(AI_STUDIO_BUILD === 'p43' || AI_STUDIO_BUILD === 'p44' || AI_STUDIO_BUILD === 'p45', 'marker is p43 or a later bump, got ' + AI_STUDIO_BUILD);
+  assert.ok(AI_STUDIO_BUILD === 'p43' || AI_STUDIO_BUILD === 'p44' || AI_STUDIO_BUILD === 'p45' || AI_STUDIO_BUILD === 'p46', 'marker is p43 or a later bump, got ' + AI_STUDIO_BUILD);
 });

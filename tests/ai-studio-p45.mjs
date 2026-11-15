@@ -27,9 +27,9 @@
  *                 With an UPLOADED local file instead: the gen node
  *                 fails with the honest no-public-URL Vietnamese error
  *                 and ZERO generation requests are made.
- *  CLASSIC (1366) sana + a wired image: generation proceeds text-only
- *                 and the node log says plainly the reference is not
- *                 supported and was not sent anywhere.
+ *  CLASSIC (1366) sana + a wired image: P4.6 supersedes the P4.5
+ *                 expectation — the gen node now FAILS with a clear
+ *                 text-only error and ZERO requests (see phase body).
  */
 import { chromium } from 'playwright';
 import { writeFileSync, mkdirSync } from 'node:fs';
@@ -89,7 +89,7 @@ async function newPage(width, mocks = {}) {
   const p = await ctx.newPage();
   const errors = []; p.on('pageerror', e => errors.push(e.message));
   p.on('dialog', d => d.accept());
-  await p.goto(url + '/studio.html?v=aistudio45');
+  await p.goto(url + '/studio.html?v=aistudio46');
   await p.waitForSelector('body[data-ready=true]');
   return { ctx, p, errors, state };
 }
@@ -183,11 +183,11 @@ async function measureBytes(p, buf) {
   if (!core.tpl1.wire || !core.tpl2.wire) fail('WIRE: both templates must ship imageInput -> aiImageGen.image: ' + JSON.stringify(core));
   if (core.tpl1.fixture !== '') fail('WIRE: Mẫu 1 must ship with NO image selected, got fixture ' + core.tpl1.fixture);
   if (core.tpl1.portLabel !== 'image / reference_image') fail('WIRE: port label wrong: ' + core.tpl1.portLabel);
-  if (core.build !== 'p45') fail('WIRE: AI_STUDIO_BUILD must be p45, got ' + core.build);
+  if (core.build !== 'p46') fail('WIRE: AI_STUDIO_BUILD must be p46 (P4.6 supersedes the p45 pin), got ' + core.build);
   await p.click('[data-template="tpl1"]');
   await p.waitForFunction(() => document.querySelectorAll('.ais-node').length === 8);
   const domEdges1 = await p.evaluate(() => document.querySelectorAll('.ais-edge').length);
-  if (domEdges1 !== 7) fail('WIRE: Mẫu 1 must render 7 edges (incl. the reference wire), got ' + domEdges1);
+  if (domEdges1 !== 8) fail('WIRE: Mẫu 1 must render 8 edges (P4.6 added the imageInput -> promptAssistant analysis wire), got ' + domEdges1);
   const portLabelDom = await p.evaluate(() => { const el = [...document.querySelectorAll('.ais-node')].find(e => e.querySelector('header strong')?.textContent === 'Tạo ảnh AI (DEMO)'); return [...el.querySelectorAll('.plabel.in')].map(s => s.textContent); });
   if (!portLabelDom.some(t => t.includes('image / reference_image'))) fail('WIRE: reference port label not rendered on the node: ' + JSON.stringify(portLabelDom));
   await p.click('[data-template="tpl2"]');
@@ -244,7 +244,7 @@ async function measureBytes(p, buf) {
   await p.waitForSelector('body[data-ready=true]');
   await p.waitForFunction(() => document.querySelectorAll('.ais-node').length === 8, null, { timeout: 20000 }).catch(() => fail('DEMO-T1: saved project did not reopen after reload'));
   const domEdges = await p.evaluate(() => document.querySelectorAll('.ais-edge').length);
-  if (domEdges !== 7) fail('DEMO-T1: the reference wire must survive save + reload, edges ' + domEdges);
+  if (domEdges !== 8) fail('DEMO-T1: the reference wires must survive save + reload, edges ' + domEdges);
   await runAndWait(p, width, 'DEMO-T1 runReload');
   const compR = await nodeImage(p, 'Ghép hình in lên áo');
   if (!compR || compR.hash !== compB.hash) fail(`DEMO-T1: after reload the result must be the B result (${compB.hash}), got ${compR && compR.hash}`);
@@ -390,7 +390,13 @@ async function measureBytes(p, buf) {
   }
 }
 
-// ---------- Phase CLASSIC: sana ignores the reference — and says so ----------
+// ---------- Phase CLASSIC: sana + a wired reference now FAILS (P4.6) ----------
+// P4.6 SUPERSEDES the P4.5 expectation below-history: sana used to run
+// text-only with a plain log line. The owner's P4.6 rule — a wired
+// product reference is mandatory data — turns that silent downgrade
+// into a clear failure with ZERO generation requests. (Without a wired
+// reference, Classic behaves exactly as before; tests/ai-studio-tpl1.mjs
+// CASE 5/7/10/11 cover that path.)
 {
   const width = 1366; const { ctx, p, errors, state } = await newPage(width, { classic: true });
   await p.click('[data-template="tpl1"]');
@@ -402,13 +408,12 @@ async function measureBytes(p, buf) {
   await closeProvider(p);
   await setFixture(p, WHITE);
   await runAndWait(p, width, 'CLASSIC');
-  if (state.classic.length !== 1) fail('CLASSIC: expected exactly 1 Classic request, got ' + state.classic.length);
-  if (/[?&]image=/.test(state.classic[0])) fail('CLASSIC: sana must never receive an image parameter: ' + state.classic[0]);
-  if (!/st-success/.test(await nodeClass(p, 'Tạo ảnh AI (DEMO)'))) fail('CLASSIC: gen must succeed text-only');
-  const logs = await logTexts(p);
-  if (!logs.some(t => t.includes('Tạo ảnh AI') && t.includes('không hỗ trợ ảnh tham chiếu') && t.includes('KHÔNG bị gửi đi đâu'))) fail('CLASSIC: the node log must state plainly that the reference is unsupported and was not sent: ' + logs.slice(0, 8).join(' || '));
+  if (state.classic.length !== 0) fail('CLASSIC: P4.6 — with a reference wired, sana must send ZERO generation requests, got ' + state.classic.length);
+  if (!/st-error/.test(await nodeClass(p, 'Tạo ảnh AI (DEMO)'))) fail('CLASSIC: gen must ERROR (not silently succeed text-only) when a reference is wired to a text-only model');
+  const errText = await p.evaluate(() => [...document.querySelectorAll('.ais-node')].find(e => e.querySelector('header strong')?.textContent === 'Tạo ảnh AI (DEMO)')?.querySelector('.nerr')?.textContent || '');
+  if (!/chỉ tạo ảnh từ chữ/.test(errText) || !/KHÔNG dùng được ảnh tham chiếu/.test(errText)) fail('CLASSIC: the error must state plainly that the model is text-only and cannot use the reference: ' + errText);
   await checkClean(p, errors, width);
-  results.push({ phase: 'CLASSIC', width, textOnly: true, plainlyLogged: true });
+  results.push({ phase: 'CLASSIC', width, textOnlyRefused: true, generationRequests: 0 });
   await ctx.close();
 }
 

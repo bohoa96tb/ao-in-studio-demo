@@ -8,7 +8,7 @@
 // + attempt records (engine.records), run progress (hooks.onProgress) and
 // seeded outputs/keys (hooks.seedOutputs/seedKeys) so a resumed run can
 // reuse upstream results without re-running them.
-import { NODE_DEFS, findNode } from './core.js';
+import { NODE_DEFS, findNode } from './core.js?v=aistudio46';
 
 export function topoOrder(graph, subsetIds = null) {
   const ids = subsetIds ? new Set(subsetIds) : new Set(graph.nodes.map(n => n.id));

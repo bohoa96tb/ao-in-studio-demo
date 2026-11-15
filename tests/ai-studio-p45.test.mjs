@@ -63,7 +63,7 @@ test('Mẫu 1 ships the imageInput -> aiImageGen.image wire and NO preselected i
   assert.equal(img.config.fixture, '', 'tpl1 imageInput ships unselected — the no-reference DEMO path (approved bases, byte-identical exports) is untouched');
   assert.equal(img.config.assetId, '');
   assert.equal(g.meta.templateId, 'tpl1'); assert.equal(g.meta.tplVersion, TPL1_VERSION);
-  assert.equal(TPL1_VERSION, 5);
+  assert.equal(TPL1_VERSION, 6); // P4.6 supersede: v6 adds the img → promptAssistant analysis wire
   assert.equal(NODE_DEFS.aiImageGen.inputs.find(i => i.id === 'image').label, 'image / reference_image');
 });
 test('Mẫu 2 ships the imageInput -> aiImageGen.image wire (variation feeds the editor chain instead)', () => {
@@ -179,5 +179,7 @@ test('engine: same config + different image BYTES re-runs exactly the affected s
   assert.ok(e3.outputs.get(map.gen.id).blob instanceof Blob);
 });
 test('build marker is p45 (every pre-P4.5 cache entry is invalidated by the build mix-in)', () => {
-  assert.equal(AI_STUDIO_BUILD, 'p45');
+  // P4.6 supersede: the marker has since been bumped to 'p46' (same
+  // invalidation contract — every older build's cache entries are dead).
+  assert.equal(AI_STUDIO_BUILD, 'p46');
 });

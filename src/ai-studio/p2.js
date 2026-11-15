@@ -2,8 +2,8 @@
 // stable hashing + node cache keys, a sequential run queue, the pre-run
 // validation report, asset-reference computation for orphan GC, and list
 // pruning for run history / project versions. No browser APIs here.
-import { NODE_DEFS, AI_STUDIO_BUILD } from './core.js';
-import { validateGraph } from './engine.js';
+import { NODE_DEFS, AI_STUDIO_BUILD } from './core.js?v=aistudio46';
+import { validateGraph } from './engine.js?v=aistudio46';
 
 // ---------- stable stringify + FNV-1a hash ----------
 export function stableStringify(v) {
