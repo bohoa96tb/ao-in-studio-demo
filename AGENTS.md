@@ -260,3 +260,72 @@ baked strip was always cropped away and the baked border fully
 covered by the stamp border); the fixed oversize pair keeps gap
 0.136 / width 0.394 / centre 0 with zero terracotta pixels at the
 contain column edges.
+P4.3 (2026-11-15, branch feature/ai-studio-p43): tightens the REAL-AI
+framing path after the owner's first real Classic (sana) run returned a
+portrait CLOSE-UP (768×1024, h/w ≈ 1.33) that PASSED the P4.2 guard and
+got composited. This paragraph SUPERSEDES the round-4 paragraph's guard
+band sentence: the real-AI framing guard (`framingAspectClass` in
+warp.js) now accepts only h/w ∈ **[1.45, 2.10]** as
+'portrait-half-body' (new fail class 'portrait-short' for
+1.10 ≤ h/w < 1.45; 3:4 and 4:5 fail, 2:3 and 9:16 pass). Still
+aspect-class ONLY — a tall-ratio close-up (e.g. 2:3) can still pass; no
+landmark/face detection is claimed. The guard never applies to the
+approved AI bases themselves (the oversize base is 2.26). Catalog path
+(Template 1): promptAssistant values carry `catalog` (round-tripped
+through the P2 cache); the aiImageGen real path then requests ratio
+'2:3' — keyed 1024×1536, Classic 512×768 (inside its ≤768 cap; never
+fake a size an adapter cannot do — the tightened guard refusing
+Classic's output is intended, so strict mode effectively always falls
+back for sana). Composition gained `framingGuard: 'strict'|'allow'`
+(default 'strict', migration for missing/rotated-P1 configs; also in
+NODE_DEFS defaults so cache keys stay stable across runs): strict +
+guard fail → the P4.2 approved-base fallback with its existing wording;
+allow + guard fail → composite onto the real AI image with the honesty
+wording "Ảnh AI thật KHÔNG đạt chuẩn khung hình — người dùng chọn vẫn
+ghép lên ảnh AI này (kiểm tra khung: Linh hoạt)" in log + label, NOT
+marked DEMO and NOT export-stamped (only the strict fallback is).
+AI_STUDIO_BUILD is now 'p43'. DEMO path untouched — the approved
+white/black/oversize exports still regenerate byte-identically
+(verified by SHA-256). No IndexedDB version change (still v2).
+P4.4 (2026-11-15, branch feature/ai-studio-p44): a SECOND real provider
+sits beside Pollinations — **Cloudflare Workers AI via the owner's own
+Worker Proxy** (`PROVIDERS` id 'cloudflare', `CloudflareAdapter`;
+owner's spec in the P4.4 QA section). Contract: `POST
+${workerUrl}/run/${model}` with header `X-App-Key` (the Worker's own
+APP_KEY check); worker URL trailing slashes are trimmed on input.
+Models are **quota-priced, never money-priced**: `quotaPriced: true`,
+`pricePerImage: null` (distinct from token-priced — they RUN, and are
+excluded from all Pollen math: estimator skips them, planned calls
+record `costPollen: null`); each call consumes the Cloudflare
+account's **Neuron quota** (free tier 10,000 Neurons/day) and the
+pre-run dialog is the Neuron variant of `#ais-cost-dialog` (cancel =
+zero requests; never show an invented money figure). Gating mirrors
+keyed Pollinations: master switch + Worker URL + session App Key +
+risk-confirmation checkbox, else `blocked` with a Vietnamese reason;
+retries forced 0, count forced 1. The App Key lives in a SEPARATE
+module-memory variable (`setCfSessionKey`) from the Pollinations key —
+never persisted (IndexedDB/localStorage/drafts/JSON/ZIP), never in a
+URL, never mixed headers. `@cf/black-forest-labs/flux-2-klein-4b`
+(default): multipart/form-data (`prompt`, `input_image_0` as PNG —
+studio converts inputs to PNG via canvas and injects `toPng`,
+`input_image_1` for a second reference; browser generates the
+boundary — NO manual Content-Type). That direct upload to the owner's
+OWN Worker is the ONLY img2img path for local images; the Pollinations
+honest no-public-URL img2img error is UNCHANGED.
+`@cf/black-forest-labs/flux-1-schnell`: JSON `{prompt, steps: 4}`,
+text-only — an input image makes the adapter refuse BEFORE any
+request with Vietnamese guidance to switch to klein. Responses: JSON
+base64 (`result.image` | `image`) → PNG blob, or binary
+(`image/*`/octet-stream) → blob; errors map via
+`cloudflareErrorMessage` (401/403 X-App-Key, 400 data/model, 0
+network/CORS, provider detail appended). There is NO zero-cost probe
+endpoint on the Worker — the connection-test button only reports
+session configuration and sends nothing. Cloudflare outputs are
+flagged `realAi` exactly like Pollinations outputs, so the P4.3
+framing guard + fallback applies unchanged; run history records
+`cloudflare/<model>` + "hạn mức Neurons", never a Pollen amount.
+New browser suite `tests/ai-studio-p44.mjs` (registered in CI) mocks
+the Worker end-to-end (panel switching, run, resume-from-failure,
+framing guard, adapter img2img) — never call a real Worker URL in
+tests. AI_STUDIO_BUILD is now 'p44'. DEMO path untouched (approved
+exports byte-identical). No IndexedDB version change (still v2).

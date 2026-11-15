@@ -56,6 +56,17 @@ Thêm nhà cung cấp mới (ví dụ Gemini) = **một adapter + một mục tr
 - Số dư: `GET https://gen.pollinations.ai/account/balance` bằng key phiên (nút "Kiểm tra số dư") — chỉ đọc, không tạo ảnh.
 - Pollen là **trả trước**: hết số dư/key hết ngân sách thì provider **dừng cứng bằng lỗi 402**, không tự trừ thẻ. **Ngoại lệ ngoài tầm kiểm soát của app:** nếu chủ tài khoản đã bật *auto top-up* trong dashboard Pollinations thì tài khoản có thể tự nạp — cảnh báo này hiển thị ngay trong panel Provider.
 
+## Provider 3 — Cloudflare Workers AI qua Worker Proxy (`cloudflare`, P4.4 — 2026-11-15)
+
+- Kiến trúc: trình duyệt **không** gọi thẳng Cloudflare. Chủ shop tự dựng một **Worker Proxy** của riêng mình; Worker giữ bí mật phía Cloudflare (Account ID + API Token của Workers AI) ở phía server và tự kiểm tra header **`X-App-Key`** do app gửi kèm. App chỉ biết hai thứ **trong phiên**: Worker Proxy URL và App Key — cả hai không lưu vào đâu, mất khi tải lại trang (App Key dùng biến bộ nhớ module riêng `setCfSessionKey`, tách hẳn khỏi key Pollinations).
+- Endpoint: `POST ${workerUrl}/run/${model}` (URL tự cắt dấu `/` ở cuối). Model:
+  - `@cf/black-forest-labs/flux-2-klein-4b` — **mặc định, khuyên dùng**: nhận cả text2img lẫn **img2img tải trực tiếp**: app gửi `multipart/form-data` (`prompt`, `input_image_0` = ảnh đầu vào đã chuyển PNG, `input_image_1` = ảnh tham chiếu thứ hai nếu có) — trình duyệt tự sinh boundary, app không đặt Content-Type thủ công. Đây là đường img2img **duy nhất** app hỗ trợ với ảnh nội bộ, vì ảnh đi thẳng tới Worker **của chính chủ shop**, không qua dịch vụ thứ ba và không cần URL công khai (khác hẳn giới hạn của Pollinations ở mục "Ảnh tham chiếu" — đường Pollinations giữ nguyên lỗi trung thực).
+  - `@cf/black-forest-labs/flux-1-schnell` — **chỉ text2img**: gửi JSON `{prompt, steps: 4}`. Nếu node có ảnh đầu vào, adapter **từ chối trước khi gọi** kèm hướng dẫn chuyển sang klein — không âm thầm bỏ ảnh.
+- Chi phí: **không tính tiền theo ảnh**. Mỗi lệnh gọi trừ vào **hạn mức Neurons** của tài khoản Cloudflare gắn với Worker (gói miễn phí **10.000 Neurons/ngày**). Số Neurons chính xác mỗi model trừ tùy model + kích thước ảnh nên app **không hiển thị con số tiền** — hộp thoại trước lượt chạy nói rõ điều này ("Xác nhận dùng hạn mức Neurons"), Hủy = 0 request. Lịch sử chạy ghi `cloudflare/<model>` + "hạn mức Neurons", không ghi Pollen.
+- Cổng an toàn tương đương provider có key: công tắc AI thật + Worker URL + App Key phiên + tick xác nhận rủi ro; thiếu một thứ → chặn trước khi gọi, kèm giải thích. Retry ép 0, count ép 1.
+- Phản hồi của Worker được nhận cả hai dạng: JSON chứa base64 (`result.image` hoặc `image`) hoặc file ảnh nhị phân trực tiếp (`image/*` / `application/octet-stream`). Lỗi được dịch tiếng Việt: 401/403 → "Sai khóa X-App-Key trên Worker", 400 → "Dữ liệu gửi lên hoặc đường dẫn model không hợp lệ", lỗi mạng/CORS → "Không kết nối được Worker URL, kiểm tra lại đường dẫn .workers.dev" (kèm chi tiết Worker trả về nếu có).
+- Đầu ra Cloudflare mang cờ **AI thật** như Pollinations → **bộ lọc khung hình P4.3 áp dụng y nguyên** (sai khung → fallback nền đã duyệt ở chế độ Nghiêm ngặt, hoặc ghép kèm nhãn cảnh báo ở chế độ Linh hoạt). Nút "Kiểm tra kết nối" với provider này **không gửi yêu cầu nào** (Worker không có endpoint kiểm tra 0 chi phí) — chỉ báo trạng thái cấu hình.
+
 ## Cổng an toàn chi phí (bắt buộc, đã có test)
 
 1. Công tắc AI thật **mặc định TẮT** mỗi lần tải trang; không lưu vào đâu.

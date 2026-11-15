@@ -5,7 +5,7 @@
 import { NODE_DEFS, NODE_TYPES, TEMPLATES, emptyGraph, makeNode, findNode, validateConnection, buildPrompt, garmentParams, garmentSummaryVi, GARMENT_OPTIONS, DEMO_FIGURE, PHOTO_BASES, photoBaseFor, AI_MODEL_BASES, aiModelBaseFor, refreshTpl1Graph, PROMPT_OPTIONS, PROMPT_TEMPLATES, checkSvgSafety, zipWrite, zipRead, uid, SAMPLE_DESIGN_SVG } from './core.js';
 import { Engine, downstreamOf, upstreamOf } from './engine.js';
 import { nodeCacheKey, isCacheable, RunQueue, validateWorkflow, collectReferencedAssetIds, findOrphanAssets, pruneOldest, formatDuration } from './p2.js';
-import { DemoAdapter, HttpAdapter, PollinationsClassicAdapter, PollinationsKeyedAdapter, setSessionKey, hasSessionKey, BROWSER_KEY_WARNING, POLLINATIONS_KEY_WARNING, AUTO_TOPUP_WARNING, COMMERCIAL_USE_NOTE, PROVIDERS, providerById, modelOf, isRunnableModel, resolveGenerationMode, suppressRetryForMode, sizeForRatio, estimateGenerationCost, describePlannedCalls, describeProvider } from './providers.js';
+import { DemoAdapter, HttpAdapter, PollinationsClassicAdapter, PollinationsKeyedAdapter, CloudflareAdapter, setSessionKey, hasSessionKey, setCfSessionKey, hasCfSessionKey, normalizeWorkerUrl, CF_MODEL_KLEIN, BROWSER_KEY_WARNING, POLLINATIONS_KEY_WARNING, AUTO_TOPUP_WARNING, COMMERCIAL_USE_NOTE, PROVIDERS, providerById, modelOf, isRunnableModel, isQuotaModel, resolveGenerationMode, suppressRetryForMode, sizeForRatio, estimateGenerationCost, describePlannedCalls, describeProvider } from './providers.js';
 import { solveHomography, applyHomography, UNIT_SQUARE, rectToQuad, presetQuadFor, migrateCompositionConfig, torsoQuadFor, framingAspectClass, passesHalfBodyFraming, fieldMean, displacementAt, buildWarpGrid, fitInto, channelFitMode, CHANNEL_PRESETS, channelPreset, channelFileName } from './warp.js';
 import { store, storageEstimate } from './store.js';
 
@@ -27,7 +27,7 @@ let providerKind = 'demo';
 // ---- P4 state: real-AI mode. Session-only, NEVER persisted: the master
 // switch defaults to OFF on every page load, and the keyed provider needs a
 // session key + an explicit in-panel confirmation before it can spend. ----
-const aiState = { realEnabled: false, keyedConfirmed: false, classicModel: 'sana', keyedModel: 'flux' };
+const aiState = { realEnabled: false, keyedConfirmed: false, classicModel: 'sana', keyedModel: 'flux', cfModel: CF_MODEL_KLEIN, cfWorkerUrl: '', cfConfirmed: false };
 let runRealCalls = []; // actual real-provider calls of the current run (for history)
 const runtime = { previewValue: null };
 // ---- P2 state: run queue, run settings, failure/resume, progress timer ----
@@ -290,11 +290,11 @@ const demoImpl = {
 // when the value is served back. API keys are never part of a cache record.
 async function cachePutRecord(key, node, value) {
   if (!value || (value.kind !== 'prompt' && !(value.blob instanceof Blob))) return;
-  await store.putCache({ key, projectId, nodeId: node.id, nodeType: node.type, createdAt: Date.now(), kind: value.kind, label: value.label || '', demo: !!value.demo, name: value.name || '', mime: value.mime || '', svgText: value.svgText || '', text: value.text || '', garment: value.garment || null, baseQuad: value.baseQuad || null, photoBase: value.photoBase || '', baseKind: value.baseKind || '', realAi: !!value.realAi, blob: value.blob instanceof Blob ? value.blob : null });
+  await store.putCache({ key, projectId, nodeId: node.id, nodeType: node.type, createdAt: Date.now(), kind: value.kind, label: value.label || '', demo: !!value.demo, name: value.name || '', mime: value.mime || '', svgText: value.svgText || '', text: value.text || '', garment: value.garment || null, catalog: !!value.catalog, baseQuad: value.baseQuad || null, photoBase: value.photoBase || '', baseKind: value.baseKind || '', realAi: !!value.realAi, blob: value.blob instanceof Blob ? value.blob : null });
 }
 async function cacheGetRecord(key) {
   const r = await store.getCache(key); if (!r) return null;
-  if (r.kind === 'prompt') return { kind: 'prompt', text: r.text, garment: r.garment || null };
+  if (r.kind === 'prompt') return { kind: 'prompt', text: r.text, garment: r.garment || null, catalog: !!r.catalog };
   if (r.blob) return valueFromBlob(r.blob, r.kind, { name: r.name, demo: r.demo, label: r.label, svgText: r.svgText, baseQuad: r.baseQuad || null, photoBase: r.photoBase || '', baseKind: r.baseKind || '', garment: r.garment || null, realAi: !!r.realAi });
   return null;
 }
@@ -310,32 +310,45 @@ async function latestCacheByNode() {
   return { seeds, seedKeys };
 }
 
+/** Convert any image Blob to a PNG Blob via canvas (P4.4: the Cloudflare
+ * klein multipart contract wants input_image_0 as a PNG file). */
+async function blobToPngBlob(blob) {
+  if (!blob || blob.type === 'image/png') return blob;
+  const img = await blobToImg(blob);
+  const c = makeCanvas(img.width, img.height);
+  c.getContext('2d').drawImage(img, 0, 0);
+  return canvasBlob(c, 'image/png');
+}
+
 function currentProvider() {
   if (providerKind === 'http') return new HttpAdapter({ name: $('#ais-provider-name')?.value || 'HTTP Provider', endpoint: $('#ais-provider-endpoint')?.value.trim() || '' });
   const mode = generationMode().mode;
   if (mode === 'classic') return new PollinationsClassicAdapter();
   if (mode === 'keyed') return new PollinationsKeyedAdapter({ model: aiState.keyedModel });
+  if (mode === 'cloudflare') return new CloudflareAdapter({ model: aiState.cfModel, workerUrl: aiState.cfWorkerUrl, toPng: blobToPngBlob });
   return new DemoAdapter(demoImpl);
 }
 /** Current generation mode from the P4 gating rules (pure logic in providers.js). */
 function generationMode() {
-  return resolveGenerationMode({ realEnabled: aiState.realEnabled, providerId: providerKind, hasKey: hasSessionKey(), keyedConfirmed: aiState.keyedConfirmed });
+  return resolveGenerationMode({ realEnabled: aiState.realEnabled, providerId: providerKind, hasKey: hasSessionKey(), keyedConfirmed: aiState.keyedConfirmed, cfWorkerUrl: aiState.cfWorkerUrl, hasCfKey: hasCfSessionKey(), cfConfirmed: aiState.cfConfirmed });
 }
 function selectedModel() {
   const p = providerById(providerKind);
-  return modelOf(p, providerKind === 'pollinations' ? aiState.keyedModel : 'sana');
+  return modelOf(p, providerKind === 'pollinations' ? aiState.keyedModel : providerKind === 'cloudflare' ? aiState.cfModel : 'sana');
 }
 function modeBadgeText() {
   const m = generationMode().mode;
   if (m === 'classic') return 'AI THẬT — Classic (miễn phí)';
   if (m === 'keyed') return 'AI THẬT — Pollinations (key)';
+  if (m === 'cloudflare') return 'AI THẬT — Cloudflare (Worker Proxy)';
   if (m === 'blocked') return 'AI THẬT — đang bị khóa';
   if (m === 'http') return 'AI: HTTP stub (chưa cấu hình)';
   return 'AI: DEMO';
 }
 function updateModeBadge() { const b = $('#ais-mode-badge'); if (b) { b.textContent = modeBadgeText(); b.classList.toggle('real', aiState.realEnabled); b.title = aiState.realEnabled ? 'Chế độ AI thật đang bật (phiên này)' : 'Chưa kết nối provider AI thật — đang chạy DEMO'; } }
-/** Record one ACTUAL real-provider call of the current run (history + audit). */
-function noteRealCall(res) { if (res && (res.providerId === 'pollinations-classic' || res.providerId === 'pollinations')) runRealCalls.push({ provider: res.providerId, model: res.modelId, costPollen: res.costPollen || 0 }); }
+/** Record one ACTUAL real-provider call of the current run (history + audit).
+ * Cloudflare calls carry costPollen: null (Neuron quota, not Pollen). */
+function noteRealCall(res) { if (res && (res.providerId === 'pollinations-classic' || res.providerId === 'pollinations' || res.providerId === 'cloudflare')) runRealCalls.push({ provider: res.providerId, model: res.modelId, costPollen: res.costPollen ?? null }); }
 const VARIED_PROMPTS = {
   'boi-canh': 'Ảnh quảng cáo sản phẩm áo thun in theo yêu cầu, bối cảnh mới sáng sủa, ánh sáng studio mềm, chụp chính diện',
   'goc-khac': 'Ảnh quảng cáo sản phẩm áo thun in theo yêu cầu, góc chụp nghiêng khác, ánh sáng studio mềm',
@@ -488,7 +501,10 @@ const handlers = {
   // the EN text, so aiImageGen (and the DEMO figure) get machine-readable
   // style/colour/view — not just prose. Legacy string prompts still work:
   // consumers read .text and treat a missing .garment as "no params".
-  async promptAssistant(node, { inputs }) { const text = buildPrompt(node.config, inputs.in?.text || ''); node.config.composed = text; return { kind: 'prompt', text, garment: garmentParams(node.config) }; },
+  // P4.3: the prompt value also carries `catalog` (this assistant is
+  // wired with the owner's verbatim catalog template — Template 1), so
+  // aiImageGen can request the 2:3 catalog size class on the real path.
+  async promptAssistant(node, { inputs }) { const text = buildPrompt(node.config, inputs.in?.text || ''); node.config.composed = text; return { kind: 'prompt', text, garment: garmentParams(node.config), catalog: !!node.config.catalogPrompt }; },
   async composition(node, { inputs, log, engine }) {
     const design = inputs.design; if (!design) throw new Error('Thiếu hình in.');
     const cfg = migrateCompositionConfig(node.config); node.config = cfg;
@@ -513,27 +529,42 @@ const handlers = {
     }
     const srcNote = useReal ? ' · ghép lên ẢNH MẪU THẬT' : '';
     let g = await blobToImg(garmentBlob);
-    // P4.2 ROUND 4 (R2) — REAL-AI FRAMING GUARD. The owner's live failure
-    // (2026-11-14): a real-AI (Classic sana) garment photo arrived as a
-    // close-up whose framing broke compositing, and nothing checked it.
-    // Rule: a garment value flagged realAi (produced by a real provider
-    // in aiImageGen) is UNVALIDATED until this node checks its framing
-    // class (aspect heuristic — framingAspectClass in warp.js; landmark
-    // detection client-side is not reliable enough to gate on). If it
-    // fails, composition NEVER composites onto it: it falls back to the
-    // owner-approved AI model base for the same garment params, records
-    // the fallback in this node's log (persisted in the P2 run history)
-    // and in the result label. With no approved base for the params it
-    // errors honestly instead of producing a wrong composite.
+    // P4.2 ROUND 4 (R2) — REAL-AI FRAMING GUARD, tightened in P4.3. The
+    // owner's live failures: a real-AI (Classic sana) garment photo
+    // arrived as a close-up whose framing broke compositing (2026-11-14),
+    // and a 768×1024-class close-up (h/w ≈ 1.33) then PASSED the old
+    // aspect band and was composited (2026-11-15). Rule: a garment value
+    // flagged realAi (produced by a real provider in aiImageGen) is
+    // UNVALIDATED until this node checks its framing class (aspect
+    // heuristic — framingAspectClass in warp.js, band now [1.45, 2.10];
+    // landmark detection client-side is not reliable enough to gate on).
+    // P4.3 adds the user's explicit override, config framingGuard:
+    //  - 'strict' (default): a failing image is NEVER composited onto —
+    //    composition falls back to the owner-approved AI model base for
+    //    the same garment params, records the fallback in this node's
+    //    log (persisted in the P2 run history) and in the result label.
+    //    With no approved base for the params it errors honestly instead
+    //    of producing a wrong composite.
+    //  - 'allow': the user has chosen to accept the off-standard frame —
+    //    composition proceeds onto the real AI image with the normal
+    //    quad resolution, and BOTH the log and the result label state
+    //    plainly that the framing is not up to standard and the user
+    //    chose to use it anyway. The output is NOT marked DEMO (its base
+    //    really is the AI image) and gets no DEMO export stamp.
     let framingNote = '';
+    let framingFallback = false;
     if (!useReal && inputs.garment?.realAi) {
       if (passesHalfBodyFraming(g.width, g.height)) {
         log(`Ảnh AI thật đạt kiểm tra khung hình (chân dung nửa người, ${g.width}×${g.height}) — ghép lên chính ảnh AI này.`);
+      } else if (cfg.framingGuard === 'allow') {
+        log(`Ảnh AI thật KHÔNG đạt chuẩn khung hình (${g.width}×${g.height} — lớp "${framingAspectClass(g.width, g.height)}", cần chân dung nửa người h/w trong [1.45, 2.10]) — kiểm tra khung đang ở chế độ LINH HOẠT nên vẫn ghép lên ảnh AI này theo lựa chọn của bạn; khung hình này KHÔNG đạt chuẩn nửa người đã duyệt.`);
+        framingNote = ' · Ảnh AI thật KHÔNG đạt chuẩn khung hình — người dùng chọn vẫn ghép lên ảnh AI này (kiểm tra khung: Linh hoạt)';
       } else {
         const ab = aiModelBaseFor(inputs.garment.garment);
-        if (!ab) throw new Error(`Ảnh AI thật không đạt khung hình (${g.width}×${g.height} — lớp "${framingAspectClass(g.width, g.height)}", cần chân dung nửa người) và chưa có nền người mẫu đã duyệt cho thông số áo này. Hãy chuyển "Nguồn ảnh áo" sang "Ảnh mẫu thật", hoặc đổi tỉ lệ ảnh ở node Tạo ảnh AI rồi chạy lại.`);
+        if (!ab) throw new Error(`Ảnh AI thật không đạt khung hình (${g.width}×${g.height} — lớp "${framingAspectClass(g.width, g.height)}", cần chân dung nửa người) và chưa có nền người mẫu đã duyệt cho thông số áo này. Hãy chuyển "Nguồn ảnh áo" sang "Ảnh mẫu thật", hoặc đổi tỉ lệ ảnh ở node Tạo ảnh AI rồi chạy lại. Nếu vẫn muốn ghép lên chính ảnh AI này, đặt "Kiểm tra khung hình ảnh AI thật" của node này sang "Linh hoạt".`);
         log(`Ảnh AI thật không đạt khung hình (${g.width}×${g.height} — lớp "${framingAspectClass(g.width, g.height)}", cần chân dung nửa người) — đã dùng nền người mẫu đã duyệt thay thế; KHÔNG ghép lên ảnh AI sai khung.`);
         framingNote = ' · Ảnh AI thật không đạt khung hình — đã dùng nền người mẫu đã duyệt';
+        framingFallback = true;
         garmentBlob = await fetchBlob(ab.base.path);
         g = await blobToImg(garmentBlob);
         quadOverride = ab.quad;
@@ -550,7 +581,7 @@ const handlers = {
       const pw = W * (cfg.printW / 100), px = W * (cfg.printX / 100) - pw / 2, py = H * (cfg.printY / 100) - pw / 2;
       x.save(); x.translate(px + pw / 2, py + pw / 2); x.rotate((cfg.rotation || 0) * Math.PI / 180); const ds = Math.min(pw / dImg.width, pw / dImg.height); x.globalAlpha = Math.min(100, Math.max(50, cfg.inkOpacity ?? 95)) / 100; x.drawImage(dImg, -dImg.width * ds / 2, -dImg.height * ds / 2, dImg.width * ds, dImg.height * ds); x.restore();
       log('Đã ghép file hình in GỐC lên ảnh áo (chế độ đơn giản P1) — nội dung hình in không bị AI vẽ lại.');
-      return valueFromBlob(await canvasBlob(c), 'image', { label: cfg.label + srcNote + framingNote, demo: !useReal && (!!inputs.garment?.demo || !!framingNote) });
+      return valueFromBlob(await canvasBlob(c), 'image', { label: cfg.label + srcNote + framingNote, demo: !useReal && (!!inputs.garment?.demo || framingFallback) });
     }
     // P3 perspective mode: homography warp onto the 4-point quad + wrinkle
     // displacement + garment shading. The design drawn is the ORIGINAL file.
@@ -582,7 +613,7 @@ const handlers = {
     // channel crop/resize (uniform banner in every exported file).
     // Round-4 fix: that export stamp is the ONLY frame — generation no
     // longer bakes one into the garment image this node consumes.
-    return valueFromBlob(await canvasBlob(c), 'image', { label: cfg.label + ' · phối cảnh 4 điểm + cong theo nếp vải (mô phỏng)' + srcNote + framingNote, demo: !useReal && (!!inputs.garment?.demo || !!framingNote) });
+    return valueFromBlob(await canvasBlob(c), 'image', { label: cfg.label + ' · phối cảnh 4 điểm + cong theo nếp vải (mô phỏng)' + srcNote + framingNote, demo: !useReal && (!!inputs.garment?.demo || framingFallback) });
   },
   async background(node, { inputs, log }) {
     const v = inputs.in; if (!v?.blob) throw new Error('Thiếu ảnh đầu vào.');
@@ -663,6 +694,25 @@ const handlers = {
     // ---- P4 real generation (classic free / keyed Pollen) ----
     const gm = generationMode();
     if (gm.mode === 'blocked') throw new Error(gm.reason);
+    // ---- P4.4 Cloudflare Workers AI via the owner's own Worker Proxy ----
+    // Separate branch: CF models are Neuron-quota priced (never Pollen),
+    // and klein accepts the input image as a DIRECT upload to the owner's
+    // Worker (img2img) — the Pollinations path below keeps its honest
+    // no-public-URL img2img error, unchanged.
+    if (gm.mode === 'cloudflare') {
+      const cfModel = selectedModel();
+      const promptText = (inputs.prompt?.text || '').trim();
+      if (!promptText) throw new Error('Node Tạo ảnh AI thật cần prompt: hãy nối node Prompt hoặc Trợ lý prompt vào cổng Prompt.');
+      if ((node.config.count || 1) > 1) log('Giới hạn 1 ảnh cho mỗi lần gọi AI thật (kiểm soát hạn mức) — cấu hình số lượng ' + node.config.count + ' được đưa về 1.');
+      const hasImg = !!inputs.image?.blob;
+      if (hasImg && cfModel.supportsImg2Img) log('Ảnh đầu vào sẽ được tải thẳng lên Worker Proxy của CHÍNH BẠN để ghép/sửa (img2img) — Worker là của bạn, ảnh không đi qua dịch vụ thứ ba nào khác.');
+      log(`Đang gọi AI THẬT: ${p.name} · model ${cfModel.name} · qua Worker Proxy của bạn · trừ hạn mức Neurons của tài khoản Cloudflare (không phải Pollen)…`);
+      const res = await p.generateImage({ prompt: promptText, imageBlob: hasImg ? inputs.image.blob : null });
+      noteRealCall(res);
+      // Flagged realAi exactly like Pollinations outputs, so the P4.3
+      // composition framing guard judges Cloudflare images too.
+      return valueFromBlob(res.blob, 'image', { name: 'anh-ai-that', label: res.label, realAi: true, garment: inputs.prompt?.garment || null });
+    }
     const model = selectedModel();
     if (!isRunnableModel(model)) throw new Error(`Model "${model?.name || '?'}" tính giá theo token — P4 không cho chạy (không đoán giá). Hãy chọn model có giá cố định trong bảng Nhà cung cấp AI.`);
     const promptText = (inputs.prompt?.text || '').trim();
@@ -672,7 +722,17 @@ const handlers = {
       if (model.supportsImg2Img) throw new Error('Model này hỗ trợ img2img NHƯNG ảnh tham chiếu đang lưu trên máy của bạn (IndexedDB), chưa có URL công khai — P4 không tự tải ảnh của bạn lên bất kỳ dịch vụ nào. Hãy bỏ dây ảnh tham chiếu, hoặc chọn model chỉ tạo từ chữ (flux / zimage).');
       log(`Model ${model.name} không hỗ trợ ảnh tham chiếu — tạo ảnh chỉ từ prompt; ảnh tham chiếu KHÔNG bị gửi đi đâu.`);
     }
-    const { w, h } = sizeForRatio(node.config.ratio || '4:5', p.kind);
+    // P4.3: when this node serves the CATALOG garment prompt (Template
+    // 1's verbatim half-body template), request the 2:3 size class — the
+    // tallest portrait the adapter legitimately supports — so a real
+    // output has a real chance to land inside the tightened half-body
+    // framing band [1.45, 2.10]. Other prompts keep the node's
+    // configured ratio. (Classic stays within its ≤768 cap; if sana
+    // still returns a short/close-up frame, the composition framing
+    // guard judges the output — that refusal is intended behaviour.)
+    const catalogReq = !!inputs.prompt?.catalog;
+    const { w, h } = sizeForRatio(catalogReq ? '2:3' : (node.config.ratio || '4:5'), p.kind);
+    if (catalogReq) log('Prompt catalogue (Mẫu 1): yêu cầu kích thước 2:3 — khung dọc cao nhất adapter hỗ trợ, khớp dải khung nửa người của bộ lọc ở node Ghép hình.');
     log(`Đang gọi AI THẬT: ${p.name} · model ${model.name} · ${w}×${h} · chi phí ${model.pricePerImage === 0 ? '0 (miễn phí)' : '~' + model.pricePerImage + ' Pollen'}…`);
     const res = await p.generateImage({ prompt: promptText, width: w, height: h, seed: -1 });
     noteRealCall(res);
@@ -689,6 +749,17 @@ const handlers = {
     // ---- P4 real variation ----
     const gm = generationMode();
     if (gm.mode === 'blocked') throw new Error(gm.reason);
+    // ---- P4.4 Cloudflare variation: klein performs a TRUE img2img
+    // variation (the input image uploads directly to the owner's own
+    // Worker Proxy); schnell refuses inside the adapter with the
+    // text-only guidance error, before any request.
+    if (gm.mode === 'cloudflare') {
+      const promptText = VARIED_PROMPTS[node.config.variant] || VARIED_PROMPTS['boi-canh'];
+      log(`Biến thể AI THẬT qua Cloudflare · model ${selectedModel().name} — nếu là FLUX.2 Klein: ghép/sửa trực tiếp trên ảnh đầu vào (img2img qua Worker của bạn).`);
+      const res = await p.generateImage({ prompt: promptText, imageBlob: inputs.in.blob });
+      noteRealCall(res);
+      return valueFromBlob(res.blob, 'image', { name: 'bien-the-ai-that', label: res.label + ' · Biến thể img2img qua Cloudflare (ghép/sửa trên ảnh đầu vào, qua Worker của bạn)', realAi: true });
+    }
     const model = selectedModel();
     if (!isRunnableModel(model)) throw new Error(`Model "${model?.name || '?'}" tính giá theo token — P4 không cho chạy (không đoán giá).`);
     if (model.supportsImg2Img) throw new Error('Biến thể img2img cần ảnh tham chiếu có URL công khai — ảnh của bạn đang lưu trên máy (IndexedDB) và P4 không tự tải ảnh của bạn lên dịch vụ ngoài. Hãy chọn model chỉ tạo từ chữ (flux / zimage) để tạo biến thể mới từ prompt, hoặc dùng biến thể DEMO.');
@@ -774,13 +845,14 @@ function renderNodes() {
   renderEdges();
 }
 function summary(node) { const c = node.config; return node.type === 'imageInput' ? (c.assetName || 'Ảnh áo có sẵn của shop') : node.type === 'designInput' ? (c.assetName || (c.svgText ? 'Hình in SVG' : 'Chưa chọn hình in')) : node.type === 'promptInput' ? String(c.text || '').slice(0, 60) : def0(node.type); }
-function def0(t) { const gm = generationMode().mode; const aiTxt = gm === 'classic' ? 'AI THẬT — Pollinations Classic (miễn phí)' : gm === 'keyed' ? 'AI THẬT — Pollinations (key + Pollen)' : gm === 'blocked' ? 'AI thật đang BỊ KHÓA — mở bảng Nhà cung cấp AI' : gm === 'http' ? 'HTTP stub — chưa cấu hình (sẽ báo lỗi)' : 'DEMO — chưa kết nối AI'; return { promptAssistant: 'Trợ lý quy tắc — không phải AI', composition: 'Ghép hình in gốc hậu kỳ', background: 'Thêm nền / bối cảnh cho ảnh sản phẩm', imageEditor: 'Cắt / xoay / sáng / tương phản', aiImageGen: aiTxt, aiVariation: aiTxt, aiVideoGen: 'DEMO — WebM từ canvas', preview: 'Xem ảnh / video kết quả', exportNode: 'Tải PNG/JPG/SVG/ZIP + nhiều kích thước kênh', saveProject: 'Lưu vào IndexedDB' }[t] || ''; }
+function def0(t) { const gm = generationMode().mode; const aiTxt = gm === 'classic' ? 'AI THẬT — Pollinations Classic (miễn phí)' : gm === 'keyed' ? 'AI THẬT — Pollinations (key + Pollen)' : gm === 'cloudflare' ? 'AI THẬT — Cloudflare Workers AI (Worker Proxy)' : gm === 'blocked' ? 'AI thật đang BỊ KHÓA — mở bảng Nhà cung cấp AI' : gm === 'http' ? 'HTTP stub — chưa cấu hình (sẽ báo lỗi)' : 'DEMO — chưa kết nối AI'; return { promptAssistant: 'Trợ lý quy tắc — không phải AI', composition: 'Ghép hình in gốc hậu kỳ', background: 'Thêm nền / bối cảnh cho ảnh sản phẩm', imageEditor: 'Cắt / xoay / sáng / tương phản', aiImageGen: aiTxt, aiVariation: aiTxt, aiVideoGen: 'DEMO — WebM từ canvas', preview: 'Xem ảnh / video kết quả', exportNode: 'Tải PNG/JPG/SVG/ZIP + nhiều kích thước kênh', saveProject: 'Lưu vào IndexedDB' }[t] || ''; }
 function aiModeHint() {
   const gm = generationMode();
-  if (gm.mode === 'demo') return '<p class="hint warn">DEMO: chưa kết nối AI thật — kết quả mang nhãn DEMO và file xuất được đóng khung DEMO. Muốn tạo ảnh thật: bỏ chọn node để mở bảng "Nhà cung cấp AI", bật Chế độ AI thật và chọn Pollinations.</p>';
+  if (gm.mode === 'demo') return '<p class="hint warn">DEMO: chưa kết nối AI thật — kết quả mang nhãn DEMO và file xuất được đóng khung DEMO. Muốn tạo ảnh thật: bỏ chọn node để mở bảng "Nhà cung cấp AI", bật Chế độ AI thật và chọn Pollinations hoặc Cloudflare Workers AI.</p>';
   if (gm.mode === 'blocked') return `<p class="hint warn">AI THẬT đang BỊ KHÓA: ${gm.reason}</p>`;
   if (gm.mode === 'http') return '<p class="hint warn">Đang chọn HTTP stub (P1) — node sẽ báo lỗi cấu hình rõ ràng, không tạo ảnh giả.</p>';
   const m = selectedModel();
+  if (gm.mode === 'cloudflare') return `<p class="hint">AI THẬT đang bật: ${providerById(providerKind).name} · model ${m?.name || ''} · trừ hạn mức Neurons của tài khoản Cloudflare (miễn phí 10.000 Neurons/ngày — không phải Pollen, không có giá tiền mỗi ảnh) · giới hạn 1 ảnh/lần chạy · không tự thử lại khi lỗi. Ảnh AI không phải ảnh sản phẩm thật.</p>`;
   return `<p class="hint">AI THẬT đang bật: ${providerById(providerKind).name} · model ${m?.name || ''} · giá ${m?.pricePerImage === 0 ? '0 Pollen (miễn phí)' : '~' + m?.pricePerImage + ' Pollen/ảnh'} · P4 giới hạn 1 ảnh/lần chạy · không tự thử lại khi lỗi. Ảnh AI không phải ảnh sản phẩm thật.</p>`;
 }
 function renderAll() { renderNodes(); applyView(); renderProperties(); }
@@ -850,6 +922,9 @@ function renderProperties() {
     h += field('Nguồn ảnh áo', sel('pf-garment-source', [['ai', 'Ảnh từ node Tạo ảnh AI (áo trơn do AI tạo)'], ['real', 'Ảnh mẫu thật — bỏ qua ảnh AI']], cm.garmentSource));
     if (cm.garmentSource === 'real') h += field('Ảnh nền dùng để ghép (mẫu thật / người mẫu AI tạo)', sel('pf-real-base', [...PHOTO_BASES, ...AI_MODEL_BASES].map(b => [b.path, b.name]), cm.realBase));
     h += '<p class="hint">Nếu ảnh AI sai kiểu áo/màu áo → chuyển Nguồn ảnh áo sang \'Ảnh mẫu thật\' để ghép lên ảnh áo thật. Ở chế độ Ảnh mẫu thật, vùng in dùng quad đã hiệu chuẩn sẵn của ảnh mẫu đó và node này vẫn chạy được kể cả khi node AI bị lỗi.</p>';
+    // P4.3: framing-guard mode for real-AI garment inputs (warp.js band).
+    h += field('Kiểm tra khung hình ảnh AI thật', sel('pf-framing-guard', [['strict', 'Nghiêm ngặt — ảnh AI sai khung thì dùng nền người mẫu đã duyệt'], ['allow', 'Linh hoạt — vẫn ghép lên ảnh AI dù sai khung']], cm.framingGuard));
+    h += '<p class="hint">Chỉ áp dụng khi Nguồn ảnh áo là ảnh từ node Tạo ảnh AI và đang chạy AI THẬT. Ảnh đạt chuẩn = chân dung nửa người (tỉ lệ cao/rộng 1.45–2.10, như nền người mẫu đã duyệt 2:3). Nghiêm ngặt (mặc định): ảnh sai khung bị từ chối, tự thay bằng nền người mẫu đã duyệt. Linh hoạt: vẫn ghép lên chính ảnh AI sai khung — nhãn kết quả sẽ ghi rõ khung hình KHÔNG đạt chuẩn và đó là lựa chọn của bạn.</p>';
     h += field('Ảnh áo nền (khi không có dây vào)', sel('pf-base', FIXTURES, c.base));
     h += field('Chế độ ghép', sel('pf-comp-mode', [['perspective', 'Phối cảnh 4 điểm (P3)'], ['simple', 'Đơn giản — chữ nhật (P1)']], cm.mode));
     if (cm.mode === 'perspective') {
@@ -919,20 +994,27 @@ function providerStatusText() {
   if (gm.mode === 'classic') return 'AI THẬT đang bật: Pollinations Classic (miễn phí, model sana, tối đa 768px, ảnh có logo). Lượt chạy có node AI sẽ gọi API thật (0 chi phí) và được ghi vào Lịch sử chạy.';
   if (gm.mode === 'blocked') return 'AI THẬT đang bật nhưng provider BỊ KHÓA: ' + gm.reason;
   if (gm.mode === 'keyed') return 'AI THẬT đang bật: Pollinations (key) · model ' + aiState.keyedModel + ' · ~' + (selectedModel()?.pricePerImage ?? '?') + ' Pollen/ảnh. Mỗi lượt chạy tốn Pollen đều phải xác nhận chi phí trước khi gọi API.';
+  if (gm.mode === 'cloudflare') return 'AI THẬT đang bật: Cloudflare Workers AI qua Worker Proxy của bạn · model ' + aiState.cfModel + ' · trừ hạn mức Neurons (miễn phí 10.000 Neurons/ngày — không phải Pollen). Mỗi lượt chạy có lệnh gọi đều phải xác nhận trước khi gọi Worker.';
   return '';
 }
 function providerHtml() {
   const prov = providerById(providerKind);
   const gm = generationMode();
-  const curModelId = providerKind === 'pollinations' ? aiState.keyedModel : 'sana';
-  let h = `<div class="psec"><h4>Nhà cung cấp AI (P4)</h4>
+  const curModelId = providerKind === 'pollinations' ? aiState.keyedModel : providerKind === 'cloudflare' ? aiState.cfModel : 'sana';
+  let h = `<div class="psec"><h4>Nhà cung cấp AI (P4.4)</h4>
   <label class="pf-switch"><input type="checkbox" id="ais-real-switch" ${aiState.realEnabled ? 'checked' : ''}> <strong>Bật chế độ AI THẬT</strong></label>
-  <p class="hint">Mặc định TẮT mỗi khi mở trang: khi tắt, mọi node AI chạy DEMO trên máy và không có lệnh gọi tạo ảnh nào ra ngoài. Bật lên mới dùng được 2 provider Pollinations dưới đây. Node video luôn là DEMO (P4 chưa có provider video thật).</p>
+  <p class="hint">Mặc định TẮT mỗi khi mở trang: khi tắt, mọi node AI chạy DEMO trên máy và không có lệnh gọi tạo ảnh nào ra ngoài. Bật lên mới dùng được các provider AI thật dưới đây (Pollinations, Cloudflare Workers AI). Node video luôn là DEMO (chưa có provider video thật).</p>
   ${field('Nhà cung cấp', sel('ais-provider-kind', PROVIDERS.map(p => [p.id, p.name]), providerKind))}`;
   if (prov.models.length) {
-    h += field('Model', `<select id="ais-provider-model">${prov.models.map(m => `<option value="${m.id}" ${m.id === curModelId ? 'selected' : ''} ${isRunnableModel(m) ? '' : 'disabled'}>${m.name} — ${m.pricePerImage === null ? 'giá theo token · P4 không cho chạy' : m.pricePerImage === 0 ? '0 Pollen (miễn phí)' : '~' + m.pricePerImage + ' Pollen/ảnh'}</option>`).join('')}</select>`);
+    h += field('Model', `<select id="ais-provider-model">${prov.models.map(m => `<option value="${m.id}" ${m.id === curModelId ? 'selected' : ''} ${(isRunnableModel(m) || isQuotaModel(m)) ? '' : 'disabled'}>${m.name} — ${isQuotaModel(m) ? 'dùng hạn mức Neurons (miễn phí 10.000 Neurons/ngày)' : m.pricePerImage === null ? 'giá theo token · P4 không cho chạy' : m.pricePerImage === 0 ? '0 Pollen (miễn phí)' : '~' + m.pricePerImage + ' Pollen/ảnh'}</option>`).join('')}</select>`);
   }
   h += `<div class="pf-provider-info" id="ais-provider-info"><p class="hint"><strong>Chi phí & hạn mức:</strong> ${prov.limits}</p><p class="hint">${COMMERCIAL_USE_NOTE}</p></div>`;
+  if (providerKind === 'cloudflare') {
+    h += field('Worker Proxy URL (chỉ trong phiên này — KHÔNG lưu)', `<input type="url" id="ais-cf-url" autocomplete="off" placeholder="https://ai-proxy.<subdomain>.workers.dev" value="${esc(aiState.cfWorkerUrl)}">`);
+    h += field('App Key — X-App-Key (chỉ trong bộ nhớ phiên — KHÔNG lưu)', `<input type="password" id="ais-cf-key" autocomplete="off" placeholder="${hasCfSessionKey() ? 'Đã nhập key cho phiên này (gõ lại để thay)' : 'Nhập APP_KEY bảo vệ Worker cho phiên này'}">`);
+    h += `<label class="pf-switch"><input type="checkbox" id="ais-cf-confirm" ${aiState.cfConfirmed ? 'checked' : ''}> Tôi hiểu rủi ro bảo mật + hạn mức và muốn bật provider Cloudflare trong phiên này</label>`;
+    h += `<p class="hint warn">${BROWSER_KEY_WARNING}</p><p class="hint warn">App Key được gửi kèm mỗi lệnh gọi tới Worker Proxy của CHÍNH BẠN qua header X-App-Key. Worker URL, lựa chọn model và App Key chỉ sống trong phiên làm việc này — không ghi vào IndexedDB/localStorage/bản nháp/file dự án JSON/ZIP. FLUX.2 Klein nhận ảnh đầu vào tải thẳng lên Worker của bạn (img2img); khi đó ảnh đầu vào rời khỏi máy tới Worker của bạn — không qua dịch vụ thứ ba nào khác.</p>`;
+  }
   if (providerKind === 'pollinations') {
     h += field('API key Pollinations (chỉ trong bộ nhớ phiên — KHÔNG lưu)', `<input type="password" id="ais-provider-key" autocomplete="off" placeholder="${hasSessionKey() ? 'Đã nhập key cho phiên này (gõ lại để thay)' : 'Dán key sk_… cho phiên này'}">`);
     h += `<label class="pf-switch"><input type="checkbox" id="ais-keyed-confirm" ${aiState.keyedConfirmed ? 'checked' : ''}> Tôi hiểu rủi ro bảo mật + chi phí và muốn bật provider có key trong phiên này</label>`;
@@ -946,7 +1028,7 @@ function providerHtml() {
       + `<p class="hint warn">${BROWSER_KEY_WARNING}</p>`;
   }
   h += `<div class="prow"><button id="ais-provider-test">Kiểm tra kết nối (0 chi phí)</button></div>
-  <p class="hint">Nút kiểm tra chỉ gọi endpoint danh mục model công khai của Pollinations (không cần key, không tạo ảnh, không tốn chi phí)${providerKind === 'http' || providerKind === 'demo' ? ' — với loại provider đang chọn, nút này chỉ báo trạng thái cấu hình như các phiên bản trước' : ''}.</p>
+  <p class="hint">${providerKind === 'cloudflare' ? 'Với Cloudflare, nút kiểm tra KHÔNG gửi bất kỳ yêu cầu nào tới Worker (mọi lệnh gọi /run/ đều là tạo ảnh thật trừ hạn mức) — nút chỉ báo trạng thái cấu hình trong phiên.' : `Nút kiểm tra chỉ gọi endpoint danh mục model công khai của Pollinations (không cần key, không tạo ảnh, không tốn chi phí)${providerKind === 'http' || providerKind === 'demo' ? ' — với loại provider đang chọn, nút này chỉ báo trạng thái cấu hình như các phiên bản trước' : ''}.`}</p>
   <p class="hint" id="ais-provider-status">${providerStatusText()}</p></div>`;
   return h;
 }
@@ -954,13 +1036,19 @@ function bindProvider(scope) {
   const rerender = () => { updateModeBadge(); renderProperties(); };
   scope.querySelector('#ais-provider-kind')?.addEventListener('change', e => { providerKind = e.target.value; rerender(); });
   scope.querySelector('#ais-real-switch')?.addEventListener('change', e => { aiState.realEnabled = e.target.checked; rerender(); logLine(e.target.checked ? 'Đã BẬT chế độ AI thật cho phiên này (tự tắt khi tải lại trang).' : 'Đã tắt chế độ AI thật — node AI chạy DEMO.'); });
-  scope.querySelector('#ais-provider-model')?.addEventListener('change', e => { if (providerKind === 'pollinations') aiState.keyedModel = e.target.value; rerender(); });
+  scope.querySelector('#ais-provider-model')?.addEventListener('change', e => { if (providerKind === 'pollinations') aiState.keyedModel = e.target.value; if (providerKind === 'cloudflare') aiState.cfModel = e.target.value; rerender(); });
+  scope.querySelector('#ais-cf-url')?.addEventListener('change', e => { aiState.cfWorkerUrl = normalizeWorkerUrl(e.target.value); e.target.value = aiState.cfWorkerUrl; rerender(); });
+  scope.querySelector('#ais-cf-key')?.addEventListener('change', e => { setCfSessionKey(e.target.value); rerender(); });
+  scope.querySelector('#ais-cf-confirm')?.addEventListener('change', e => { aiState.cfConfirmed = e.target.checked; rerender(); });
   scope.querySelector('#ais-provider-key')?.addEventListener('change', e => { setSessionKey(e.target.value); rerender(); });
   scope.querySelector('#ais-keyed-confirm')?.addEventListener('change', e => { aiState.keyedConfirmed = e.target.checked; rerender(); });
   scope.querySelector('#ais-provider-test')?.addEventListener('click', async () => {
-    const st = scope.querySelector('#ais-provider-status'); if (st) st.textContent = 'Đang kiểm tra kết nối (chỉ đọc danh mục model — 0 chi phí)…';
-    const p = currentProvider();
-    if (p.isDemo && providerKind !== 'http') { if (st) st.textContent = 'Đang ở chế độ DEMO — chưa kết nối AI thật.'; return; }
+    const st = scope.querySelector('#ais-provider-status'); if (st) st.textContent = providerKind === 'cloudflare' ? 'Đang kiểm tra cấu hình Cloudflare (không gửi bất kỳ yêu cầu nào tới Worker)…' : 'Đang kiểm tra kết nối (chỉ đọc danh mục model — 0 chi phí)…';
+    // Cloudflare has no zero-cost probe endpoint: build the adapter from
+    // the panel state directly (currentProvider() would return DEMO
+    // while the gate is closed) — its testConnection only reads config.
+    const p = providerKind === 'cloudflare' ? new CloudflareAdapter({ model: aiState.cfModel, workerUrl: aiState.cfWorkerUrl }) : currentProvider();
+    if (providerKind !== 'cloudflare' && p.isDemo && providerKind !== 'http') { if (st) st.textContent = 'Đang ở chế độ DEMO — chưa kết nối AI thật.'; return; }
     try { const r = await p.testConnection(); if (st) st.textContent = r.message; logLine('Kiểm tra kết nối provider: ' + r.message); }
     catch (e) { if (st) st.textContent = 'Kiểm tra kết nối thất bại: ' + e.message; }
   });
@@ -1011,6 +1099,7 @@ function bindProperties(node) {
     // (called just below) replaces node.config with a migrated copy, which
     // would orphan any writes made through the older object reference.
     on('pf-garment-source', 'change', e => { node.config.garmentSource = e.target.value; delete node.config.quadSource; node.config = migrateCompositionConfig(node.config); pushHistory(); renderAll(); scheduleSave(); });
+    on('pf-framing-guard', 'change', e => { node.config.framingGuard = e.target.value; node.config = migrateCompositionConfig(node.config); renderNodes(); scheduleSave(); });
     on('pf-real-base', 'change', e => { node.config.realBase = e.target.value; delete node.config.quadSource; renderNodes(); scheduleSave(); });
     on('pf-comp-mode', 'change', e => { c.mode = e.target.value; if (c.mode === 'perspective') node.config = migrateCompositionConfig(node.config); pushHistory(); renderAll(); scheduleSave(); });
     if (document.getElementById('ais-quad-canvas')) {
@@ -1219,8 +1308,32 @@ function confirmCostDialog(calls, totalPollen) {
   return new Promise((resolve) => {
     const dlg = document.getElementById('ais-cost-dialog');
     if (!dlg) return resolve(false);
+    document.getElementById('ais-cost-title').textContent = 'Xác nhận chi phí Pollen trước khi chạy AI thật';
+    document.getElementById('ais-cost-accept').textContent = 'Chạy và chấp nhận chi phí';
     document.getElementById('ais-cost-list').innerHTML = calls.map(c => `<li>${esc(c.nodeLabel)} — ${esc(c.providerName)} · model ${esc(c.modelName)} · <strong>${c.costPollen === 0 ? '0 Pollen (miễn phí)' : '~' + c.costPollen + ' Pollen'}</strong></li>`).join('');
     document.getElementById('ais-cost-total').textContent = `Tổng tối đa ước tính: ~${totalPollen} Pollen (≈ ${totalPollen} USD). Đây là mức TỐI ĐA của lượt này — node nào được phục vụ từ bộ nhớ đệm sẽ không gọi API và không tốn Pollen. Pollen là trả trước: hết số dư thì provider dừng cứng (HTTP 402), không tự trừ thẻ — trừ khi bạn đã tự bật auto top-up trong dashboard Pollinations.`;
+    dlg.hidden = false;
+    const done = (v) => { dlg.hidden = true; document.getElementById('ais-cost-accept').onclick = null; document.getElementById('ais-cost-cancel').onclick = null; resolve(v); };
+    document.getElementById('ais-cost-accept').onclick = () => done(true);
+    document.getElementById('ais-cost-cancel').onclick = () => done(false);
+  });
+}
+
+/**
+ * P4.4 pre-run confirmation for CLOUDFLARE generation. Same dialog shell
+ * as the Pollen confirmation, but the wording is honest about the actual
+ * cost model: calls consume the Cloudflare account's Neuron quota (free
+ * tier 10,000 Neurons/day) — there is NO per-image money price and Studio
+ * never invents one. Cancel = zero requests to the Worker.
+ */
+function confirmCloudflareDialog(calls) {
+  return new Promise((resolve) => {
+    const dlg = document.getElementById('ais-cost-dialog');
+    if (!dlg) return resolve(false);
+    document.getElementById('ais-cost-title').textContent = 'Xác nhận dùng hạn mức Neurons (Cloudflare) trước khi chạy AI thật';
+    document.getElementById('ais-cost-accept').textContent = 'Chạy — dùng hạn mức Neurons';
+    document.getElementById('ais-cost-list').innerHTML = calls.map(c => `<li>${esc(c.nodeLabel)} — ${esc(c.providerName)} · model ${esc(c.modelName)} · <strong>dùng hạn mức Neurons (không tính tiền theo ảnh)</strong></li>`).join('');
+    document.getElementById('ais-cost-total').textContent = 'Mỗi lệnh gọi ở trên sẽ trừ vào hạn mức Neurons của tài khoản Cloudflare gắn với Worker Proxy của bạn (gói miễn phí: 10.000 Neurons/ngày). Đây KHÔNG phải chi phí Pollen hay tiền theo ảnh — số Neurons chính xác mỗi model trừ tùy thuộc model và kích thước ảnh nên Studio không hiển thị con số tiền. Node nào được phục vụ từ bộ nhớ đệm sẽ không gọi Worker và không trừ hạn mức. Bấm Hủy = không gọi lệnh nào.';
     dlg.hidden = false;
     const done = (v) => { dlg.hidden = true; document.getElementById('ais-cost-accept').onclick = null; document.getElementById('ais-cost-cancel').onclick = null; resolve(v); };
     document.getElementById('ais-cost-accept').onclick = () => done(true);
@@ -1245,7 +1358,7 @@ async function executeRun(mode, id) {
   // ---- P4 cost gate: real-provider planning BEFORE anything runs ----
   const gm = generationMode();
   if (gm.mode === 'blocked') { message(gm.reason, true); logLine('⚠ ' + gm.reason); return { blocked: true, problems: [{ message: gm.reason }] }; }
-  const realActive = gm.mode === 'classic' || gm.mode === 'keyed';
+  const realActive = gm.mode === 'classic' || gm.mode === 'keyed' || gm.mode === 'cloudflare';
   let runIds;
   if (mode === 'single') runIds = new Set(upstreamOf(graph, id));
   else if (mode === 'from') runIds = new Set([...upstreamOf(graph, id), ...downstreamOf(graph, id)]);
@@ -1261,10 +1374,14 @@ async function executeRun(mode, id) {
       const accepted = await confirmCostDialog(calls, est.totalPollen);
       if (!accepted) { message('Đã hủy lượt chạy trước khi gọi API — chưa phát sinh chi phí nào.'); return { cancelled: true }; }
       logLine(`Đã xác nhận chi phí: tối đa ~${est.totalPollen} Pollen cho ${calls.length} lệnh gọi AI thật.`);
+    } else if (gm.mode === 'cloudflare') {
+      const accepted = await confirmCloudflareDialog(calls);
+      if (!accepted) { message('Đã hủy lượt chạy trước khi gọi Worker — chưa trừ hạn mức Neurons nào.'); return { cancelled: true }; }
+      logLine(`Đã xác nhận: ${calls.length} lệnh gọi AI thật qua Cloudflare sẽ trừ hạn mức Neurons của tài khoản Cloudflare (không phải Pollen).`);
     } else {
       logLine(`Lượt này có ${calls.length} lệnh gọi AI THẬT qua Pollinations Classic (miễn phí, 0 Pollen) — node được phục vụ từ bộ nhớ đệm sẽ không gọi API.`);
     }
-    if (runSettings.retriesAi > 0) logLine('Đã tắt thử lại tự động cho các lệnh gọi AI thật ở lượt này (tránh phát sinh chi phí / trừ Pollen ngoài ý muốn).');
+    if (runSettings.retriesAi > 0) logLine('Đã tắt thử lại tự động cho các lệnh gọi AI thật ở lượt này (tránh phát sinh chi phí / trừ hạn mức ngoài ý muốn).');
   }
   runRealCalls = [];
   lastFailedNodeId = null; updateResumeBtn();
@@ -1338,7 +1455,7 @@ async function renderHistory() {
     const total = r.finishedAt - r.startedAt;
     const cached = r.nodes.filter(n => n.status === 'cached').length;
     return `<details class="ais-run-item"><summary><span class="badge ${r.result}">${r.result === 'success' ? 'Thành công' : r.result === 'stopped' ? 'Đã dừng' : 'Có lỗi'}</span>
-    ${new Date(r.startedAt).toLocaleString('vi-VN')} — ${esc(TRIGGER_LABELS[r.trigger] || r.trigger)} · ${r.nodes.length} node (${cached} đệm) · ${formatDuration(total)}${r.aiCalls?.length ? ` · AI thật: ${r.aiCalls.length} lệnh (${esc(r.aiCalls.map(c => c.provider + '/' + c.model).join(', '))}) · ~${r.aiCostPollen || 0} Pollen` : ''}</summary>
+    ${new Date(r.startedAt).toLocaleString('vi-VN')} — ${esc(TRIGGER_LABELS[r.trigger] || r.trigger)} · ${r.nodes.length} node (${cached} đệm) · ${formatDuration(total)}${r.aiCalls?.length ? ` · AI thật: ${r.aiCalls.length} lệnh (${esc(r.aiCalls.map(c => c.provider + '/' + c.model).join(', '))})${r.aiCalls.every(c => c.provider === 'cloudflare') ? ' · hạn mức Neurons (Cloudflare — không phải Pollen)' : ` · ~${r.aiCostPollen || 0} Pollen`}` : ''}</summary>
     <table class="ais-run-nodes"><tr><th>Node</th><th>Trạng thái</th><th>Thời gian</th><th>Lần thử</th><th>Lỗi</th></tr>
     ${r.nodes.map(n => `<tr><td>${esc(n.label)}</td><td>${n.status === 'cached' ? '<span class="st-cached-t">cached (đệm)</span>' : esc(n.status)}</td><td>${formatDuration(n.durationMs)}</td><td>${n.attempts || 1}</td><td>${esc(n.error || '')}</td></tr>`).join('')}</table></details>`;
   }).join('');
@@ -1522,5 +1639,5 @@ $('#ais-run-mobile')?.addEventListener('click', () => runNodes('all'));
   await checkRecovery();
   updateModeBadge();
   document.body.dataset.ready = 'true'; document.documentElement.dataset.ready = 'true';
-  logLine('AI Studio P4.2 sẵn sàng: vùng in hiệu chuẩn theo mốc thân áo (giữa ngực trên, cách mép dưới cổ 12–15% chiều dài thân áo, rộng 35–45% bề ngang thân), khung đứt nét CHỈ còn trong trình căn chỉnh (không dính vào Xem trước/file xuất), hòa trộn mực theo bóng vải + độ phủ mực 95%. DEMO dùng ẢNH NGƯỜI MẪU DO AI TẠO đã được chủ shop duyệt cho áo trắng/đen cổ tròn và áo trắng oversize (nhãn node ghi rõ "do AI tạo", không phải ảnh chụp thật); thông số chưa có ảnh người mẫu thì dùng hình vẽ DEMO. Nếu ảnh AI sai kiểu/màu, chuyển node Ghép hình sang nguồn "Ảnh mẫu thật". AI thật qua Pollinations (P4) sau công tắc "Chế độ AI thật" — mặc định TẮT, đang ở DEMO.');
+  logLine('AI Studio P4.4 sẵn sàng: vùng in hiệu chuẩn theo mốc thân áo (giữa ngực trên, cách mép dưới cổ 12–15% chiều dài thân áo, rộng 35–45% bề ngang thân), khung đứt nét CHỈ còn trong trình căn chỉnh (không dính vào Xem trước/file xuất), hòa trộn mực theo bóng vải + độ phủ mực 95%. DEMO dùng ẢNH NGƯỜI MẪU DO AI TẠO đã được chủ shop duyệt cho áo trắng/đen cổ tròn và áo trắng oversize (nhãn node ghi rõ "do AI tạo", không phải ảnh chụp thật); thông số chưa có ảnh người mẫu thì dùng hình vẽ DEMO. AI thật: bộ lọc khung hình đã SIẾT — chỉ nhận ảnh dọc nửa người (cao/rộng 1.45–2.10); mặc định NGHIÊM NGẶT: ảnh AI sai khung bị từ chối và tự thay bằng nền người mẫu đã duyệt. Muốn vẫn ghép lên ảnh AI sai khung: mở node Ghép hình, đặt "Kiểm tra khung hình ảnh AI thật" sang Linh hoạt — kết quả sẽ ghi rõ khung KHÔNG đạt chuẩn. Nếu ảnh AI sai kiểu/màu, chuyển node Ghép hình sang nguồn "Ảnh mẫu thật". AI thật qua Pollinations hoặc Cloudflare Workers AI (P4.4 — qua Worker Proxy của chính bạn: App Key X-App-Key chỉ ở bộ nhớ phiên; FLUX.2 Klein ghép/sửa ảnh img2img bằng cách tải ảnh thẳng lên Worker của bạn, FLUX.1 Schnell chỉ tạo từ chữ; mỗi lượt trừ hạn mức Neurons, miễn phí 10.000 Neurons/ngày) sau công tắc "Chế độ AI thật" — mặc định TẮT, đang ở DEMO.');
 })();

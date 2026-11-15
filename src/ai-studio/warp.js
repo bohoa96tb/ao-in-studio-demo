@@ -218,6 +218,14 @@ export function migrateCompositionConfig(cfg = {}) {
   // so the fabric texture/folds under the print stay faintly visible
   // instead of the print looking like a flat sticker. 100 = P4.1 behaviour.
   if (out.inkOpacity === undefined) out.inkOpacity = 95;
+  // P4.3: framing-guard mode for REAL-AI garment inputs. 'strict'
+  // (default) = a real-AI image failing the half-body band is refused
+  // and the approved AI model base is used instead; 'allow' = the user
+  // explicitly accepts compositing onto the off-standard AI image (the
+  // result is honestly labelled as not up to standard). Anything that
+  // is not exactly 'allow' normalises to 'strict', so P4.2-and-older
+  // configs (which have no such field) migrate to strict.
+  if (out.framingGuard !== 'allow') out.framingGuard = 'strict';
   if (out.mode === undefined) {
     if ((out.rotation || 0) !== 0) { out.mode = 'simple'; return out; }
     out.mode = 'perspective';
@@ -227,7 +235,7 @@ export function migrateCompositionConfig(cfg = {}) {
   return out;
 }
 
-// ---------- real-AI framing guard (P4.2 ROUND 4, R2) ----------
+// ---------- real-AI framing guard (P4.2 ROUND 4, R2; band tightened in P4.3) ----------
 /**
  * Framing class of a garment image by aspect ratio ONLY — a documented,
  * contract-level heuristic, NOT landmark detection. The owner's live
@@ -236,23 +244,34 @@ export function migrateCompositionConfig(cfg = {}) {
  * is not reliable enough to gate on, so the pipeline gates on the one
  * property that is always measurable: the image's dimensions.
  *   h/w < 0.98          → 'landscape'        (fail)
- *   0.98 ≤ h/w < 1.10   → 'square'           (fail — the sana close-up
- *                          class: square output cannot be a half-body)
- *   1.10 ≤ h/w ≤ 2.05   → 'portrait-half-body' (PASS — 4:5 = 1.25,
- *                          2:3 = 1.5, 9:16 = 1.78 all land here)
- *   h/w > 2.05          → 'extreme-portrait' (fail)
- * HONEST LIMIT: a portrait-aspect close-up can still pass this gate —
- * aspect is a NECESSARY, not sufficient, condition. It reliably blocks
- * the observed failure class (square/landscape outputs) and any output
- * whose size class contradicts the requested half-body portrait; full
- * landmark validation remains future work (see QA report round 4).
+ *   0.98 ≤ h/w < 1.10   → 'square'           (fail — square output
+ *                          cannot be a half-body shot)
+ *   1.10 ≤ h/w < 1.45   → 'portrait-short'   (fail — P4.3: 4:5 = 1.25
+ *                          and 3:4 = 1.33 land here; too short to be
+ *                          the approved head-to-hip half-body framing)
+ *   1.45 ≤ h/w ≤ 2.10   → 'portrait-half-body' (PASS — 2:3 = 1.50,
+ *                          the approved AI bases' own aspect; 9:16 =
+ *                          1.78 also passes)
+ *   h/w > 2.10          → 'extreme-portrait' (fail)
+ * P4.3 RATIONALE: the original band [1.10, 2.05] let the owner's first
+ * real Classic run through (2026-11-15): sana returned a 768×1024-class
+ * close-up (h/w ≈ 1.33, watermark, blurry) that PASSED and was
+ * composited. The approved bases are h/w = 1.50, so the pass band now
+ * starts at 1.45: 3:4 and 4:5 outputs fail, 2:3 and taller pass. The
+ * guard applies ONLY to real-AI outputs — never to the approved bases
+ * themselves (the oversize base is 2.26 and is not guard-checked).
+ * HONEST LIMIT (unchanged): a portrait-aspect close-up can still pass
+ * this gate — a 2:3 close-up would pass. Aspect is a NECESSARY, not
+ * sufficient, condition. In strict mode the mitigation is the fallback
+ * to the approved base; full landmark validation remains future work.
  */
 export function framingAspectClass(w, h) {
   if (!(w > 0 && h > 0)) return 'invalid';
   const r = h / w;
   if (r < 0.98) return 'landscape';
   if (r < 1.10) return 'square';
-  if (r <= 2.05) return 'portrait-half-body';
+  if (r < 1.45) return 'portrait-short';
+  if (r <= 2.10) return 'portrait-half-body';
   return 'extreme-portrait';
 }
 export function passesHalfBodyFraming(w, h) { return framingAspectClass(w, h) === 'portrait-half-body'; }
