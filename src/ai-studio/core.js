@@ -1,7 +1,7 @@
 // AI Studio — DOM-free core: node definitions, type/cycle rules, rule-based
 // Vietnamese prompt builder, SVG safety check, minimal store-only ZIP writer
 // + reader. Node-testable; no browser APIs used here.
-import { GARMENT_QUADS, FIXTURE_LANDMARKS, AI_MODEL_LANDMARKS, AI_MODEL_QUADS, torsoQuadFor } from './warp.js';
+import { GARMENT_QUADS, FIXTURE_LANDMARKS, AI_MODEL_LANDMARKS, AI_MODEL_QUADS, torsoQuadFor } from './warp.js?v=aistudio46';
 
 export const DATA_TYPES = ['image', 'design', 'prompt', 'video', 'any'];
 
@@ -25,12 +25,16 @@ export const SAMPLE_DESIGN_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width=
 // category: input | process | ai | output ; colour per brief §4 (colour-coded nodes)
 export const NODE_DEFS = {
   imageInput: { label: 'Ảnh đầu vào', category: 'input', color: '#2f6f4f', inputs: [], outputs: [{ id: 'out', type: 'image', label: 'Ảnh' }],
-    defaults: { assetId: '', assetName: '', fixture: 'public/fixtures/real-tee/crew-white-hanger.webp', width: 0, height: 0 } },
+    // P4.6: `product` holds the USER's corrections to the automatic
+    // product analysis ('' = automatic / not specified). The analysis
+    // itself is measured at run time by the handler (studio.js) and
+    // merged via mergeProduct — never stored as fact in config.
+    defaults: { assetId: '', assetName: '', fixture: 'public/fixtures/real-tee/crew-white-hanger.webp', width: 0, height: 0, product: { colorKey: '', collar: '', sleeve: '', fit: '', hasPrint: '' } } },
   designInput: { label: 'Hình in (thiết kế)', category: 'input', color: '#7a4a9e', inputs: [], outputs: [{ id: 'out', type: 'design', label: 'Hình in' }],
     defaults: { assetId: '', assetName: '', svgText: '', width: 0, height: 0 } },
   promptInput: { label: 'Prompt', category: 'input', color: '#38618c', inputs: [], outputs: [{ id: 'out', type: 'prompt', label: 'Prompt' }],
     defaults: { text: 'Người mẫu trẻ, thần thái tự nhiên, mỉm cười nhẹ, tóc gọn gàng.' } },
-  promptAssistant: { label: 'Trợ lý prompt (quy tắc)', category: 'process', color: '#38618c', inputs: [{ id: 'in', type: 'prompt', label: 'Prompt gốc', required: false }], outputs: [{ id: 'out', type: 'prompt', label: 'Prompt' }],
+  promptAssistant: { label: 'Trợ lý prompt (quy tắc)', category: 'process', color: '#38618c', inputs: [{ id: 'in', type: 'prompt', label: 'Prompt gốc', required: false }, { id: 'image', type: 'image', label: 'Ảnh sản phẩm (phân tích)', required: false }], outputs: [{ id: 'out', type: 'prompt', label: 'Prompt' }],
     defaults: { style: 'studio', model: 'nu-viet', background: 'studio-kem', lighting: 'mem', angle: 'thang', kieuAo: 'co-tron', mauAo: 'trang', gocChup: 'chinh-dien', extra: '', composed: '', catalogPrompt: false } },
   composition: { label: 'Ghép hình in lên áo', category: 'process', color: '#b6492f', inputs: [{ id: 'garment', type: 'image', label: 'Ảnh áo', required: false }, { id: 'design', type: 'design', label: 'Hình in', required: true }], outputs: [{ id: 'out', type: 'image', label: 'Ảnh ghép' }],
     defaults: { base: 'public/fixtures/real-tee/crew-white-hanger.webp', garmentSource: 'ai', realBase: 'public/fixtures/real-tee/crew-white-hanger.webp', printX: 50, printY: 55, printW: 30, rotation: 0, mode: 'perspective', quad: GARMENT_QUADS['public/fixtures/real-tee/crew-white-hanger.webp'].map(p => [...p]), wrinkle: 35, shading: 45, inkOpacity: 95, framingGuard: 'strict', label: 'Ảnh ghép hậu kỳ — hình in là file gốc, không phải AI vẽ lại' } },
@@ -122,6 +126,7 @@ export const GARMENT_OPTIONS = {
   mauAo: {
     'trang': { label: 'Trắng', en: 'white', hex: '#f4f4f2' },
     'den': { label: 'Đen', en: 'black', hex: '#232326' },
+    'do': { label: 'Đỏ', en: 'red', hex: '#b02028' },
     'be': { label: 'Be', en: 'beige', hex: '#d8c3a5' },
     'xam': { label: 'Xám', en: 'grey', hex: '#8f959b' },
     'navy': { label: 'Xanh navy', en: 'navy blue', hex: '#2b3a55' },
@@ -178,28 +183,212 @@ export function catalogPromptFor(cfg = {}) {
   return CATALOG_PROMPT_TEMPLATE.replace('[COLOR]', g.colorEn).replace('[FIT_TYPE]', g.fitEn);
 }
 /**
- * Build the ENGLISH generation prompt for a PLAIN garment photo.
- * Driven by the garment params; ends with the strict prohibitions (no
- * print/logo/text, garment-type lock, no accessory over the chest).
- * Template 1 (catalogPrompt: true) returns the owner's verbatim catalog
- * template instead — see CATALOG_PROMPT_TEMPLATE.
+ * Build the ENGLISH generation prompt. P4.6: the prompt is assembled
+ * from the SEVEN ordered sections of buildPromptSections (Product
+ * Identity FIRST — see the P4.6 block below). Template 1 with NO
+ * product reference (catalogPrompt: true) still returns the owner's
+ * verbatim catalog template exactly — see CATALOG_PROMPT_TEMPLATE —
+ * so the owner-approved no-reference path (and its DEMO export hashes)
+ * stays byte-identical.
  */
-export function buildPrompt(cfg = {}, basePrompt = '') {
+export function buildPrompt(cfg = {}, basePrompt = '', product = null) {
+  if (cfg.catalogPrompt && !product) return catalogPromptFor(cfg);
+  return assemblePromptText(buildPromptSections(cfg, basePrompt, product));
+}
+
+// ---------- P4.6: product reference + structured prompt system ----------
+// The product reference is the HIGHEST-AUTHORITY data in the workflow
+// (owner's P4.6 brief): AI may change the model, the scene, the
+// lighting and the camera ONLY — never the garment's colour, collar,
+// sleeves, fit, fabric appearance or an existing print. A `product`
+// object (measured client-side by the imageInput handler in studio.js,
+// corrected by the user in that node's panel) travels WITH the image
+// value; the prompt assistant turns it into the mandatory FIRST
+// section of the generation prompt, and the QC step (studio.js)
+// compares the generated garment colour against it before compositing.
+
+/** Small named-colour palette for naming a MEASURED dominant colour.
+ * The RGB anchors are approximate centres of each colour family — used
+ * for nearest-name lookup and colour-distance math only, never
+ * presented as exact product data. */
+export const NAMED_COLORS = [
+  { key: 'trang', vi: 'Trắng', en: 'white', rgb: [244, 244, 242] },
+  { key: 'den', vi: 'Đen', en: 'black', rgb: [35, 35, 38] },
+  { key: 'do', vi: 'Đỏ', en: 'red', rgb: [196, 44, 48] },
+  { key: 'be', vi: 'Be', en: 'beige', rgb: [216, 195, 165] },
+  { key: 'xam', vi: 'Xám', en: 'grey', rgb: [143, 149, 155] },
+  { key: 'navy', vi: 'Xanh navy', en: 'navy blue', rgb: [43, 58, 85] },
+  { key: 'xanh-duong', vi: 'Xanh dương', en: 'blue', rgb: [52, 96, 164] },
+  { key: 'xanh-la', vi: 'Xanh lá', en: 'green', rgb: [62, 128, 66] },
+  { key: 'vang', vi: 'Vàng', en: 'yellow', rgb: [232, 190, 60] },
+  { key: 'hong', vi: 'Hồng', en: 'pink', rgb: [232, 160, 180] },
+  { key: 'tim', vi: 'Tím', en: 'purple', rgb: [110, 70, 150] },
+  { key: 'nau', vi: 'Nâu', en: 'brown', rgb: [120, 78, 50] },
+  { key: 'cam', vi: 'Cam', en: 'orange', rgb: [226, 120, 40] },
+];
+export function rgbToHex(r, g, b) { const h = (v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0'); return '#' + h(r) + h(g) + h(b); }
+export function hexToRgb(hex) { const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || '')); return m ? [parseInt(m[1].slice(0, 2), 16), parseInt(m[1].slice(2, 4), 16), parseInt(m[1].slice(4, 6), 16)] : null; }
+/** Weighted RGB distance (green weighs most — human luminance bias). */
+export function colourDistanceRgb(a, b) { const dr = a[0] - b[0], dg = a[1] - b[1], db = a[2] - b[2]; return Math.sqrt(0.30 * dr * dr + 0.59 * dg * dg + 0.11 * db * db); }
+export function nearestNamedColor(r, g, b) {
+  let best = null;
+  for (const c of NAMED_COLORS) { const d = colourDistanceRgb([r, g, b], c.rgb); if (!best || d < best.distance) best = { ...c, distance: d }; }
+  return best;
+}
+/** User-editable product attributes. Pixels cannot tell these apart
+ * reliably (a collar in a hanger photo is genuinely ambiguous), so
+ * they come from fixture registry metadata or the user's panel
+ * selects — '' means "not specified", and the prompt then says
+ * "as shown in the reference image" instead of inventing a value. */
+export const PRODUCT_OPTIONS = {
+  collar: { 'co-tron': { vi: 'Cổ tròn', en: 'a round crew-neck collar' }, 'co-v': { vi: 'Cổ chữ V', en: 'a V-neck collar' }, 'polo': { vi: 'Cổ polo (có khuy)', en: 'a polo collar with buttons' }, 'co-tim': { vi: 'Cổ tim', en: 'a scoop-neck collar' } },
+  sleeve: { 'tay-ngan': { vi: 'Tay ngắn', en: 'short sleeves' }, 'tay-dai': { vi: 'Tay dài', en: 'long sleeves' }, 'ba-lo': { vi: 'Ba lỗ (không tay)', en: 'sleeveless armholes' } },
+  fit: { 'regular': { vi: 'Regular fit (vừa người)', en: 'a regular fit' }, 'oversize': { vi: 'Oversize (rộng boxy)', en: 'an oversized boxy fit' }, 'om': { vi: 'Ôm (slim fit)', en: 'a slim fit' } },
+};
+/** Registry metadata for the shop's own product fixtures: collar /
+ * sleeve / fit are RECORDED facts about these known files (the shop's
+ * P2/P3 garment records describe crew-neck short-sleeve regular tees),
+ * not pixel guesses. Uploads get '' (unspecified) unless the user sets
+ * them in the imageInput panel. */
+export const FIXTURE_PRODUCT = {
+  'public/fixtures/real-tee/crew-white-hanger.webp': { collar: 'co-tron', sleeve: 'tay-ngan', fit: 'regular' },
+  'public/fixtures/real-tee/crew-black-hanger.webp': { collar: 'co-tron', sleeve: 'tay-ngan', fit: 'regular' },
+  'public/fixtures/real-tee/crew-white-back-worn.webp': { collar: 'co-tron', sleeve: 'tay-ngan', fit: 'regular' },
+  'public/fixtures/real-tee/crew-white-flatlay.webp': { collar: 'co-tron', sleeve: 'tay-ngan', fit: 'regular' },
+};
+/**
+ * Merge a product object from (a) client-side MEASUREMENT (dominant
+ * colour + print heuristic + dimensions, computed in studio.js),
+ * (b) fixture registry metadata, (c) the user's panel corrections
+ * (highest priority). Nothing is invented: unknown attributes stay ''.
+ * `user.hasPrint` arrives as '' | 'true' | 'false' from the panel.
+ */
+export function mergeProduct({ measured = null, fixturePath = '', user = {} } = {}) {
+  const meta = FIXTURE_PRODUCT[fixturePath] || {};
+  const u = user || {};
+  const named = NAMED_COLORS.find(c => c.key === (u.colorKey || measured?.colorKey)) || null;
+  const colorHex = measured?.hex || (named ? rgbToHex(named.rgb[0], named.rgb[1], named.rgb[2]) : '');
+  return {
+    colorKey: named?.key || '', colorVi: named?.vi || '', colorEn: named?.en || '',
+    colorHex, measuredHex: measured?.hex || '', measuredNameVi: measured?.colorVi || '',
+    collar: u.collar || meta.collar || '', sleeve: u.sleeve || meta.sleeve || '', fit: u.fit || meta.fit || '',
+    hasPrint: u.hasPrint === 'true' ? true : u.hasPrint === 'false' ? false : (measured ? !!measured.hasPrint : null),
+    width: measured?.width || 0, height: measured?.height || 0,
+    source: fixturePath ? 'fixture' : 'upload',
+  };
+}
+function productAttrEn(product, group, key) { return key && PRODUCT_OPTIONS[group][key] ? PRODUCT_OPTIONS[group][key].en : 'as shown in the reference image'; }
+/** Section 1 — Product Identity WITH a reference: mandatory-preservation
+ * language; the garment is data, not a suggestion. */
+export function productIdentityText(product) {
+  const color = product.colorEn || 'the colour shown in the reference image';
+  return `Use the supplied product reference image as the mandatory garment reference. Preserve the exact original garment color, shape, collar, sleeves, fabric appearance and design. Do not replace the ${color} T-shirt with any other garment. The product is a ${color} T-shirt${product.measuredHex ? ` (measured dominant garment colour ${product.measuredHex})` : ''} with ${productAttrEn(product, 'collar', product.collar)}, ${productAttrEn(product, 'sleeve', product.sleeve)} and ${productAttrEn(product, 'fit', product.fit)}. ${product.hasPrint ? 'The reference garment carries an EXISTING print — preserve that print exactly as it is; do not redraw, move, resize or remove it.' : 'The reference garment is PLAIN — do not add any print, logo, text or graphic to it.'} You may change ONLY the model, the scene, the lighting and the camera angle — never the garment itself.`;
+}
+/** Section 6 — colour-aware negative: the two palette colours FARTHEST
+ * from the product colour are named explicitly (a black product gets
+ * "No white shirt"), on top of the fixed identity prohibitions. */
+export function productNegativeText(product) {
+  const rgb = product.colorHex ? hexToRgb(product.colorHex) : null;
+  const wrong = NAMED_COLORS.filter(c => c.key !== product.colorKey)
+    .map(c => ({ en: c.en, d: rgb ? colourDistanceRgb(rgb, c.rgb) : 0 }))
+    .sort((a, b) => b.d - a.d).slice(0, 2).map(c => `No ${c.en} shirt`).join(', ');
+  return `No color change, ${wrong}, No garment replacement, No different collar, No different sleeve design, No invented garment graphics, No alteration of original product identity, No print added, removed or redrawn, No watermark`;
+}
+/**
+ * The SEVEN ordered prompt sections (owner's P4.6 standard):
+ * 1 Product Identity · 2 Model Generation · 3 Scene · 4 Lighting ·
+ * 5 Camera · 6 Negative · 7 Quality Control. With a product, section 1
+ * is the mandatory-preservation identity; without one it is the P4.1
+ * plain-garment identity (same prohibitions). A generic prompt like
+ * "Create a beautiful fashion model wearing a T-shirt" can no longer
+ * be produced: every path fills all seven sections.
+ */
+export function buildPromptSections(cfg = {}, basePrompt = '', product = null) {
   const g = garmentParams(cfg);
-  if (cfg.catalogPrompt) return catalogPromptFor(cfg);
   const pickEn = (group, key) => PROMPT_OPTIONS_EN[group]?.[key] || '';
-  const garmentSentence = cfg.model === 'khong-nguoi'
-    ? `a PLAIN ${g.colorEn} ${g.styleEn} cotton t-shirt on a clean display, completely blank`
-    : `${pickEn('model', cfg.model) || 'a young model'} wearing a PLAIN ${g.colorEn} ${g.styleEn} cotton t-shirt, completely blank`;
-  const parts = [
-    'Professional commercial fashion photography',
-    garmentSentence,
-    `${g.view === 'ba-phan-tu' ? 'Three-quarter view' : 'Front view'} — the chest area of the t-shirt is clearly visible, large, flat and completely unobstructed`,
-    pickEn('style', cfg.style), pickEn('background', cfg.background), pickEn('lighting', cfg.lighting),
-    String(basePrompt || '').trim(), String(cfg.extra || '').trim(),
-    'Strict requirements: the t-shirt has absolutely NO print, NO logo, NO text, NO letters and NO graphics anywhere on it. Do NOT change the garment into a jacket, coat, hoodie, traditional clothing, dress or any other type of clothing — it must remain a plain cotton t-shirt. NO accessories (necklace, bag, strap, scarf, open jacket) may cover the chest/print area. Realistic cotton fabric texture, sharp focus',
-  ].filter(Boolean).map(s => s.replace(/[.\s]+$/, ''));
-  return parts.join('. ') + '.';
+  const catalog = !!cfg.catalogPrompt;
+  let identity, negative;
+  if (product) {
+    identity = productIdentityText(product);
+    negative = productNegativeText(product);
+  } else {
+    identity = `The garment is a PLAIN ${g.colorEn} ${g.styleEn} cotton t-shirt, completely blank. The t-shirt has absolutely NO print, NO logo, NO text, NO letters and NO graphics anywhere on it. Do NOT change the garment into a jacket, coat, hoodie, traditional clothing, dress or any other type of clothing — it must remain a plain cotton t-shirt. NO accessories (necklace, bag, strap, scarf, open jacket) may cover the chest/print area.`;
+    negative = 'No print, no logo, no text, no letters and no graphics on the garment; no garment-type change (no jacket, no coat, no hoodie, no dress); no accessories covering the chest area; no watermark';
+  }
+  let model, scene, lighting, camera;
+  if (catalog) {
+    // Template 1 framing (the owner's e-commerce standard), kept when a
+    // reference turns the verbatim template into the sectioned prompt.
+    model = product
+      ? 'Medium half-body shot from head to hip of a young Vietnamese model standing upright facing camera, wearing the exact reference garment from the Product Identity section, full t-shirt torso, sleeves and bottom hem clearly visible in frame, hands relaxed in pockets, flat smooth chest fabric area'
+      : `${pickEn('model', cfg.model) || 'a young Vietnamese model'} wearing a PLAIN ${g.colorEn} ${g.styleEn} cotton t-shirt, completely blank`;
+    scene = 'Clean light grey seamless studio backdrop';
+    lighting = 'Soft even commercial studio lighting';
+    camera = 'Shot at chest height, 85mm lens, photorealistic lookbook quality, sharp fabric texture';
+  } else {
+    model = cfg.model === 'khong-nguoi'
+      ? 'No model — the garment is presented on a clean display'
+      : product
+        ? `${pickEn('model', cfg.model) || 'a young model'} wearing the exact reference garment from the Product Identity section`
+        : `${pickEn('model', cfg.model) || 'a young model'} wearing a PLAIN ${g.colorEn} ${g.styleEn} cotton t-shirt, completely blank`;
+    scene = [pickEn('style', cfg.style), pickEn('background', cfg.background), String(basePrompt || '').trim(), String(cfg.extra || '').trim()].filter(Boolean).join('. ') || 'Professional studio product photography setting';
+    lighting = pickEn('lighting', cfg.lighting) || 'soft diffused studio lighting';
+    camera = `${g.view === 'ba-phan-tu' ? 'Three-quarter view' : 'Front view'} — the chest area of the t-shirt is clearly visible, large, flat and completely unobstructed`;
+  }
+  const qc = product
+    ? `Before finishing, verify the result against the reference image: the garment must still be the same ${product.colorEn || ''} T-shirt with the same collar, sleeves, fit and fabric appearance. If the garment colour or identity differs from the reference, the image is WRONG. Realistic cotton fabric texture, sharp focus, photorealistic, high resolution`
+    : 'Realistic cotton fabric texture, sharp focus, photorealistic, high resolution. The garment in the result must still be exactly the garment described in the Product Identity section — same colour, same collar, same sleeves, same fit';
+  return { identity, model, scene, lighting, camera, negative, qc };
+}
+/** Assemble the seven sections into the single prompt text sent to a
+ * provider. URL-param APIs (Pollinations) have NO negative-prompt
+ * field, so section 6 travels inside the text as the labelled
+ * "AVOID (negative prompt)" segment — see docs/AI_STUDIO_PROMPT_STANDARD.md. */
+export function assemblePromptText(sections) {
+  const s = sections || {};
+  return [
+    'Professional commercial fashion photography. The PRODUCT IDENTITY section below is mandatory and outranks every other instruction in this prompt.',
+    `[1] PRODUCT IDENTITY: ${s.identity || ''}`,
+    `[2] MODEL: ${s.model || ''}`,
+    `[3] SCENE: ${s.scene || ''}`,
+    `[4] LIGHTING: ${s.lighting || ''}`,
+    `[5] CAMERA: ${s.camera || ''}`,
+    `[6] AVOID (negative prompt): ${s.negative || ''}`,
+    `[7] QUALITY CONTROL: ${s.qc || ''}`,
+  ].join('\n');
+}
+/**
+ * Safety net at the generation node: when a reference product exists
+ * but the incoming prompt value does NOT carry it (an old graph whose
+ * promptAssistant has no product wire, or a plain promptInput), rebuild
+ * the mandatory identity + negative sections from the product and put
+ * identity FIRST — a real call must never go out with a prompt that
+ * ignores the product. Returns the (possibly rebuilt) prompt value.
+ */
+export function finalizePromptForReference(promptValue, product) {
+  if (!product) return promptValue || null;
+  const pv = (promptValue && typeof promptValue === 'object') ? promptValue : { kind: 'prompt', text: String(promptValue || '') };
+  if (pv.product && pv.sections?.identity) return pv;
+  const identity = productIdentityText(product);
+  const negative = productNegativeText(product);
+  const baseText = String(pv.text || '').trim();
+  const text = baseText.includes('[1] PRODUCT IDENTITY')
+    ? baseText
+    : ['Professional commercial fashion photography. The PRODUCT IDENTITY section below is mandatory and outranks every other instruction in this prompt.', `[1] PRODUCT IDENTITY: ${identity}`, baseText, `[6] AVOID (negative prompt): ${negative}`].filter(Boolean).join('\n');
+  return { ...pv, kind: 'prompt', text, product, sections: { ...(pv.sections || {}), identity, negative }, finalizedForReference: true };
+}
+/** QC colour gate (P4.6): the generated garment's dominant colour may
+ * drift at most this weighted-RGB distance from the product's measured
+ * colour before the QC verdict becomes 'warn'. Calibrated on the shop
+ * fixtures: same-garment photos measure ~20–60; black↔white ≈ 208;
+ * red↔white ≈ 164 — 90 sits between "same colour, different light" and
+ * "a different garment colour". It is a heuristic alarm, NOT a proof. */
+export const QC_COLOR_WARN_DISTANCE = 90;
+export function qcColourVerdict(productHex, outputHex) {
+  const a = hexToRgb(productHex), b = hexToRgb(outputHex);
+  if (!a || !b) return null;
+  const distance = colourDistanceRgb(a, b);
+  return { distance: Math.round(distance * 10) / 10, pass: distance <= QC_COLOR_WARN_DISTANCE };
 }
 
 // ---------- SVG safety ----------
@@ -426,16 +615,16 @@ export function aiModelBaseFor(garment) {
  * NEVER be silently reused after an upgrade — the chained config/input
  * hash alone does not cover code behaviour. Bump on any behaviour
  * change that alters node outputs for identical configs/inputs. */
-export const AI_STUDIO_BUILD = 'p45';
+export const AI_STUDIO_BUILD = 'p46';
 /** Template 1's own version. Template-1-derived projects carry
  * meta {templateId:'tpl1', tplVersion} (stamped by the template factory
  * and threaded through save/draft/version snapshots). On load, a
  * project whose marker is older is refreshed by refreshTpl1Graph. */
-export const TPL1_VERSION = 5;
+export const TPL1_VERSION = 6;
 /** Template 2's own version (P4.5) — same refresh-on-load contract as
  * Template 1: tpl2-derived projects carry meta {templateId:'tpl2',
  * tplVersion} and older copies are refreshed by refreshTpl2Graph. */
-export const TPL2_VERSION = 1;
+export const TPL2_VERSION = 2;
 /** The current Template 1 default print quad = the torso-rule quad of
  * the default garment case (white crew → the approved AI model base). */
 export const TPL1_DEFAULT_QUAD_PATH = 'public/fixtures/ai-model/model-white-crew.webp';
@@ -487,6 +676,14 @@ export function refreshTpl1Graph(graph) {
     g.edges = [...(g.edges || []), { id: uid('edge'), from: imgN.id, to: genN.id, toPort: 'image' }];
     notes.push('Tạo ảnh AI: đã nối dây Ảnh đầu vào → cổng "image / reference_image" để ảnh tham chiếu thật sự tham gia quá trình tạo ảnh (P4.5)');
   }
+  // P4.6: wire Ảnh đầu vào → promptAssistant's product-analysis port, so
+  // the prompt's Product Identity section is built from the ANALYSED
+  // product (not from the assistant's garment-param defaults).
+  const paN = (g.nodes || []).find(n => n.type === 'promptAssistant');
+  if (imgN && paN && !g.edges.some(e => e.to === paN.id && e.toPort === 'image')) {
+    g.edges = [...(g.edges || []), { id: uid('edge'), from: imgN.id, to: paN.id, toPort: 'image' }];
+    notes.push('Trợ lý prompt: đã nối Ảnh đầu vào → cổng "Ảnh sản phẩm (phân tích)" để prompt mang đúng định danh sản phẩm thật (P4.6)');
+  }
   g.meta = { ...g.meta, tplVersion: TPL1_VERSION };
   return { graph: g, refreshed: true, notes };
 }
@@ -509,6 +706,7 @@ export function refreshTpl2Graph(graph) {
   const imgN = (g.nodes || []).find(n => n.type === 'imageInput');
   const genN = (g.nodes || []).find(n => n.type === 'aiImageGen');
   if (imgN && genN) {
+    notes.push('Mẫu 2 lên phiên bản P4.6: mọi đầu ra bám theo đúng MỘT ảnh sản phẩm tham chiếu + thông tin sản phẩm đã phân tích; node Tạo ảnh AI áp dụng cùng quy tắc ảnh tham chiếu như Mẫu 1');
     const varEdge = (g.edges || []).find(e => e.to === genN.id && e.toPort === 'image' && e.from !== imgN.id);
     if (varEdge) {
       varEdge.from = imgN.id;
@@ -538,6 +736,14 @@ export const TEMPLATES = [
   // preview → export. (Pre-P4.1 the composition ran BEFORE aiImageGen and
   // its pixel-accurate result was fed into a text-to-image node and thrown
   // away — root cause #1 of the wrong output.)
+  // P4.6: imageInput ALSO feeds promptAssistant's product-analysis
+  // port (img → pa.image): the image value carries a measured
+  // `product` object, the assistant builds the prompt's Product
+  // Identity section from it, and aiImageGen treats the reference as
+  // the highest-authority data (DEMO = the photo itself; text-only
+  // real models refuse rather than silently ignoring it; a QC colour
+  // check compares real outputs against the product before
+  // compositing). Template version 6.
   // P4.5 (supersedes the P4.1–P4.4 "not wired" note): the imageInput
   // node IS wired into aiImageGen's image / reference_image port — the
   // owner's bug report was that changing its photo changed nothing.
@@ -572,7 +778,7 @@ export const TEMPLATES = [
     ['composition', 620, 140, { mode: 'perspective', quad: AI_MODEL_QUADS[TPL1_DEFAULT_QUAD_PATH].map(p => [...p]), wrinkle: 35, shading: 45, garmentSource: 'ai', realBase: 'public/fixtures/real-tee/crew-white-hanger.webp' }, 'comp'],
     ['preview', 900, 140, {}, 'prev'],
     ['exportNode', 1160, 140, { format: 'png', channels: ['website'] }, 'exp'],
-  ], [['pin', 'pa', 'in'], ['pa', 'gen', 'prompt'], ['img', 'gen', 'image'], ['gen', 'comp', 'garment'], ['des', 'comp', 'design'], ['comp', 'prev', 'in'], ['prev', 'exp', 'in']]); g.meta = { templateId: 'tpl1', tplVersion: TPL1_VERSION }; return g; } },
+  ], [['pin', 'pa', 'in'], ['pa', 'gen', 'prompt'], ['img', 'gen', 'image'], ['img', 'pa', 'image'], ['gen', 'comp', 'garment'], ['des', 'comp', 'design'], ['comp', 'prev', 'in'], ['prev', 'exp', 'in']]); g.meta = { templateId: 'tpl1', tplVersion: TPL1_VERSION }; return g; } },
   // P4.5: aiImageGen's image / reference_image port is wired STRAIGHT
   // to the imageInput node (pre-P4.5 it was fed by aiVariation, so the
   // generation node never saw the raw product photo). The variation

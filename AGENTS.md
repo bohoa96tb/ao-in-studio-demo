@@ -376,3 +376,66 @@ version change (still v2; cache records only gained sourcePath/
 sourceUrl fields). New suites: tests/ai-studio-p45.test.mjs (unit)
 + tests/ai-studio-p45.mjs (browser, all providers mocked — never a
 real call).
+P4.6 (2026-11-15, branch feature/ai-studio-p46): redesign after the
+owner's live report that Template 1 with a BLACK tee in Ảnh đầu vào
+still produced a WHITE tee on P4.5. Audit (docs/AI_STUDIO_QA_REPORT.md
+P4.6 section, reproduced through the real UI path) found the exact
+mechanisms: (1) graphs WITHOUT a template meta stamp (pre-P4.2 saves,
+hand-built, meta-less imports) never gained the P4.5 wire on load —
+both refresh functions are meta-gated — so aiImageGen received
+nothing and DEMO used the prompt's default WHITE garment params;
+(2) returning phones ran STALE MODULES: studio.html had loaded
+`studio.js?v=aistudio41` frozen since P4.1 and every internal ES
+import was unversioned, while Pages serves max-age=600 — the P4.5
+title ran P4.4's modules (the repo's no-store test server can never
+observe this); (3) imageInput's two sources (fixture select vs
+upload) could diverge silently; the DEMO params branch was checked
+before the reference branch; text-only models with a wired reference
+logged and proceeded. Standing rules from P4.6: the PRODUCT
+REFERENCE IS THE HIGHEST-AUTHORITY DATA — AI may change model /
+scene / lighting / camera only, never garment colour, collar,
+sleeves, fit, fabric or an existing print. imageInput values carry a
+`product` object (dominant colour MEASURED as the centre-region
+per-channel median + named via NAMED_COLORS in core.js; an
+existing-print HEURISTIC — far-from-median AND chroma-different,
+calibrated on the fixtures, always labelled a heuristic; collar /
+sleeve / fit NEVER guessed from pixels — FIXTURE_PRODUCT registry
+metadata or the user's panel corrections in `config.product`, else
+"as shown in the reference image"). One current image source at a
+time (fixture pick clears the upload and vice versa). Prompts are
+built as SEVEN ordered sections (buildPromptSections /
+assemblePromptText in core.js; standard in
+docs/AI_STUDIO_PROMPT_STANDARD.md): Product Identity FIRST with
+mandatory-preservation wording filled from the product, colour-aware
+Negative (a black product gets "No white shirt"); promptAssistant
+has an `image` analysis port and Template 1 wires img→pa;
+aiImageGen runs finalizePromptForReference as a safety net. The
+no-reference catalog path stays the owner's verbatim template
+(byte-identical approved DEMO exports). Reference rules per mode:
+DEMO output IS the reference photo (checked first, unconditionally);
+Cloudflare klein gets the real bytes + the identity-first prompt;
+keyed klein/kontext keep the public-URL-only rule; TEXT-ONLY models
+(schnell, flux, zimage, Classic sana) with a reference wired now
+FAIL with a clear Vietnamese error and send ZERO requests (this
+supersedes P4.5's log-and-proceed; the p45 CLASSIC phase was updated
+with a supersede note). A QC step compares every generated output's
+dominant colour against the product (weighted distance, warn > 90):
+the verdict rides the value into composition / preview / export and
+the run record; in composition strict mode a QC colour failure
+engages the framing-guard-style fallback — preferring the ORIGINAL
+REFERENCE PHOTO, then the approved base for the product colour —
+with honest labelling. `ensureReferenceWiring` adds any missing
+reference wires to EVERY graph on load/import (meta or not) with a
+cache purge + log; TPL1_VERSION is 6, TPL2_VERSION is 2. EVERY
+ai-studio import specifier and studio.html's script/css URLs carry
+`?v=aistudio46` matching AI_STUDIO_BUILD 'p46' — a unit test guards
+this; never ship an unversioned module URL again. Cache-miss reasons
+name the reference image before other ports (a prompt change caused
+by an image change is downstream of it). No IndexedDB version
+change (still v2; cache records gained product/qc/sections fields).
+New suites: tests/ai-studio-p46.test.mjs (unit) +
+tests/ai-studio-p46.mjs (browser: 4 products × Template 1 DEMO,
+Template 2 black/printed, mocked-Cloudflare identity+QC, text-only
+refusals, meta-less legacy project; test fixtures
+tests/fixtures/tee-red.png + tee-printed.png are synthetic TEST
+fixtures — never add them to the app's customer-facing fixtures).

@@ -233,5 +233,5 @@ test('P4.4 key hygiene: keys cannot leak into a serialised project, and no persi
 
 // ---------- build marker ----------
 test('P4.4 build marker — AI_STUDIO_BUILD is p44 (or a later bump)', () => {
-  assert.ok(AI_STUDIO_BUILD === 'p44' || AI_STUDIO_BUILD === 'p45', 'marker is p44 or a later bump, got ' + AI_STUDIO_BUILD);
+  assert.ok(AI_STUDIO_BUILD === 'p44' || AI_STUDIO_BUILD === 'p45' || AI_STUDIO_BUILD === 'p46', 'marker is p44 or a later bump, got ' + AI_STUDIO_BUILD);
 });

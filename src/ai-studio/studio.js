@@ -2,12 +2,12 @@
 // workflow execution via engine.js, project persistence in IndexedDB
 // `ao-in-ai-studio`. AI nodes run the DEMO adapter until a real provider is
 // configured; every demo output is visibly labelled.
-import { NODE_DEFS, NODE_TYPES, TEMPLATES, emptyGraph, makeNode, findNode, validateConnection, buildPrompt, garmentParams, garmentSummaryVi, GARMENT_OPTIONS, DEMO_FIGURE, PHOTO_BASES, photoBaseFor, AI_MODEL_BASES, aiModelBaseFor, refreshTpl1Graph, refreshTpl2Graph, AI_STUDIO_BUILD, PROMPT_OPTIONS, PROMPT_TEMPLATES, checkSvgSafety, zipWrite, zipRead, uid, SAMPLE_DESIGN_SVG } from './core.js';
-import { Engine, downstreamOf, upstreamOf } from './engine.js';
-import { nodeCacheKey, isCacheable, RunQueue, validateWorkflow, collectReferencedAssetIds, findOrphanAssets, pruneOldest, formatDuration, fingerprintBlob, hashOf, configForKey } from './p2.js';
-import { DemoAdapter, HttpAdapter, PollinationsClassicAdapter, PollinationsKeyedAdapter, CloudflareAdapter, setSessionKey, hasSessionKey, setCfSessionKey, hasCfSessionKey, normalizeWorkerUrl, CF_MODEL_KLEIN, BROWSER_KEY_WARNING, POLLINATIONS_KEY_WARNING, AUTO_TOPUP_WARNING, COMMERCIAL_USE_NOTE, PROVIDERS, providerById, modelOf, isRunnableModel, isQuotaModel, resolveGenerationMode, suppressRetryForMode, sizeForRatio, estimateGenerationCost, describePlannedCalls, describeProvider } from './providers.js';
-import { solveHomography, applyHomography, UNIT_SQUARE, rectToQuad, presetQuadFor, migrateCompositionConfig, torsoQuadFor, framingAspectClass, passesHalfBodyFraming, fieldMean, displacementAt, buildWarpGrid, fitInto, channelFitMode, CHANNEL_PRESETS, channelPreset, channelFileName, GARMENT_QUADS } from './warp.js';
-import { store, storageEstimate } from './store.js';
+import { NODE_DEFS, NODE_TYPES, TEMPLATES, emptyGraph, makeNode, findNode, validateConnection, buildPrompt, buildPromptSections, assemblePromptText, finalizePromptForReference, garmentParams, garmentSummaryVi, GARMENT_OPTIONS, NAMED_COLORS, PRODUCT_OPTIONS, mergeProduct, nearestNamedColor, rgbToHex, hexToRgb, colourDistanceRgb, qcColourVerdict, DEMO_FIGURE, PHOTO_BASES, photoBaseFor, AI_MODEL_BASES, aiModelBaseFor, refreshTpl1Graph, refreshTpl2Graph, AI_STUDIO_BUILD, PROMPT_OPTIONS, PROMPT_TEMPLATES, checkSvgSafety, zipWrite, zipRead, uid, SAMPLE_DESIGN_SVG } from './core.js?v=aistudio46';
+import { Engine, downstreamOf, upstreamOf } from './engine.js?v=aistudio46';
+import { nodeCacheKey, isCacheable, RunQueue, validateWorkflow, collectReferencedAssetIds, findOrphanAssets, pruneOldest, formatDuration, fingerprintBlob, hashOf, configForKey } from './p2.js?v=aistudio46';
+import { DemoAdapter, HttpAdapter, PollinationsClassicAdapter, PollinationsKeyedAdapter, CloudflareAdapter, setSessionKey, hasSessionKey, setCfSessionKey, hasCfSessionKey, normalizeWorkerUrl, CF_MODEL_KLEIN, BROWSER_KEY_WARNING, POLLINATIONS_KEY_WARNING, AUTO_TOPUP_WARNING, COMMERCIAL_USE_NOTE, PROVIDERS, providerById, modelOf, isRunnableModel, isQuotaModel, resolveGenerationMode, suppressRetryForMode, sizeForRatio, estimateGenerationCost, describePlannedCalls, describeProvider } from './providers.js?v=aistudio46';
+import { solveHomography, applyHomography, UNIT_SQUARE, rectToQuad, presetQuadFor, migrateCompositionConfig, torsoQuadFor, framingAspectClass, passesHalfBodyFraming, fieldMean, displacementAt, buildWarpGrid, fitInto, channelFitMode, CHANNEL_PRESETS, channelPreset, channelFileName, GARMENT_QUADS } from './warp.js?v=aistudio46';
+import { store, storageEstimate } from './store.js?v=aistudio46';
 
 const $ = (s) => document.querySelector(s);
 const FIXTURES = [
@@ -49,8 +49,101 @@ const loadImg = (src) => new Promise((res, rej) => { const i = new Image(); i.on
 async function blobToImg(blob) { const url = URL.createObjectURL(blob); try { return await loadImg(url); } finally { /* keep url alive during draw; revoked by GC of blob url pool */ } }
 const canvasBlob = (c, type = 'image/png', q = 0.92) => new Promise(r => c.toBlob(r, type, q));
 function makeCanvas(w, h) { const c = document.createElement('canvas'); c.width = Math.max(2, Math.round(w)); c.height = Math.max(2, Math.round(h)); return c; }
-function valueFromBlob(blob, kind, extra = {}) { return { kind, blob, url: URL.createObjectURL(blob), mime: blob.type, name: extra.name || 'ket-qua', demo: !!extra.demo, label: extra.label || '', svgText: extra.svgText || '', baseQuad: extra.baseQuad || null, photoBase: extra.photoBase || '', baseKind: extra.baseKind || '', garment: extra.garment || null, realAi: !!extra.realAi, sourcePath: extra.sourcePath || '', sourceUrl: extra.sourceUrl || '' }; }
+function valueFromBlob(blob, kind, extra = {}) { return { kind, blob, url: URL.createObjectURL(blob), mime: blob.type, name: extra.name || 'ket-qua', demo: !!extra.demo, label: extra.label || '', svgText: extra.svgText || '', baseQuad: extra.baseQuad || null, photoBase: extra.photoBase || '', baseKind: extra.baseKind || '', garment: extra.garment || null, realAi: !!extra.realAi, sourcePath: extra.sourcePath || '', sourceUrl: extra.sourceUrl || '', product: extra.product || null, qc: extra.qc || null }; }
 async function fetchBlob(url) { const r = await fetch(url); if (!r.ok) throw new Error('Không tải được file: ' + url); return r.blob(); }
+
+// ---------- P4.6: product analysis (measured, never invented) + QC ----------
+// The analysis measures ONLY what pixels can honestly support:
+//  - the DOMINANT GARMENT COLOUR: the per-channel MEDIAN colour of the
+//    centre region (x 30–70%, y 30–70%) of the photo. The median (not
+//    the mean) keeps a chest print covering <50% of the region from
+//    dragging the garment colour toward the print's colours.
+//  - an "existing print" HEURISTIC: the share of pixels in the
+//    centre-chest box (x 38–62%, y 34–52%) whose colour sits far from
+//    the garment median. Labelled a heuristic everywhere it is shown —
+//    shadows, hangers and busy backgrounds can fool it, and the user
+//    can override it in the panel.
+//  - pixel dimensions.
+// Collar / sleeve / fit are NEVER guessed from pixels: they come from
+// fixture registry metadata (FIXTURE_PRODUCT in core.js) or the user's
+// panel selects, merged by mergeProduct. Results are memoised per blob
+// (blobs are immutable) so re-runs and panel renders stay cheap.
+const analysisMemo = new WeakMap();
+function analyzeProductImage(blob) {
+  let p = analysisMemo.get(blob);
+  if (!p) { p = measureProductImage(blob).catch(() => null); analysisMemo.set(blob, p); }
+  return p;
+}
+async function measureProductImage(blob) {
+  const img = await blobToImg(blob);
+  const S = 96;
+  const c = makeCanvas(S, S), x = c.getContext('2d');
+  x.drawImage(img, 0, 0, S, S);
+  const d = x.getImageData(0, 0, S, S).data;
+  const px = (xx, yy) => { const i = (yy * S + xx) * 4; return [d[i], d[i + 1], d[i + 2]]; };
+  const rs = [], gs = [], bs = [];
+  for (let yy = Math.floor(S * 0.30); yy < S * 0.70; yy++) for (let xx = Math.floor(S * 0.30); xx < S * 0.70; xx++) { const [r, g, b] = px(xx, yy); rs.push(r); gs.push(g); bs.push(b); }
+  const med = (arr) => { const s = [...arr].sort((a, b) => a - b); return s[Math.floor(s.length / 2)]; };
+  const mr = med(rs), mg = med(gs), mb = med(bs);
+  const named = nearestNamedColor(mr, mg, mb);
+  // Print heuristic, calibrated on the shop fixtures + the P4.6 test
+  // fixtures (measured 2026-11-15): a chest pixel counts as "print"
+  // only when it is BOTH far from the garment median (weighted distance
+  // > 70) AND different in chroma (|Δchroma| > 30) — folds and shadows
+  // differ mostly in luminance, a print introduces a different hue.
+  // Ratios: plain white hanger 0.000, plain black hanger 0.000, red
+  // test tee 0.000, printed test tee 0.116, back-worn photo 0.007.
+  // Known false positive: the collar-detail flatlay (0.331) — its
+  // frame contains no chest at all, so the heuristic cannot apply;
+  // the panel labels it a heuristic and the user can override it.
+  const chroma = (r, g, b) => Math.max(r, g, b) - Math.min(r, g, b);
+  const medChroma = chroma(mr, mg, mb);
+  let far = 0, tot = 0;
+  for (let yy = Math.floor(S * 0.34); yy < S * 0.52; yy++) for (let xx = Math.floor(S * 0.38); xx < S * 0.62; xx++) { const [r, g, b] = px(xx, yy); tot++; if (colourDistanceRgb([r, g, b], [mr, mg, mb]) > 70 && Math.abs(chroma(r, g, b) - medChroma) > 30) far++; }
+  const printRatio = tot ? far / tot : 0;
+  return { hex: rgbToHex(mr, mg, mb), colorKey: named.key, colorVi: named.vi, hasPrint: printRatio > 0.06, printRatio: Math.round(printRatio * 100) / 100, width: img.width, height: img.height };
+}
+/** The full product object for an imageInput value: measurement +
+ * fixture metadata + the user's panel corrections (mergeProduct). */
+async function productForBlob(blob, fixturePath, userCfg) {
+  const measured = await analyzeProductImage(blob);
+  return mergeProduct({ measured, fixturePath: fixturePath || '', user: userCfg || {} });
+}
+/**
+ * QC step (P4.6) — compare a GENERATED image against the product
+ * reference: dominant garment-region colour distance + a dimensions
+ * sanity check. The verdict rides the value into composition /
+ * preview / export and the run history. It is an honest heuristic
+ * alarm (centre-region sampling — a busy scene can skew it), never a
+ * claim of certainty; DEMO-with-reference passes by construction
+ * (identical pixels, distance 0) but is still measured and recorded.
+ */
+async function qcForOutput(product, blob) {
+  if (!product || !(blob instanceof Blob)) return null;
+  const m = await analyzeProductImage(blob);
+  if (!m) return null;
+  const refHex = product.measuredHex || product.colorHex;
+  const v = qcColourVerdict(refHex, m.hex);
+  if (!v) return null;
+  const dimsOk = m.width >= 200 && m.height >= 200;
+  const pass = v.pass && dimsOk;
+  return {
+    verdict: pass ? 'pass' : 'warn', check: 'colour+dims',
+    productHex: refHex, outputHex: m.hex, distance: v.distance,
+    note: pass
+      ? `QC đạt: màu áo trong ảnh khớp màu sản phẩm tham chiếu (${refHex} ↔ ${m.hex}, độ lệch ${v.distance} ≤ 90)${product.hasPrint ? '; sản phẩm có hình in sẵn — hình in được giữ nguyên từ file gốc ở bước ghép' : ''}.`
+      : `QC CẢNH BÁO: màu áo trong ảnh tạo ra (${m.hex}) LỆCH rõ so với màu sản phẩm tham chiếu (${refHex}) — độ lệch ${v.distance} > 90${!dimsOk ? `; thêm: kích thước ảnh ra bất thường (${m.width}×${m.height})` : ''}. Đây là kiểm tra tự động theo vùng giữa ảnh (heuristic) — hãy xem lại ảnh trước khi dùng.`,
+  };
+}
+/** Run the QC step for a generated value and ride { product, qc } on
+ * it (composition / preview / export / run history all read them). */
+async function attachQc(value, product, log) {
+  if (!value || value.kind !== 'image' || !(value.blob instanceof Blob)) return value;
+  if (product && !value.product) value.product = product;
+  const qc = await qcForOutput(product || value.product, value.blob);
+  if (qc) { value.qc = qc; log?.(qc.note); }
+  return value;
+}
 function wrapText(ctx, text, x, y, maxW, lh) { const words = String(text).split(/\s+/); let line = '', yy = y; for (const w of words) { const t = line ? line + ' ' + w : w; if (ctx.measureText(t).width > maxW && line) { ctx.fillText(line, x, yy); line = w; yy += lh; } else line = t; } if (line) ctx.fillText(line, x, yy); return yy; }
 function drawDemoBanner(ctx, w, text = 'ẢNH DEMO — chưa kết nối AI', h = 0) { ctx.save(); const stripH = h > 0 ? Math.max(30, Math.round(h * 0.045)) : 54; const fontPx = h > 0 ? Math.round(stripH * 0.48) : 26; ctx.fillStyle = 'rgba(32,32,32,0.88)'; ctx.fillRect(0, 0, w, stripH); ctx.fillStyle = '#ffb59d'; ctx.font = `bold ${fontPx}px Arial`; ctx.textAlign = 'center'; ctx.fillText(text, w / 2, Math.round(stripH * 0.685)); ctx.restore(); }
 // P4.2 round-4 FIX (double frame): drawDemoBanner is NO LONGER used by
@@ -203,10 +296,29 @@ const demoImpl = {
   async demoImage({ prompt, image }) {
     const [rw, rh] = { '4:5': [768, 960], '1:1': [864, 864], '9:16': [720, 1280], '16:9': [1280, 720] }[prompt?.ratio || '4:5'] || [768, 960];
     const c = makeCanvas(rw, rh), x = c.getContext('2d');
+    // P4.6 — THE REFERENCE RULES, checked FIRST and UNCONDITIONALLY:
+    // whenever a reference image value reaches this node (fixture
+    // picker, upload or library asset — the value is the same shape),
+    // the DEMO output IS that photo as the garment base. Prompt garment
+    // params may NOT override it (pre-P4.6 the params branch was
+    // checked first and any gap in the image value silently degraded
+    // to the params path — one of the black→white mechanisms; see the
+    // P4.6 audit in docs/AI_STUDIO_QA_REPORT.md). A shop fixture
+    // carries its torso-rule calibrated quad (GARMENT_QUADS) so the
+    // composition lands on the chest of THAT photo; an uploaded photo
+    // has no calibration, so the value carries no baseQuad and the
+    // composition node uses its own configured quad. No wash, no
+    // caption block — the garment photo stays clean for compositing.
+    // The product analysis rides along so QC + labels stay truthful.
+    if (image?.blob) {
+      const img = await blobToImg(image.blob);
+      const c2 = makeCanvas(img.width, img.height), x2 = c2.getContext('2d');
+      x2.drawImage(img, 0, 0);
+      const quad = image.sourcePath && GARMENT_QUADS[image.sourcePath] ? GARMENT_QUADS[image.sourcePath].map(p => [...p]) : null;
+      return valueFromBlob(await canvasBlob(c2), 'image', { demo: true, baseQuad: quad, baseKind: 'input', garment: prompt?.garment || null, product: image.product || null, label: `DEMO — dùng CHÍNH ẢNH SẢN PHẨM THAM CHIẾU làm ảnh áo (chưa gọi AI)${quad ? '; vùng in theo quad đã hiệu chuẩn của ảnh này' : '; vùng in theo quad cấu hình ở node Ghép hình in'}` });
+    }
     // P4.1: garment params + NO reference image → a PLAIN-tee garment base.
-    // A wired reference image keeps the legacy P1–P4 wash behaviour
-    // (templates 2–4 unchanged).
-    if (prompt?.garment && !image?.blob) {
+    if (prompt?.garment) {
       // P4.2 ROUND 4: when an owner-approved AI-GENERATED MODEL image
       // exists for these garment params (AI_MODEL_BASES in core.js —
       // white crew / black crew / white oversize), DEMO returns THAT
@@ -253,23 +365,6 @@ const demoImpl = {
       const figQuad = torsoQuadFor(DEMO_FIGURE.landmarks[fitKey], { imgW: fw, imgH: fh });
       return valueFromBlob(await canvasBlob(fc), 'image', { demo: true, baseQuad: figQuad.map(p => [...p]), baseKind: 'figure', label: 'Ảnh DEMO mô phỏng — người mẫu VẼ bằng canvas (khung nửa người theo chuẩn thương mại điện tử) mặc áo thun TRƠN đúng màu/phom đã chọn; chưa có ảnh người mẫu cho thông số này (chưa có ảnh AI tạo đã duyệt, chưa có ảnh chụp thật đã kiểm chứng đạt chuẩn của chủ shop); hình in gốc được ghép hậu kỳ, đây không phải ảnh sản phẩm thật' });
     }
-    // P4.5: garment params + a WIRED reference image → the input image
-    // itself is the garment base (this is the fix for "đổi ảnh đầu vào
-    // mà kết quả không đổi": in DEMO the reference must visibly drive
-    // the result). A shop fixture carries its torso-rule calibrated
-    // quad (GARMENT_QUADS) so the composition lands on the chest of
-    // THAT photo; an uploaded photo has no calibration, so the value
-    // carries no baseQuad and the composition node uses its own
-    // configured quad (adjustable in its alignment editor). No wash,
-    // no caption block — the garment photo must stay clean for
-    // compositing. Honest DEMO label; the export stamp still applies.
-    if (prompt?.garment && image?.blob) {
-      const img = await blobToImg(image.blob);
-      const c2 = makeCanvas(img.width, img.height), x2 = c2.getContext('2d');
-      x2.drawImage(img, 0, 0);
-      const quad = image.sourcePath && GARMENT_QUADS[image.sourcePath] ? GARMENT_QUADS[image.sourcePath].map(p => [...p]) : null;
-      return valueFromBlob(await canvasBlob(c2), 'image', { demo: true, baseQuad: quad, baseKind: 'input', garment: prompt.garment, label: `DEMO — dùng CHÍNH ẢNH ĐẦU VÀO làm ảnh áo nền (chưa gọi AI)${quad ? '; vùng in theo quad đã hiệu chuẩn của ảnh mẫu này' : '; vùng in theo quad cấu hình ở node Ghép hình in (kéo chỉnh được trong trình căn chỉnh của node đó)'}. Hình in gốc được ghép hậu kỳ bằng file gốc.` });
-    }
     const g = x.createLinearGradient(0, 0, 0, rh); g.addColorStop(0, '#f3ead9'); g.addColorStop(1, '#d9c6a5'); x.fillStyle = g; x.fillRect(0, 0, rw, rh);
     if (image?.blob) { const img = await blobToImg(image.blob); const s = Math.max(rw / img.width, rh / img.height); x.drawImage(img, (rw - img.width * s) / 2, (rh - img.height * s) / 2, img.width * s, img.height * s); x.fillStyle = 'rgba(243,234,217,0.18)'; x.fillRect(0, 0, rw, rh); }
     // NO baked DEMO banner/border (round-4 double-frame fix, as above);
@@ -307,12 +402,12 @@ const demoImpl = {
 // when the value is served back. API keys are never part of a cache record.
 async function cachePutRecord(key, node, value) {
   if (!value || (value.kind !== 'prompt' && !(value.blob instanceof Blob))) return;
-  await store.putCache({ key, projectId, nodeId: node.id, nodeType: node.type, createdAt: Date.now(), kind: value.kind, label: value.label || '', demo: !!value.demo, name: value.name || '', mime: value.mime || '', svgText: value.svgText || '', text: value.text || '', garment: value.garment || null, catalog: !!value.catalog, baseQuad: value.baseQuad || null, photoBase: value.photoBase || '', baseKind: value.baseKind || '', realAi: !!value.realAi, sourcePath: value.sourcePath || '', sourceUrl: value.sourceUrl || '', blob: value.blob instanceof Blob ? value.blob : null });
+  await store.putCache({ key, projectId, nodeId: node.id, nodeType: node.type, createdAt: Date.now(), kind: value.kind, label: value.label || '', demo: !!value.demo, name: value.name || '', mime: value.mime || '', svgText: value.svgText || '', text: value.text || '', garment: value.garment || null, catalog: !!value.catalog, baseQuad: value.baseQuad || null, photoBase: value.photoBase || '', baseKind: value.baseKind || '', realAi: !!value.realAi, sourcePath: value.sourcePath || '', sourceUrl: value.sourceUrl || '', product: value.product || null, qc: value.qc || null, sections: value.sections || null, blob: value.blob instanceof Blob ? value.blob : null });
 }
 async function cacheGetRecord(key) {
   const r = await store.getCache(key); if (!r) return null;
-  if (r.kind === 'prompt') return { kind: 'prompt', text: r.text, garment: r.garment || null, catalog: !!r.catalog };
-  if (r.blob) return valueFromBlob(r.blob, r.kind, { name: r.name, demo: r.demo, label: r.label, svgText: r.svgText, baseQuad: r.baseQuad || null, photoBase: r.photoBase || '', baseKind: r.baseKind || '', garment: r.garment || null, realAi: !!r.realAi, sourcePath: r.sourcePath || '', sourceUrl: r.sourceUrl || '' });
+  if (r.kind === 'prompt') return { kind: 'prompt', text: r.text, garment: r.garment || null, catalog: !!r.catalog, product: r.product || null, sections: r.sections || null };
+  if (r.blob) return valueFromBlob(r.blob, r.kind, { name: r.name, demo: r.demo, label: r.label, svgText: r.svgText, baseQuad: r.baseQuad || null, photoBase: r.photoBase || '', baseKind: r.baseKind || '', garment: r.garment || null, realAi: !!r.realAi, sourcePath: r.sourcePath || '', sourceUrl: r.sourceUrl || '', product: r.product || null, qc: r.qc || null });
   return null;
 }
 /** Latest cached output per node id for this project (used to seed a resumed run). */
@@ -375,8 +470,12 @@ function studioMissReason(node) {
   if (prev.key === now.key) return 'khóa đệm không đổi nhưng kết quả đệm đã bị xóa hoặc không còn trong kho đệm';
   if (prev.build !== now.build) return `phiên bản bản dựng thay đổi (${prev.build} → ${now.build}) — kết quả đệm của bản cũ không được dùng lại`;
   if (prev.src !== now.src) return 'nội dung ảnh/tệp nguồn của node đã thay đổi (fingerprint nội dung khác)';
-  for (const port of Object.keys(now.inputs)) {
-    if (prev.inputs[port] !== now.inputs[port]) return port === 'image' ? 'ảnh đầu vào / ảnh tham chiếu đã thay đổi (fingerprint nội dung khác)' : `đầu vào ở cổng "${port}" từ node phía trước đã thay đổi`;
+  // P4.6: the reference-image port is checked FIRST — when the product
+  // image changes, downstream prompt values change BECAUSE of it (the
+  // prompt now carries the product identity), so the image is the root
+  // cause the log must name (the P4.5 owner-facing contract).
+  for (const port of ['image', ...Object.keys(now.inputs).filter(p2 => p2 !== 'image')]) {
+    if (port in now.inputs && prev.inputs[port] !== now.inputs[port]) return port === 'image' ? 'ảnh đầu vào / ảnh tham chiếu đã thay đổi (fingerprint nội dung khác)' : `đầu vào ở cổng "${port}" từ node phía trước đã thay đổi`;
   }
   if (prev.cfg !== now.cfg) return 'cấu hình node đã thay đổi';
   return 'khóa đệm đã thay đổi';
@@ -546,8 +645,48 @@ function migrateGraph(g) {
  * build-marker in every cache key), with a user-visible note — an old
  * draft can never silently resurrect pre-P4.2 behaviour.
  */
+/**
+ * P4.6 — reference wiring for EVERY loaded graph, template-stamped or
+ * not. The P4.5 refresh functions are gated on graph.meta.templateId,
+ * so a project saved before template stamps existed (or hand-built, or
+ * imported without meta) NEVER gained the imageInput → aiImageGen wire
+ * on load: the generation node then received nothing on its image port
+ * and DEMO fell back to the prompt's garment params (default WHITE
+ * crew) — the exact mechanism behind the owner's black-tee-in /
+ * white-tee-out report (reproduced in the P4.6 audit). This pass runs
+ * for every graph on load/import: if an imageInput and an aiImageGen
+ * (or promptAssistant) coexist and the port is free, the wire is added.
+ * Mutates and returns Vietnamese notes; never touches user content.
+ */
+function ensureReferenceWiring(g) {
+  const notes = [];
+  const imgN = (g.nodes || []).find(n => n.type === 'imageInput');
+  if (!imgN) return notes;
+  g.edges = g.edges || [];
+  for (const genN of g.nodes.filter(n => n.type === 'aiImageGen')) {
+    if (!g.edges.some(e => e.to === genN.id && e.toPort === 'image') && !g.edges.some(e => e.from === imgN.id && e.to === genN.id)) {
+      g.edges.push({ id: uid('edge'), from: imgN.id, to: genN.id, toPort: 'image' });
+      notes.push('Tạo ảnh AI: đã nối dây Ảnh đầu vào → cổng "image / reference_image" (P4.6 — áp dụng cho MỌI dự án, kể cả dự án cũ không có dấu phiên bản mẫu)');
+    }
+  }
+  for (const paN of g.nodes.filter(n => n.type === 'promptAssistant')) {
+    if (!g.edges.some(e => e.to === paN.id && e.toPort === 'image')) {
+      g.edges.push({ id: uid('edge'), from: imgN.id, to: paN.id, toPort: 'image' });
+      notes.push('Trợ lý prompt: đã nối Ảnh đầu vào → cổng "Ảnh sản phẩm (phân tích)" để prompt mang đúng định danh sản phẩm thật (P4.6)');
+    }
+  }
+  return notes;
+}
 async function adoptLoadedGraph(g) {
   migrateGraph(g);
+  // P4.6: universal wiring pass FIRST (covers meta-less graphs the
+  // template refreshes cannot see), with the same cache purge.
+  const wireNotes = ensureReferenceWiring(g);
+  if (wireNotes.length) {
+    for (const c of (await store.listCache()).filter(c => c.projectId === projectId)) await store.deleteCache(c.key);
+    logLine(`Đã bổ sung dây nối ảnh tham chiếu còn thiếu khi mở dự án: ${wireNotes.join('; ')}. Đã xóa kết quả đệm cũ của dự án để chạy lại theo dây nối mới.`);
+    message('Đã bổ sung dây nối Ảnh đầu vào còn thiếu (P4.6) và xóa kết quả đệm cũ.');
+  }
   const oldV = g.meta?.tplVersion || 0;
   const tplName = g.meta?.templateId === 'tpl2' ? 'Mẫu 2' : 'Mẫu 1';
   // Each refresh no-ops on the other template's graphs (meta-gated).
@@ -562,8 +701,12 @@ async function adoptLoadedGraph(g) {
 
 // ---------- node handlers ----------
 const handlers = {
-  async imageInput(node) {
-    if (node.config.assetId) { const a = await store.getAsset(node.config.assetId); if (!a) throw new Error('Không tìm thấy ảnh đã lưu trong IndexedDB.'); return valueFromBlob(a.blob, 'image', { name: a.name }); }
+  async imageInput(node, { log }) {
+    // P4.6: the value carries a `product` analysis object (measured
+    // colour/print/dimensions + registry metadata + the user's panel
+    // corrections) — the product is first-class data that flows to the
+    // prompt assistant, the generation node and the QC step.
+    if (node.config.assetId) { const a = await store.getAsset(node.config.assetId); if (!a) throw new Error('Không tìm thấy ảnh đã lưu trong IndexedDB.'); const product = await productForBlob(a.blob, '', node.config.product); log(`Phân tích sản phẩm (đo từ ảnh): màu chủ đạo ${product.colorVi || 'chưa xác định'} ${product.measuredHex}, ${product.width}×${product.height}px${product.hasPrint ? ', phát hiện có hình in sẵn (heuristic vùng ngực)' : ''}. Cổ/tay/phom: ${product.collar || 'chưa xác định — theo ảnh tham chiếu'}.`); return valueFromBlob(a.blob, 'image', { name: a.name, product }); }
     // P4.5: NO image selected (fixture cleared) is a legitimate state
     // when this node only feeds OPTIONAL ports (aiImageGen's reference
     // image): the handler yields no value, the port simply receives
@@ -572,11 +715,13 @@ const handlers = {
     // run when this node feeds a REQUIRED port while empty.
     if (!node.config.fixture) return undefined;
     const blob = await fetchBlob(node.config.fixture);
+    const product = await productForBlob(blob, node.config.fixture, node.config.product);
+    log(`Phân tích sản phẩm (đo từ ảnh): màu chủ đạo ${product.colorVi || 'chưa xác định'} ${product.measuredHex}, ${product.width}×${product.height}px${product.hasPrint ? ', phát hiện có hình in sẵn (heuristic vùng ngực)' : ''}. Cổ/tay/phom lấy từ dữ kiện đã ghi của ảnh mẫu shop${node.config.product?.collar || node.config.product?.colorKey ? ' + chỉnh tay của bạn ở panel' : ''}.`);
     // Provenance for fixture values: the repo-relative path (quad
     // calibration lookup) and the absolute same-origin URL (the ONLY
     // kind of reference URL the Pollinations keyed img2img path may
     // pass — it is a public shop file, never a user upload).
-    return valueFromBlob(blob, 'image', { name: 'anh-ao-that', label: 'Ảnh sản phẩm thực (file có sẵn của shop)', sourcePath: node.config.fixture, sourceUrl: new URL(node.config.fixture, location.href).href });
+    return valueFromBlob(blob, 'image', { name: 'anh-ao-that', label: 'Ảnh sản phẩm thực (file có sẵn của shop)', sourcePath: node.config.fixture, sourceUrl: new URL(node.config.fixture, location.href).href, product });
   },
   async designInput(node) {
     if (node.config.svgText) { const chk = checkSvgSafety(node.config.svgText); if (!chk.ok) throw new Error(chk.reason); return { kind: 'design', svgText: node.config.svgText, blob: new Blob([node.config.svgText], { type: 'image/svg+xml' }), url: URL.createObjectURL(new Blob([node.config.svgText], { type: 'image/svg+xml' })), name: node.config.assetName || 'hinh-in.svg', label: 'Hình in vector thật (SVG)' }; }
@@ -591,7 +736,21 @@ const handlers = {
   // P4.3: the prompt value also carries `catalog` (this assistant is
   // wired with the owner's verbatim catalog template — Template 1), so
   // aiImageGen can request the 2:3 catalog size class on the real path.
-  async promptAssistant(node, { inputs }) { const text = buildPrompt(node.config, inputs.in?.text || ''); node.config.composed = text; return { kind: 'prompt', text, garment: garmentParams(node.config), catalog: !!node.config.catalogPrompt }; },
+  // P4.6: the prompt value carries { text, sections, product, garment,
+  // catalog }. When the product-analysis port is wired and an image
+  // value arrives, the seven sections are built FROM THE PRODUCT
+  // (identity first, colour-aware negative) — the assistant's garment
+  // params then describe only model/scene/camera choices. Without a
+  // product, Template 1's catalog path stays the owner's verbatim
+  // template and other configs get the sectioned plain-garment prompt.
+  async promptAssistant(node, { inputs, log }) {
+    const product = inputs.image?.product || null;
+    const sections = buildPromptSections(node.config, inputs.in?.text || '', product);
+    const text = (!product && node.config.catalogPrompt) ? buildPrompt(node.config, inputs.in?.text || '') : assemblePromptText(sections);
+    node.config.composed = text;
+    if (product) log(`Prompt 7 phần theo SẢN PHẨM THAM CHIẾU: định danh = áo màu ${product.colorVi || '?'} (${product.measuredHex || product.colorHex || ''})${product.hasPrint ? ', CÓ hình in sẵn — bắt buộc giữ nguyên' : ', áo trơn — cấm thêm hình in'}; phần Product Identity đứng ĐẦU prompt và là dữ kiện bắt buộc, trên mọi mô tả cảnh/người mẫu.`);
+    return { kind: 'prompt', text, garment: garmentParams(node.config), catalog: !!node.config.catalogPrompt, sections: (!product && node.config.catalogPrompt) ? null : sections, product };
+  },
   async composition(node, { inputs, log, engine }) {
     const design = inputs.design; if (!design) throw new Error('Thiếu hình in.');
     const cfg = migrateCompositionConfig(node.config); node.config = cfg;
@@ -658,6 +817,45 @@ const handlers = {
         log(`Nền thay thế: ${ab.base.name} — vùng in theo mốc thân áo đã hiệu chuẩn của nền này; kết quả được đóng dấu DEMO vì lớp người mẫu là nền DEMO đã duyệt, không phải ảnh AI thật vừa tạo.`);
       }
     }
+    // P4.6 — QC GATE: a real-AI garment whose QC colour verdict is
+    // 'warn' (its dominant colour clearly differs from the product
+    // reference) must NEVER be composited onto silently. Strict mode
+    // (the shipped default, shared with the framing guard) refuses it:
+    // prefer the ORIGINAL REFERENCE PHOTO itself (the product — always
+    // the right colour), else the approved AI base for the product's
+    // colour; with neither available it errors honestly. 'allow' mode
+    // proceeds onto the AI image with the warning in log + label.
+    // (Skipped when the framing guard already replaced the garment.)
+    let qcNote = '';
+    let qcFallbackDemo = false;
+    if (!useReal && inputs.garment?.realAi && inputs.garment?.qc?.verdict === 'warn' && !framingFallback) {
+      const qc = inputs.garment.qc;
+      if (cfg.framingGuard === 'allow') {
+        log(`${qc.note} Kiểm tra đang ở chế độ LINH HOẠT nên vẫn ghép lên ảnh AI này theo lựa chọn của bạn.`);
+        qcNote = ' · QC: màu áo AI LỆCH màu sản phẩm tham chiếu — người dùng chọn vẫn ghép (kiểm tra: Linh hoạt)';
+      } else {
+        let refValue = null;
+        const genEdge = engine?.graph?.edges?.find(e => e.to === node.id && e.toPort === 'garment');
+        const refEdge = genEdge ? engine?.graph?.edges?.find(e => e.to === genEdge.from && e.toPort === 'image') : null;
+        if (refEdge) { const rv = engine?.outputs?.get(refEdge.from); if (rv?.blob) refValue = rv; }
+        if (refValue) {
+          log(`${qc.note} Đã KHÔNG ghép lên ảnh AI lệch màu — thay bằng CHÍNH ẢNH SẢN PHẨM GỐC (ảnh tham chiếu của bạn) để sản phẩm trong kết quả luôn đúng màu.`);
+          qcNote = ' · Ảnh AI thật lệch màu sản phẩm (QC) — đã ghép lên CHÍNH ẢNH SẢN PHẨM GỐC';
+          garmentBlob = refValue.blob;
+          g = await blobToImg(garmentBlob);
+          quadOverride = refValue.sourcePath && GARMENT_QUADS[refValue.sourcePath] ? GARMENT_QUADS[refValue.sourcePath].map(p => [...p]) : null;
+        } else {
+          const ab = inputs.garment.product ? aiModelBaseFor({ style: inputs.garment.product.fit === 'oversize' ? 'oversize' : 'co-tron', colorKey: inputs.garment.product.colorKey, view: 'chinh-dien' }) : (inputs.garment.garment ? aiModelBaseFor(inputs.garment.garment) : null);
+          if (!ab) throw new Error(`Ảnh AI thật LỆCH MÀU sản phẩm tham chiếu (QC: ${qc.note}) và không tìm được nền thay thế — không còn ảnh sản phẩm gốc trong lượt chạy này và chưa có nền người mẫu đã duyệt cho màu sản phẩm này. Hãy chuyển "Nguồn ảnh áo" sang "Ảnh mẫu thật", hoặc đặt "Kiểm tra khung hình ảnh AI thật" của node này sang "Linh hoạt" nếu bạn chấp nhận ảnh AI lệch màu.`);
+          log(`${qc.note} Đã KHÔNG ghép lên ảnh AI lệch màu — thay bằng nền người mẫu đã duyệt đúng màu sản phẩm.`);
+          qcNote = ' · Ảnh AI thật lệch màu sản phẩm (QC) — đã dùng nền người mẫu đã duyệt đúng màu';
+          qcFallbackDemo = true;
+          garmentBlob = await fetchBlob(ab.base.path);
+          g = await blobToImg(garmentBlob);
+          quadOverride = ab.quad;
+        }
+      }
+    }
     const scale = Math.min(1, 900 / g.width); const W = Math.round(g.width * scale), H = Math.round(g.height * scale);
     const c = makeCanvas(W, H), x = c.getContext('2d'); x.drawImage(g, 0, 0, W, H);
     const dImg = await blobToImg(design.blob);
@@ -668,7 +866,7 @@ const handlers = {
       const pw = W * (cfg.printW / 100), px = W * (cfg.printX / 100) - pw / 2, py = H * (cfg.printY / 100) - pw / 2;
       x.save(); x.translate(px + pw / 2, py + pw / 2); x.rotate((cfg.rotation || 0) * Math.PI / 180); const ds = Math.min(pw / dImg.width, pw / dImg.height); x.globalAlpha = Math.min(100, Math.max(50, cfg.inkOpacity ?? 95)) / 100; x.drawImage(dImg, -dImg.width * ds / 2, -dImg.height * ds / 2, dImg.width * ds, dImg.height * ds); x.restore();
       log('Đã ghép file hình in GỐC lên ảnh áo (chế độ đơn giản P1) — nội dung hình in không bị AI vẽ lại.');
-      return valueFromBlob(await canvasBlob(c), 'image', { label: cfg.label + srcNote + framingNote, demo: !useReal && (!!inputs.garment?.demo || framingFallback) });
+      return valueFromBlob(await canvasBlob(c), 'image', { label: cfg.label + srcNote + framingNote + qcNote, demo: !useReal && (!!inputs.garment?.demo || framingFallback || qcFallbackDemo), product: inputs.garment?.product || null, qc: inputs.garment?.qc || null });
     }
     // P3 perspective mode: homography warp onto the 4-point quad + wrinkle
     // displacement + garment shading. The design drawn is the ORIGINAL file.
@@ -700,7 +898,7 @@ const handlers = {
     // channel crop/resize (uniform banner in every exported file).
     // Round-4 fix: that export stamp is the ONLY frame — generation no
     // longer bakes one into the garment image this node consumes.
-    return valueFromBlob(await canvasBlob(c), 'image', { label: cfg.label + ' · phối cảnh 4 điểm + cong theo nếp vải (mô phỏng)' + srcNote + framingNote, demo: !useReal && (!!inputs.garment?.demo || framingFallback) });
+    return valueFromBlob(await canvasBlob(c), 'image', { label: cfg.label + ' · phối cảnh 4 điểm + cong theo nếp vải (mô phỏng)' + srcNote + framingNote + qcNote, demo: !useReal && (!!inputs.garment?.demo || framingFallback || qcFallbackDemo), product: inputs.garment?.product || null, qc: inputs.garment?.qc || null });
   },
   async background(node, { inputs, log }) {
     const v = inputs.in; if (!v?.blob) throw new Error('Thiếu ảnh đầu vào.');
@@ -758,7 +956,10 @@ const handlers = {
       ? 'Ảnh có nền trong suốt — đã đặt trực tiếp lên nền/bối cảnh, file gốc giữ nguyên'
       : 'Ảnh gốc KHÔNG có nền trong suốt — đặt dạng KHUNG ẢNH trên nền (không tách nền giả)';
     log(label + '.');
-    return valueFromBlob(await canvasBlob(c), 'image', { label });
+    // P4.6: the product rides through, and this node's output (the
+    // last image step of Template 2's chain) gets its own light QC
+    // against the product before export.
+    return attachQc(valueFromBlob(await canvasBlob(c), 'image', { label, product: v.product || null }), v.product || null, log);
   },
   async imageEditor(node, { inputs }) {
     const img = await blobToImg(inputs.in.blob); const crop = Math.min(40, Math.max(0, node.config.crop || 0)) / 100;
@@ -768,16 +969,26 @@ const handlers = {
     const c = makeCanvas(swap ? th : tw, swap ? tw : th), x = c.getContext('2d');
     x.filter = `brightness(${node.config.brightness}%) contrast(${node.config.contrast}%)`;
     x.translate(c.width / 2, c.height / 2); x.rotate(rot * Math.PI / 180); x.drawImage(img, img.width * crop, img.height * crop, sw, sh, -tw / 2, -th / 2, tw, th);
-    return valueFromBlob(await canvasBlob(c), 'image', { label: 'Ảnh đã chỉnh sửa bằng Canvas API' });
+    return valueFromBlob(await canvasBlob(c), 'image', { label: 'Ảnh đã chỉnh sửa bằng Canvas API', product: inputs.in?.product || null, qc: inputs.in?.qc || null });
   },
-  async aiImageGen(node, { inputs, log }) {
+  async aiImageGen(node, { inputs, log, engine }) {
     const p = currentProvider();
     // P4.1: this node generates the PLAIN garment photo ONLY (garment params
     // travel with the prompt value). The customer's design is composited
     // afterwards by the composition node from the original file — the AI
     // never draws the print.
-    if (inputs.prompt?.garment) { const g = inputs.prompt.garment; log(`Thông số áo: ${g.styleEn} · màu ${g.colorEn} · ${g.viewEn} — AI tạo ảnh áo TRƠN; hình in sẽ được ghép hậu kỳ bằng file gốc.`); }
-    if (p.isDemo || p.kind === 'http') return p.generateImage({ prompt: { text: inputs.prompt?.text || '', ratio: node.config.ratio, garment: inputs.prompt?.garment || null }, image: inputs.image });
+    // P4.6: THE PRODUCT REFERENCE IS THE HIGHEST-AUTHORITY DATA. The
+    // product object (from the wired reference image, or from a
+    // product-aware prompt value) is resolved first; the prompt is
+    // FINALISED against it (identity section rebuilt from the product
+    // when the prompt value predates the product wiring), and every
+    // output is QC-checked against it before leaving this node.
+    const product = inputs.image?.product || inputs.prompt?.product || null;
+    const promptValue = finalizePromptForReference(inputs.prompt, product);
+    if (product) log(`Sản phẩm tham chiếu là dữ kiện BẮT BUỘC: áo màu ${product.colorVi || '?'} (${product.measuredHex || product.colorHex || ''})${product.hasPrint ? ', có hình in sẵn phải giữ nguyên' : ''} — AI chỉ được đổi người mẫu / bối cảnh / ánh sáng / góc máy, KHÔNG được đổi màu áo, cổ, tay, phom hay hình in.`);
+    if (!inputs.image && engine?.graph?.edges?.some(e => e.to === node.id && e.toPort === 'image')) log('CẢNH BÁO: có dây nối vào cổng "image / reference_image" nhưng node Ảnh đầu vào CHƯA CÓ ẢNH — lượt này chạy KHÔNG có ảnh tham chiếu, chỉ theo prompt. Hãy chọn ảnh ở node Ảnh đầu vào nếu muốn ảnh sản phẩm dẫn dắt kết quả.');
+    if (promptValue?.garment) { const g = promptValue.garment; log(`Thông số áo: ${g.styleEn} · màu ${g.colorEn} · ${g.viewEn} — AI tạo ảnh áo TRƠN; hình in sẽ được ghép hậu kỳ bằng file gốc.`); }
+    if (p.isDemo || p.kind === 'http') { const v = await p.generateImage({ prompt: { text: promptValue?.text || '', ratio: node.config.ratio, garment: promptValue?.garment || null }, image: inputs.image }); return attachQc(v, product, log); }
     // ---- P4 real generation (classic free / keyed Pollen) ----
     const gm = generationMode();
     if (gm.mode === 'blocked') throw new Error(gm.reason);
@@ -788,40 +999,48 @@ const handlers = {
     // no-public-URL img2img error, unchanged.
     if (gm.mode === 'cloudflare') {
       const cfModel = selectedModel();
-      const promptText = (inputs.prompt?.text || '').trim();
+      const promptText = (promptValue?.text || '').trim();
       if (!promptText) throw new Error('Node Tạo ảnh AI thật cần prompt: hãy nối node Prompt hoặc Trợ lý prompt vào cổng Prompt.');
       if ((node.config.count || 1) > 1) log('Giới hạn 1 ảnh cho mỗi lần gọi AI thật (kiểm soát hạn mức) — cấu hình số lượng ' + node.config.count + ' được đưa về 1.');
       const hasImg = !!inputs.image?.blob;
-      if (hasImg && cfModel.supportsImg2Img) log('Ảnh đầu vào sẽ được tải thẳng lên Worker Proxy của CHÍNH BẠN để ghép/sửa (img2img) — Worker là của bạn, ảnh không đi qua dịch vụ thứ ba nào khác.');
+      if (hasImg && cfModel.supportsImg2Img) log('Ảnh đầu vào sẽ được tải thẳng lên Worker Proxy của CHÍNH BẠN để ghép/sửa (img2img) — Worker là của bạn, ảnh không đi qua dịch vụ thứ ba nào khác. Prompt gửi đi mở đầu bằng phần Product Identity bắt buộc giữ nguyên sản phẩm.');
+      // schnell + a wired reference refuses INSIDE the adapter before
+      // any request (its established Vietnamese guidance error) — the
+      // P4.6 rule "a text-only model must never silently ignore a wired
+      // reference" is satisfied there for Cloudflare.
       log(`Đang gọi AI THẬT: ${p.name} · model ${cfModel.name} · qua Worker Proxy của bạn · trừ hạn mức Neurons của tài khoản Cloudflare (không phải Pollen)…`);
       const res = await p.generateImage({ prompt: promptText, imageBlob: hasImg ? inputs.image.blob : null });
       noteRealCall(res);
       // Flagged realAi exactly like Pollinations outputs, so the P4.3
       // composition framing guard judges Cloudflare images too.
-      return valueFromBlob(res.blob, 'image', { name: 'anh-ai-that', label: res.label, realAi: true, garment: inputs.prompt?.garment || null });
+      return attachQc(valueFromBlob(res.blob, 'image', { name: 'anh-ai-that', label: res.label, realAi: true, garment: promptValue?.garment || null, product }), product, log);
     }
     const model = selectedModel();
     if (!isRunnableModel(model)) throw new Error(`Model "${model?.name || '?'}" tính giá theo token — P4 không cho chạy (không đoán giá). Hãy chọn model có giá cố định trong bảng Nhà cung cấp AI.`);
-    const promptText = (inputs.prompt?.text || '').trim();
+    const promptText = (promptValue?.text || '').trim();
     if (!promptText) throw new Error('Node Tạo ảnh AI thật cần prompt: hãy nối node Prompt hoặc Trợ lý prompt vào cổng Prompt.');
     if ((node.config.count || 1) > 1) log('P4 giới hạn 1 ảnh cho mỗi lần gọi AI thật (kiểm soát chi phí) — cấu hình số lượng ' + node.config.count + ' được đưa về 1.');
-    // P4.5: reference-image handling per model, honestly. klein/kontext
+    // Reference-image handling per model, honestly. klein/kontext
     // accept a reference via the `image` URL parameter of the unified
     // API — usable ONLY when the wired value carries a public URL,
     // which in this app means a same-origin shop fixture (imageInput
     // attaches sourceUrl for fixtures only). An uploaded local blob has
     // NO public URL: the established honest error stands — user assets
-    // are never uploaded anywhere to manufacture one. Classic sana
-    // (supportsImg2Img false, handled by the same log line) and the
-    // text-only keyed models never receive the image at all.
+    // are never uploaded anywhere to manufacture one.
+    // P4.6 SUPERSEDES the P4.5 log-and-proceed for TEXT-ONLY models
+    // (keyed flux/zimage, Classic sana): with a reference wired, the
+    // product is mandatory data, so silently generating from text
+    // alone is exactly how a black product became a white shirt. The
+    // node now FAILS with a clear message and sends ZERO requests.
+    // (Without a wired reference, text-only models behave as before.)
     let refImageUrl = '';
     if (inputs.image?.blob) {
       if (model.supportsImg2Img) {
         refImageUrl = inputs.image.sourceUrl || '';
-        if (!refImageUrl) throw new Error('Model này hỗ trợ img2img NHƯNG ảnh tham chiếu đang lưu trên máy của bạn (IndexedDB), chưa có URL công khai — Studio không tự tải ảnh của bạn lên bất kỳ dịch vụ nào. Hãy dùng ảnh có sẵn của shop (file trên chính trang này có URL công khai) làm ảnh tham chiếu, bỏ dây ảnh tham chiếu, hoặc chọn model chỉ tạo từ chữ (flux / zimage).');
+        if (!refImageUrl) throw new Error('Model này hỗ trợ img2img NHƯNG ảnh tham chiếu đang lưu trên máy của bạn (IndexedDB), chưa có URL công khai — Studio không tự tải ảnh của bạn lên bất kỳ dịch vụ nào. Hãy dùng ảnh có sẵn của shop (file trên chính trang này có URL công khai) làm ảnh tham chiếu, hoặc dùng Cloudflare FLUX.2 Klein (tải ảnh thẳng lên Worker của chính bạn). Chưa có yêu cầu tạo ảnh nào được gửi đi.');
         log(`Ảnh tham chiếu có URL công khai (ảnh có sẵn của shop) — model ${model.name} sẽ nhận ảnh qua tham số image của API (img2img thật).`);
       } else {
-        log(`Model ${model.name} không hỗ trợ ảnh tham chiếu — tạo ảnh chỉ từ prompt; ảnh tham chiếu KHÔNG bị gửi đi đâu.`);
+        throw new Error(`Model ${model.name} chỉ tạo ảnh từ chữ (text-to-image) — KHÔNG dùng được ảnh tham chiếu. Node này đang có ẢNH SẢN PHẨM nối vào cổng "image / reference_image" và ảnh sản phẩm là dữ kiện bắt buộc (P4.6): AI không được tự ý bỏ qua nó. Hãy chọn model img2img — Pollinations klein/kontext (ảnh tham chiếu cần URL công khai: dùng ảnh có sẵn của shop) hoặc Cloudflare FLUX.2 Klein (ảnh tải thẳng lên Worker của bạn) — hoặc gỡ dây ảnh tham chiếu nếu thật sự muốn tạo ảnh chỉ từ prompt. Chưa có yêu cầu tạo ảnh nào được gửi đi.`);
       }
     }
     // P4.3: when this node serves the CATALOG garment prompt (Template
@@ -832,7 +1051,7 @@ const handlers = {
     // configured ratio. (Classic stays within its ≤768 cap; if sana
     // still returns a short/close-up frame, the composition framing
     // guard judges the output — that refusal is intended behaviour.)
-    const catalogReq = !!inputs.prompt?.catalog;
+    const catalogReq = !!promptValue?.catalog;
     const { w, h } = sizeForRatio(catalogReq ? '2:3' : (node.config.ratio || '4:5'), p.kind);
     if (catalogReq) log('Prompt catalogue (Mẫu 1): yêu cầu kích thước 2:3 — khung dọc cao nhất adapter hỗ trợ, khớp dải khung nửa người của bộ lọc ở node Ghép hình.');
     log(`Đang gọi AI THẬT: ${p.name} · model ${model.name} · ${w}×${h} · chi phí ${model.pricePerImage === 0 ? '0 (miễn phí)' : '~' + model.pricePerImage + ' Pollen'}…`);
@@ -842,12 +1061,16 @@ const handlers = {
     // garment params, so the composition node can run its framing guard
     // before compositing (an unvalidated real-AI garment photo is never
     // composited onto blindly — see the guard in the composition handler).
-    return valueFromBlob(res.blob, 'image', { name: 'anh-ai-that', label: res.label, realAi: true, garment: inputs.prompt?.garment || null });
+    // P4.6: the product + QC verdict ride along the same way.
+    return attachQc(valueFromBlob(res.blob, 'image', { name: 'anh-ai-that', label: res.label, realAi: true, garment: promptValue?.garment || null, product }), product, log);
   },
   async aiVariation(node, { inputs, log }) {
     const p = currentProvider();
     if (!inputs.in) throw new Error('Thiếu ảnh đầu vào.');
-    if (p.isDemo || p.kind === 'http') return p.variation({ image: inputs.in, variant: node.config.variant });
+    // P4.6: the product analysis propagates through the variation so
+    // every Template 2 output stays tied to the single product
+    // reference (QC at the chain's end nodes compares against it).
+    if (p.isDemo || p.kind === 'http') { const v = await p.variation({ image: inputs.in, variant: node.config.variant }); if (inputs.in?.product && v) v.product = inputs.in.product; return v; }
     // ---- P4 real variation ----
     const gm = generationMode();
     if (gm.mode === 'blocked') throw new Error(gm.reason);
@@ -860,7 +1083,7 @@ const handlers = {
       log(`Biến thể AI THẬT qua Cloudflare · model ${selectedModel().name} — nếu là FLUX.2 Klein: ghép/sửa trực tiếp trên ảnh đầu vào (img2img qua Worker của bạn).`);
       const res = await p.generateImage({ prompt: promptText, imageBlob: inputs.in.blob });
       noteRealCall(res);
-      return valueFromBlob(res.blob, 'image', { name: 'bien-the-ai-that', label: res.label + ' · Biến thể img2img qua Cloudflare (ghép/sửa trên ảnh đầu vào, qua Worker của bạn)', realAi: true });
+      return attachQc(valueFromBlob(res.blob, 'image', { name: 'bien-the-ai-that', label: res.label + ' · Biến thể img2img qua Cloudflare (ghép/sửa trên ảnh đầu vào, qua Worker của bạn)', realAi: true, product: inputs.in?.product || null }), inputs.in?.product || null, log);
     }
     const model = selectedModel();
     if (!isRunnableModel(model)) throw new Error(`Model "${model?.name || '?'}" tính giá theo token — P4 không cho chạy (không đoán giá).`);
@@ -877,9 +1100,10 @@ const handlers = {
     return valueFromBlob(res.blob, 'image', { name: 'bien-the-ai-that', label: res.label + ' · Biến thể tạo MỚI từ prompt biến thể — không phải img2img, không giữ nguyên sản phẩm gốc' });
   },
   async aiVideoGen(node, { inputs, log }) { if (!inputs.in) throw new Error('Thiếu ảnh đầu vào.'); const demo = new DemoAdapter(demoImpl); return demo.imageToVideo({ image: inputs.in, motion: node.config.motion, duration: node.config.duration, ratio: node.config.ratio }, pct => log('Đang ghi video demo: ' + pct + '%')); },
-  async preview(node, { inputs }) { const v = inputs.in; if (!v) throw new Error('Chưa có dữ liệu để xem trước.'); runtime.previewValue = v; return v; },
+  async preview(node, { inputs, log }) { const v = inputs.in; if (!v) throw new Error('Chưa có dữ liệu để xem trước.'); if (v.qc) log((v.qc.verdict === 'warn' ? '⚠ ' : '') + v.qc.note); runtime.previewValue = v; return v; },
   async exportNode(node, { inputs, log }) {
     const v = inputs.in; if (!v) throw new Error('Chưa có dữ liệu để xuất.');
+    if (v.qc) log((v.qc.verdict === 'warn' ? '⚠ ' : '') + v.qc.note + (v.qc.verdict === 'warn' ? ' File xuất vẫn được tạo theo cấu hình hiện tại — hãy kiểm tra lại ảnh trước khi dùng.' : ''));
     const chans = (node.config.channels || []).map(channelPreset).filter(Boolean);
     if (!chans.length || !v.blob || v.kind === 'video' || v.kind === 'prompt') return v; // P1 behaviour
     // P3: render every selected channel size from the input image.
@@ -995,6 +1219,31 @@ async function refreshStorage() { const e = await storageEstimate(); const asset
 async function openProject(id) { const p = await store.getProject(id); if (!p) return message('Không tìm thấy dự án.', true); projectId = p.id; $('#ais-project-name').value = p.name; graph = { nodes: p.graph.nodes.map(n => ({ ...n, status: 'idle', logs: [], error: '' })), edges: p.graph.edges, meta: p.graph.meta || null }; graph = await adoptLoadedGraph(graph); outputs = new Map(); lastFailedNodeId = null; updateResumeBtn(); history = []; historyIdx = -1; pushHistory(); selectedId = null; renderAll(); await renderHistory(); await renderVersions(); await renderStoragePanel(); message('Đã mở dự án "' + p.name + '"'); }
 
 // ---------- properties panel ----------
+// P4.6: fill the imageInput panel's product-analysis box asynchronously
+// (the panel render itself is synchronous). The analysis is memoised
+// per blob, so re-renders are cheap; the box is re-looked-up after the
+// await in case the user selected another node meanwhile.
+async function fillProductPanel(node) {
+  const box = document.getElementById('pf-product-info'); if (!box) return;
+  const c = node.config;
+  let blob = null, fixturePath = '';
+  try {
+    if (c.assetId) { const a = await store.getAsset(c.assetId); blob = a?.blob || null; }
+    else if (c.fixture) { fixturePath = c.fixture; blob = await fetchBlob(c.fixture); }
+  } catch { /* handled by the note below */ }
+  const box2 = document.getElementById('pf-product-info'); if (!box2) return;
+  if (!blob) { box2.innerHTML = '<h4>Phân tích sản phẩm (tự động đo từ ảnh)</h4><p>Không đọc được ảnh để phân tích.</p>'; return; }
+  const product = await productForBlob(blob, fixturePath, c.product);
+  const box3 = document.getElementById('pf-product-info'); if (!box3) return;
+  const attr = (group, key) => (key && PRODUCT_OPTIONS[group][key]) ? PRODUCT_OPTIONS[group][key].vi : null;
+  const unk = 'chưa xác định — prompt ghi "như ảnh tham chiếu"';
+  box3.innerHTML = `<h4>Phân tích sản phẩm (tự động đo từ ảnh)</h4>
+  <p>Màu áo chủ đạo (đo ở vùng giữa ảnh): <strong>${product.colorVi || 'chưa xác định'}</strong> (${product.measuredHex || '—'})<br>
+  Kích thước ảnh: ${product.width}×${product.height}px<br>
+  Hình in sẵn: ${product.hasPrint === null ? 'chưa xác định' : product.hasPrint ? 'PHÁT HIỆN có hình in ở vùng ngực (heuristic — hãy kiểm tra bằng mắt, sai thì chỉnh tay ở ô dưới)' : 'không phát hiện'}<br>
+  Cổ áo: ${attr('collar', product.collar) || unk} · Tay áo: ${attr('sleeve', product.sleeve) || unk} · Phom: ${attr('fit', product.fit) || unk}</p>
+  <p class="hint">Màu + hình in được ĐO từ ảnh; cổ/tay/phom KHÔNG đoán từ pixel — lấy từ dữ kiện đã ghi của ảnh mẫu shop hoặc ô chỉnh tay của bạn. Sản phẩm này là dữ kiện bắt buộc: prompt AI mở đầu bằng định danh sản phẩm này, và bước QC tự so màu ảnh AI tạo ra với màu đã đo ở đây.</p>`;
+}
 function field(label, inner) { return `<label class="pf"><span>${label}</span>${inner}</label>`; }
 function num(id, val, attrs = '') { return `<input type="number" id="${id}" value="${val}" ${attrs}>`; }
 function sel(id, opts, val) { return `<select id="${id}">${opts.map(([v, l]) => `<option value="${v}" ${v === val ? 'selected' : ''}>${l}</option>`).join('')}</select>`; }
@@ -1006,7 +1255,23 @@ function renderProperties() {
   let h = `<div class="ph"><h3 style="--nc:${def.color}">${def.label}</h3><button id="ais-prop-close" aria-label="Đóng">×</button></div>
   <p class="pstatus">Trạng thái: <strong>${node.status === 'cached' ? '<span class="st-cached-t">cached — dùng kết quả bộ nhớ đệm</span>' : node.status}</strong>${node.durationMs != null && node.status !== 'idle' ? ` · chạy trong ${formatDuration(node.durationMs)}` : ''}${node.error ? ` — <span class="err">${node.error}</span>` : ''}</p><div class="prow">
   <button id="ais-p-run">▶ Chạy node này</button><button id="ais-p-runfrom">Chạy từ node này</button><button id="ais-p-dup">Nhân bản</button><button id="ais-p-del">Xóa node</button></div>`;
-  if (node.type === 'imageInput') { h += field('Ảnh áo có sẵn (ảnh thật)', sel('pf-fixture', [['', '— Chưa chọn ảnh —'], ...FIXTURES], c.fixture)) + field('Hoặc tải ảnh lên (PNG/JPG/WebP, lưu IndexedDB)', '<input type="file" id="pf-file" accept="image/png,image/jpeg,image/webp" multiple>') + (c.assetName ? `<p class="hint">Đang dùng: ${c.assetName}${c.width ? ` (${c.width}×${c.height})` : ''}</p>` : '') + (!c.assetId && !c.fixture ? '<p class="hint">Chưa chọn ảnh: node này không đưa ảnh tham chiếu vào workflow — node Tạo ảnh AI chạy theo prompt (ở Mẫu 1 là nền người mẫu đã duyệt). Chọn một ảnh ở đây để ảnh đó THẬT SỰ trở thành ảnh tham chiếu / nền áo của kết quả.</p>' : ''); }
+  if (node.type === 'imageInput') {
+    const pc = c.product || {};
+    const srcLine = c.assetId ? `ảnh bạn tải lên: ${c.assetName || 'file đã lưu'}${c.width ? ` (${c.width}×${c.height})` : ''}` : c.fixture ? `ảnh có sẵn của shop: ${(FIXTURES.find(f => f[0] === c.fixture) || [])[1] || c.fixture.split('/').pop()}` : 'CHƯA CHỌN — không có ảnh tham chiếu';
+    h += field('Ảnh áo có sẵn (ảnh thật)', sel('pf-fixture', [['', '— Chưa chọn ảnh —'], ...FIXTURES], c.fixture)) + field('Hoặc tải ảnh lên (PNG/JPG/WebP, lưu IndexedDB)', '<input type="file" id="pf-file" accept="image/png,image/jpeg,image/webp" multiple>');
+    h += `<p class="hint">Nguồn ảnh hiện tại: <strong>${srcLine}</strong>. Chỉ MỘT nguồn hiệu lực tại một thời điểm: chọn ảnh có sẵn sẽ bỏ ảnh tải lên và ngược lại (P4.6 — trước đây hai nguồn có thể lệch nhau).</p>`;
+    if (c.assetId || c.fixture) {
+      h += `<div class="pf-summary" id="pf-product-info"><h4>Phân tích sản phẩm (tự động đo từ ảnh)</h4><p>Đang phân tích…</p></div>`;
+      h += field('Chỉnh tay — màu áo (trống = theo phân tích tự động)', sel('pf-prod-color', [['', '— Theo phân tích tự động —'], ...NAMED_COLORS.map(n => [n.key, n.vi])], pc.colorKey || ''));
+      h += field('Chỉnh tay — cổ áo', sel('pf-prod-collar', [['', '— Chưa xác định (theo ảnh tham chiếu) —'], ...Object.entries(PRODUCT_OPTIONS.collar).map(([v, o]) => [v, o.vi])], pc.collar || ''));
+      h += field('Chỉnh tay — tay áo', sel('pf-prod-sleeve', [['', '— Chưa xác định (theo ảnh tham chiếu) —'], ...Object.entries(PRODUCT_OPTIONS.sleeve).map(([v, o]) => [v, o.vi])], pc.sleeve || ''));
+      h += field('Chỉnh tay — phom áo', sel('pf-prod-fit', [['', '— Chưa xác định (theo ảnh tham chiếu) —'], ...Object.entries(PRODUCT_OPTIONS.fit).map(([v, o]) => [v, o.vi])], pc.fit || ''));
+      h += field('Chỉnh tay — áo có hình in sẵn?', sel('pf-prod-print', [['', '— Theo phân tích tự động (heuristic) —'], ['true', 'Có hình in sẵn — AI phải giữ nguyên'], ['false', 'Áo trơn — AI không được thêm hình in']], pc.hasPrint || ''));
+      h += '<p class="hint">Chỉnh tay ở đây thắng phân tích tự động, đi thẳng vào prompt (phần Product Identity) và đổi khóa bộ nhớ đệm nên các node phía sau tự chạy lại.</p>';
+    } else {
+      h += '<p class="hint">Chưa chọn ảnh: node này không đưa ảnh tham chiếu vào workflow — node Tạo ảnh AI chạy theo prompt (ở Mẫu 1 là nền người mẫu đã duyệt). Chọn một ảnh ở đây để ảnh đó THẬT SỰ trở thành ảnh tham chiếu / nền áo của kết quả.</p>';
+    }
+  }
   if (node.type === 'designInput') { h += field('Tải hình in (PNG trong suốt / SVG an toàn)', '<input type="file" id="pf-file" accept="image/png,image/svg+xml">') + '<button id="pf-sample">Dùng hình in mẫu (SVG thật)</button>' + field('Nội dung SVG (nếu có)', `<textarea id="pf-svg" rows="4">${(c.svgText || '').replace(/</g, '&lt;')}</textarea>`) + (c.assetName ? `<p class="hint">Đang dùng: ${c.assetName}</p>` : ''); }
   if (node.type === 'promptInput') { h += field('Nội dung prompt (tiếng Việt)', `<textarea id="pf-text" rows="4">${c.text}</textarea>`) + '<p class="hint">Mẫu prompt:</p>' + PROMPT_TEMPLATES.map((t, i) => `<button class="pf-tpl" data-tpl="${i}">${t}</button>`).join(''); }
   if (node.type === 'promptAssistant') {
@@ -1017,7 +1282,7 @@ function renderProperties() {
     h += field('Bổ sung', `<input type="text" id="pf-extra" value="${(c.extra || '').replace(/"/g, '&quot;')}">`);
     h += `<div class="pf-summary"><h4>Tóm tắt thông số sẽ gửi</h4><p>${garmentSummaryVi(c)}</p></div>`;
     h += field('Prompt gửi cho AI (EN)', `<textarea id="pf-composed" rows="6" readonly>${(c.composed || buildPrompt(c, '')).replace(/</g, '&lt;')}</textarea>`);
-    h += '<p class="hint">Trợ lý này ghép prompt bằng QUY TẮC có sẵn — không phải AI. Prompt tạo ảnh viết bằng tiếng Anh (model theo tiếng Anh tốt hơn) và yêu cầu áo TRƠN tuyệt đối; khi chạy, câu prompt gốc của bạn được chèn thêm vào giữa. Hình in KHÔNG nằm trong prompt này.</p>';
+    h += '<p class="hint">Trợ lý này ghép prompt bằng QUY TẮC có sẵn — không phải AI. Prompt gồm 7 phần theo chuẩn P4.6 (1 Định danh sản phẩm · 2 Người mẫu · 3 Bối cảnh · 4 Ánh sáng · 5 Góc máy · 6 Tránh (negative) · 7 Kiểm tra chất lượng). Nối node Ảnh đầu vào vào cổng "Ảnh sản phẩm (phân tích)" của node này để phần 1 dùng đúng sản phẩm thật đã phân tích (màu/cổ/tay/phom/hình in sẵn) thay cho thông số áo mặc định ở trên — khi đó định danh sản phẩm là dữ kiện bắt buộc đứng đầu prompt. Hình in của khách KHÔNG nằm trong prompt này (được ghép hậu kỳ bằng file gốc).</p>';
   }
   if (node.type === 'composition') {
     const cm = migrateCompositionConfig(c);
@@ -1063,7 +1328,7 @@ function renderProperties() {
     h += '<p class="hint">Ảnh đầu vào có nền trong suốt (PNG) sẽ được đặt trực tiếp lên nền. Ảnh KHÔNG trong suốt sẽ được đặt dạng KHUNG ẢNH — node không tách nền giả.</p>';
   }
   if (node.type === 'imageEditor') { h += field('Cắt mỗi cạnh %', num('pf-crop', c.crop, 'min="0" max="40"')) + field('Xoay (độ: 0/90/180/270)', num('pf-rotate', c.rotate)) + field('Rộng đầu ra px (0 = giữ nguyên)', num('pf-resizeW', c.resizeW, 'min="0" max="2000"')) + field('Độ sáng %', num('pf-brightness', c.brightness, 'min="20" max="200"')) + field('Tương phản %', num('pf-contrast', c.contrast, 'min="20" max="200"')); }
-  if (node.type === 'aiImageGen') { h += field('Tỉ lệ ảnh', sel('pf-ratio', [['4:5', '4:5'], ['1:1', '1:1'], ['9:16', '9:16 (TikTok)'], ['16:9', '16:9']], c.ratio)) + field('Số lượng (DEMO tạo 1; AI thật P4 luôn 1)', num('pf-count', c.count, 'min="1" max="4"')) + '<p class="hint">Node này tạo ảnh người mẫu mặc áo thun TRƠN đúng kiểu/màu đã chọn ở node Trợ lý prompt. Hình in KHÔNG do AI vẽ — node "Ghép hình in lên áo" sẽ ghép file thiết kế GỐC lên ảnh này ở bước sau.</p><p class="hint">Cổng "image / reference_image" (bên trái node): nối node Ảnh đầu vào vào đây để ảnh đó tham gia tạo ảnh — DEMO dùng CHÍNH ảnh đầu vào làm nền áo; Cloudflare FLUX.2 Klein tải ảnh thẳng lên Worker của bạn (img2img); Pollinations klein/kontext nhận ảnh qua URL công khai (chỉ ảnh có sẵn của shop — ảnh tải lên từ máy không có URL công khai nên node sẽ báo rõ); Pollinations Classic (sana) không nhận ảnh tham chiếu và sẽ ghi rõ trong nhật ký node. Đổi ảnh đầu vào = đổi fingerprint nội dung → node này và mọi node phía sau tự chạy lại, không dùng đệm cũ.</p>' + aiModeHint(); }
+  if (node.type === 'aiImageGen') { h += field('Tỉ lệ ảnh', sel('pf-ratio', [['4:5', '4:5'], ['1:1', '1:1'], ['9:16', '9:16 (TikTok)'], ['16:9', '16:9']], c.ratio)) + field('Số lượng (DEMO tạo 1; AI thật P4 luôn 1)', num('pf-count', c.count, 'min="1" max="4"')) + '<p class="hint">Node này tạo ảnh người mẫu mặc áo thun TRƠN đúng kiểu/màu đã chọn ở node Trợ lý prompt. Hình in KHÔNG do AI vẽ — node "Ghép hình in lên áo" sẽ ghép file thiết kế GỐC lên ảnh này ở bước sau.</p><p class="hint">Cổng "image / reference_image" (bên trái node): nối node Ảnh đầu vào vào đây để ảnh đó tham gia tạo ảnh — DEMO dùng CHÍNH ảnh đầu vào làm nền áo; Cloudflare FLUX.2 Klein tải ảnh thẳng lên Worker của bạn (img2img); Pollinations klein/kontext nhận ảnh qua URL công khai (chỉ ảnh có sẵn của shop — ảnh tải lên từ máy không có URL công khai nên node sẽ báo rõ); Pollinations Classic (sana) và các model chỉ-tạo-từ-chữ (flux/zimage) KHÔNG dùng được ảnh tham chiếu: khi có ảnh sản phẩm nối vào, node BÁO LỖI rõ ràng và KHÔNG gửi yêu cầu nào (P4.6 — thà dừng còn hơn tạo sai sản phẩm). Sau mỗi lần tạo ảnh AI thật, bước QC tự so màu áo trong ảnh với màu sản phẩm tham chiếu; lệch rõ → node Ghép hình (chế độ Nghiêm ngặt) tự thay bằng chính ảnh sản phẩm gốc / nền đã duyệt. Đổi ảnh đầu vào = đổi fingerprint nội dung → node này và mọi node phía sau tự chạy lại, không dùng đệm cũ.</p>' + aiModeHint(); }
   if (node.type === 'aiVariation') { h += field('Kiểu biến thể', sel('pf-variant', [['boi-canh', 'Đổi bối cảnh (tông màu)'], ['goc-khac', 'Đổi góc (phóng 1.3×)'], ['can-canh', 'Cận cảnh (phóng 2×)']], c.variant)) + aiModeHint() + '<p class="hint">Ở chế độ AI thật với model chỉ-tạo-từ-chữ, biến thể = tạo ảnh MỚI từ prompt biến thể (không phải img2img); với model img2img (klein/kontext) node sẽ báo rõ giới hạn URL tham chiếu của P4.</p>'; }
   if (node.type === 'aiVideoGen') { h += field('Mô tả chuyển động', `<input type="text" id="pf-motion" value="${(c.motion || '').replace(/"/g, '&quot;')}">`) + field('Thời lượng (giây, demo tối đa 6)', num('pf-duration', c.duration, 'min="1" max="6"')) + field('Tỉ lệ', sel('pf-ratio', [['9:16', '9:16 dọc'], ['16:9', '16:9 ngang'], ['1:1', '1:1']], c.ratio)) + '<p class="hint warn">DEMO: video WebM ghi từ canvas bằng MediaRecorder — không phải MP4, không phải AI video thật.</p>'; }
   if (node.type === 'exportNode') {
@@ -1077,6 +1342,7 @@ function renderProperties() {
   if (out) { h += `<div class="pout" id="ais-prop-output"><h4>Kết quả</h4>${out.kind === 'image' || out.kind === 'design' ? `<img src="${out.url}" alt="Kết quả">` : ''}${out.kind === 'video' ? `<video src="${out.url}" controls playsinline></video>` : ''}${out.kind === 'prompt' ? `<p>${out.text}</p>` : ''}${out.label ? `<p class="hint">${out.label}</p>` : ''}</div>`; }
   h += `<div class="plogs"><h4>Nhật ký node</h4>${(node.logs || []).map(l => `<div>${l}</div>`).join('') || '<div>Chưa chạy.</div>'}</div>`;
   box.innerHTML = h; bindProperties(node);
+  if (node.type === 'imageInput' && (c.assetId || c.fixture)) fillProductPanel(node);
 }
 function storageHtml() { return `<div class="psec"><h4>Lưu trữ</h4><p class="hint" id="ais-storage-info">…</p><p class="hint">Chi tiết dung lượng, dọn file rác và xóa bộ nhớ đệm: tab "Lưu trữ" ở thanh dưới cùng.</p></div>`; }
 function runSettingsHtml() { return `<div class="psec"><h4>Cài đặt chạy (P2)</h4>
@@ -1180,6 +1446,11 @@ function bindProperties(node) {
           await store.saveAsset({ id, blob: f, name: f.name, mime: f.type });
           c.assetId = id; c.assetName = f.name; if (bmp) { c.width = bmp.width; c.height = bmp.height; }
           c.assetIds = [...(c.assetIds || []), id];
+          // P4.6: ONE current source — a fresh upload supersedes the
+          // fixture pick (the handler reads assetId first, but the
+          // panel select used to keep SHOWING the old fixture, which
+          // is how the two sources silently diverged).
+          if (node.type === 'imageInput') c.fixture = '';
         }
       }
       message('Đã lưu file vào IndexedDB của AI Studio.'); pushHistory(); renderAll(); scheduleSave();
@@ -1193,6 +1464,13 @@ function bindProperties(node) {
   on('pf-extra', 'input', e => upd('extra', e.target.value));
   const numBind = (id, key) => on(id, 'change', e => upd(key, Number(e.target.value)));
   ['fixture', 'base'].forEach(k => on('pf-' + k, 'change', e => upd(k, e.target.value)));
+  if (node.type === 'imageInput') {
+    // P4.6: picking a fixture supersedes the upload (one current
+    // source — see the pf-file handler note).
+    on('pf-fixture', 'change', e => { if (e.target.value) { c.assetId = ''; c.assetName = ''; c.assetIds = []; } renderProperties(); });
+    const prodBind = (id, key) => on(id, 'change', e => { c.product = { ...(c.product || {}), [key]: e.target.value }; renderNodes(); scheduleSave(); renderProperties(); });
+    prodBind('pf-prod-color', 'colorKey'); prodBind('pf-prod-collar', 'collar'); prodBind('pf-prod-sleeve', 'sleeve'); prodBind('pf-prod-fit', 'fit'); prodBind('pf-prod-print', 'hasPrint');
+  }
   on('pf-svg', 'change', e => { const v = e.target.value; if (v) { const chk = checkSvgSafety(v); if (!chk.ok) return message(chk.reason, true); } upd('svgText', v); });
   numBind('pf-printX', 'printX'); numBind('pf-printY', 'printY'); numBind('pf-printW', 'printW'); numBind('pf-rotation', 'rotation');
   // ---- P3 composition: mode, quad editor, wrinkle/shading ----
@@ -1377,6 +1655,7 @@ function applyImported(wf) {
   projectId = uid('project'); $('#ais-project-name').value = wf.name || 'Dự án nhập vào';
   graph = { nodes: g.nodes.map(n => ({ ...n, status: 'idle', logs: [], error: '' })), edges: g.edges, meta: g.meta || null };
   migrateGraph(graph);
+  { const wn = ensureReferenceWiring(graph); if (wn.length) logLine(`Workflow nhập vào thiếu dây ảnh tham chiếu — đã tự bổ sung: ${wn.join('; ')}.`); }
   { let r = refreshTpl1Graph(graph); if (!r.refreshed) r = refreshTpl2Graph(r.graph); if (r.refreshed) { graph = r.graph; logLine(`Workflow nhập vào thuộc mẫu phiên bản cũ — đã tự cập nhật: ${r.notes.join('; ')}.`); } }
   outputs = new Map(); pushHistory(); renderAll(); scheduleSave(); message('Đã nhập workflow. Hãy bấm Lưu / chờ tự lưu.');
 }
@@ -1550,6 +1829,10 @@ async function executeRun(mode, id) {
     nodes: [...engine.records.entries()].map(([nodeId, rec]) => { const n = findNode(graph, nodeId); return { nodeId, type: n?.type || '', label: n ? NODE_DEFS[n.type].label : nodeId, status: rec.status, durationMs: rec.durationMs, attempts: rec.attempts, error: rec.error || '' }; }),
     aiCalls: runRealCalls,
     aiCostPollen: Math.round(runRealCalls.reduce((s, c) => s + (c.costPollen || 0), 0) * 1e6) / 1e6,
+    // P4.6: QC verdicts of this run (product colour checks) ride the
+    // run record — a warn stays visible in the history, not just in a
+    // transient node log.
+    qc: [...engine.outputs.values()].filter(v => v?.qc).map(v => ({ verdict: v.qc.verdict, note: v.qc.note })),
   });
   renderAll();
   return r;
@@ -1565,7 +1848,7 @@ async function renderHistory() {
     const total = r.finishedAt - r.startedAt;
     const cached = r.nodes.filter(n => n.status === 'cached').length;
     return `<details class="ais-run-item"><summary><span class="badge ${r.result}">${r.result === 'success' ? 'Thành công' : r.result === 'stopped' ? 'Đã dừng' : 'Có lỗi'}</span>
-    ${new Date(r.startedAt).toLocaleString('vi-VN')} — ${esc(TRIGGER_LABELS[r.trigger] || r.trigger)} · ${r.nodes.length} node (${cached} đệm) · ${formatDuration(total)}${r.aiCalls?.length ? ` · AI thật: ${r.aiCalls.length} lệnh (${esc(r.aiCalls.map(c => c.provider + '/' + c.model).join(', '))})${r.aiCalls.every(c => c.provider === 'cloudflare') ? ' · hạn mức Neurons (Cloudflare — không phải Pollen)' : ` · ~${r.aiCostPollen || 0} Pollen`}` : ''}</summary>
+    ${new Date(r.startedAt).toLocaleString('vi-VN')} — ${esc(TRIGGER_LABELS[r.trigger] || r.trigger)} · ${r.nodes.length} node (${cached} đệm) · ${formatDuration(total)}${r.aiCalls?.length ? ` · AI thật: ${r.aiCalls.length} lệnh (${esc(r.aiCalls.map(c => c.provider + '/' + c.model).join(', '))})${r.aiCalls.every(c => c.provider === 'cloudflare') ? ' · hạn mức Neurons (Cloudflare — không phải Pollen)' : ` · ~${r.aiCostPollen || 0} Pollen`}` : ''}${r.qc?.some(q => q.verdict === 'warn') ? ` · ⚠ QC: ${r.qc.filter(q => q.verdict === 'warn').length} cảnh báo LỆCH MÀU sản phẩm` : r.qc?.length ? ' · QC màu sản phẩm: đạt' : ''}</summary>
     <table class="ais-run-nodes"><tr><th>Node</th><th>Trạng thái</th><th>Thời gian</th><th>Lần thử</th><th>Lỗi</th></tr>
     ${r.nodes.map(n => `<tr><td>${esc(n.label)}</td><td>${n.status === 'cached' ? '<span class="st-cached-t">cached (đệm)</span>' : esc(n.status)}</td><td>${formatDuration(n.durationMs)}</td><td>${n.attempts || 1}</td><td>${esc(n.error || '')}</td></tr>`).join('')}</table></details>`;
   }).join('');
@@ -1749,5 +2032,5 @@ $('#ais-run-mobile')?.addEventListener('click', () => runNodes('all'));
   await checkRecovery();
   updateModeBadge();
   document.body.dataset.ready = 'true'; document.documentElement.dataset.ready = 'true';
-  logLine('AI Studio P4.5 sẵn sàng: vùng in hiệu chuẩn theo mốc thân áo (giữa ngực trên, cách mép dưới cổ 12–15% chiều dài thân áo, rộng 35–45% bề ngang thân), khung đứt nét CHỈ còn trong trình căn chỉnh (không dính vào Xem trước/file xuất), hòa trộn mực theo bóng vải + độ phủ mực 95%. DEMO dùng ẢNH NGƯỜI MẪU DO AI TẠO đã được chủ shop duyệt cho áo trắng/đen cổ tròn và áo trắng oversize (nhãn node ghi rõ "do AI tạo", không phải ảnh chụp thật); thông số chưa có ảnh người mẫu thì dùng hình vẽ DEMO. AI thật: bộ lọc khung hình đã SIẾT — chỉ nhận ảnh dọc nửa người (cao/rộng 1.45–2.10); mặc định NGHIÊM NGẶT: ảnh AI sai khung bị từ chối và tự thay bằng nền người mẫu đã duyệt. Muốn vẫn ghép lên ảnh AI sai khung: mở node Ghép hình, đặt "Kiểm tra khung hình ảnh AI thật" sang Linh hoạt — kết quả sẽ ghi rõ khung KHÔNG đạt chuẩn. Nếu ảnh AI sai kiểu/màu, chuyển node Ghép hình sang nguồn "Ảnh mẫu thật". AI thật qua Pollinations hoặc Cloudflare Workers AI (P4.4 — qua Worker Proxy của chính bạn: App Key X-App-Key chỉ ở bộ nhớ phiên; FLUX.2 Klein ghép/sửa ảnh img2img bằng cách tải ảnh thẳng lên Worker của bạn, FLUX.1 Schnell chỉ tạo từ chữ; mỗi lượt trừ hạn mức Neurons, miễn phí 10.000 Neurons/ngày) sau công tắc "Chế độ AI thật" — mặc định TẮT, đang ở DEMO. P4.5: node Ảnh đầu vào đã được NỐI DÂY vào cổng "image / reference_image" của node Tạo ảnh AI ở Mẫu 1 và Mẫu 2 — chọn ảnh ở node Ảnh đầu vào là ảnh đó thật sự tham gia tạo ảnh (DEMO dùng chính ảnh đó làm nền áo; đổi ảnh = đổi fingerprint nội dung nên node AI và mọi node phía sau tự chạy lại, nhật ký ghi rõ Cache HIT/MISS kèm lý do). Mẫu 1 để trống ảnh đầu vào thì vẫn dùng nền người mẫu đã duyệt như trước.');
+  logLine('AI Studio P4.6 sẵn sàng: KIẾN TRÚC 3 LỚP — (1) ẢNH SẢN PHẨM THAM CHIẾU là dữ kiện cao nhất: node Ảnh đầu vào tự PHÂN TÍCH sản phẩm (đo màu áo chủ đạo + phát hiện hình in sẵn từ ảnh; cổ/tay/phom lấy từ dữ kiện ảnh mẫu hoặc ô chỉnh tay của bạn, KHÔNG đoán từ pixel) và thông tin sản phẩm đi theo ảnh qua mọi node; (2) AI CHỈ ĐƯỢC đổi người mẫu / bối cảnh / ánh sáng / góc máy — prompt gồm 7 phần chuẩn, phần ĐỊNH DANH SẢN PHẨM đứng đầu với lệnh giữ nguyên màu/cổ/tay/phom/hình in; model chỉ-tạo-từ-chữ (sana, flux, zimage, schnell) có ảnh tham chiếu nối vào sẽ BÁO LỖI thay vì lẳng lặng bỏ qua ảnh; (3) GHÉP HÌNH IN vẫn là bước hậu kỳ xác định bằng file gốc. Thêm bước QC TỰ ĐỘNG: so màu áo trong ảnh AI tạo ra với màu sản phẩm đã đo — lệch rõ thì cảnh báo ở Xem trước/Xuất file/Lịch sử chạy, và node Ghép hình (Nghiêm ngặt) tự thay bằng CHÍNH ẢNH SẢN PHẨM GỐC. DEMO có ảnh tham chiếu = dùng CHÍNH ảnh đó làm nền áo (không còn đường vòng qua thông số áo mặc định); DEMO không có ảnh tham chiếu giữ nguyên nền người mẫu AI đã duyệt. Mọi dự án mở lên (kể cả dự án cũ không có dấu phiên bản mẫu) đều được tự bổ sung dây Ảnh đầu vào còn thiếu. Vùng in vẫn theo mốc thân áo (cách mép dưới cổ 12–15% chiều dài thân, rộng 35–45% bề ngang thân), khung đứt nét CHỈ trong trình căn chỉnh. AI thật qua Pollinations hoặc Cloudflare Workers AI (Worker Proxy của chính bạn, App Key chỉ ở bộ nhớ phiên) sau công tắc "Chế độ AI thật" — mặc định TẮT, đang ở DEMO.');
 })();
