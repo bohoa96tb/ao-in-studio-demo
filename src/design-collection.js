@@ -2,13 +2,16 @@
 const designs = [
   { id:'zodiac-wheel', name:'Vòng tròn hoàng đạo', theme:'zodiac', file:'public/curated/zodiac.png', width:1400, height:1400, source:'https://openclipart.org/detail/307964/signs-of-the-zodiacs', author:'DG-RA / Openclipart' },
   { id:'vintage-tulip', name:'Hoa tulip cổ điển', theme:'nature', file:'public/curated/tulip.png', width:800, height:1809, source:'https://openclipart.org/detail/302629/early-dwarf-tulip', author:'Openclipart' },
+  { id:'song-phu-si-retro', name:'Sóng Phú Sĩ Retro', theme:'retro', file:'public/curated/song-phu-si-retro.webp', width:512, height:496, source:'Áo In Studio AI', author:'Áo In Studio' },
+  { id:'shiba-cyberpunk', name:'Shiba Cyberpunk', theme:'retro', file:'public/curated/shiba-cyberpunk.webp', width:328, height:481, source:'Áo In Studio AI', author:'Áo In Studio' },
+  { id:'meo-ca-phe', name:'Mèo Cà Phê', theme:'pet', file:'public/curated/meo-ca-phe.webp', width:393, height:401, source:'Áo In Studio AI', author:'Áo In Studio' },
 ];
 
 export async function mountDesignCollection(studio) {
   const host = document.querySelector('#design-collection');
   if (!host) return;
-  host.innerHTML = `<div class="effect-heading"><p class="eyebrow">KHÁM PHÁ HÌNH IN</p><h2>Chọn hình bạn yêu thích</h2><p>Hai hình được tuyển chọn để bạn thử thiết kế. Bạn cũng có thể sử dụng hình ảnh của riêng mình.</p></div>
-  <div class="curated-actions"><label>Danh mục hình in <select id="collection-theme"><option value="all">Tất cả hình tuyển chọn</option><option value="zodiac">Cung hoàng đạo</option><option value="nature">Hoa & thiên nhiên</option></select></label><button id="collection-custom" class="inspect-button">Tự thiết kế với ảnh của bạn</button></div>
+  host.innerHTML = `<div class="effect-heading"><p class="eyebrow">KHÁM PHÁ HÌNH IN</p><h2>Chọn hình bạn yêu thích</h2><p>Các hình được tuyển chọn để bạn thử thiết kế. Bạn cũng có thể sử dụng hình ảnh của riêng mình.</p></div>
+  <div class="curated-actions"><label>Danh mục hình in <select id="collection-theme"><option value="all">Tất cả hình tuyển chọn</option><option value="zodiac">Cung hoàng đạo</option><option value="nature">Hoa & thiên nhiên</option><option value="retro">Retro & Cyberpunk</option><option value="pet">Thú cưng</option></select></label><button id="collection-custom" class="inspect-button">Tự thiết kế với ảnh của bạn</button></div>
   <div id="collection-grid" class="curated-grid"></div><p class="curated-note">Đây là hình in tham khảo, chưa phải ảnh áo đã sản xuất. Bạn có thể tìm hình trên Google, tải về thiết bị rồi chọn ảnh trong Studio. Chỉ sử dụng hình mà bạn có quyền in và sử dụng.</p>`;
   const grid = host.querySelector('#collection-grid');
   const select = host.querySelector('#collection-theme');
